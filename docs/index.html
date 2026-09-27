@@ -25,7 +25,7 @@
 
 <section id="t-live" class="hidden">
  <div class="card"><h2 style="margin-top:0">集める <span class="muted small">— トピックか URL。検索エンジンを巡回し本文を読み、信頼性を採点して履歴に保存。以後の検証・構造化はこのコーパスに対して行う</span></h2>
-  <div class="row"><input id="lv-q" placeholder="トピック（例：生成AI 著作権 ガイドライン）、または URL"><button class="primary" id="lv-run">集める</button></div>
+  <div class="modelbar"></div><div class="row"><input id="lv-q" placeholder="トピック（例：生成AI 著作権 ガイドライン）、または URL"><button class="primary" id="lv-run">集める</button></div>
   <div class="chips" id="lv-examples"></div>
   <details class="small"><summary>検索式と情報源を選ぶ</summary><label>検索式（Dorks）</label><div class="chips" id="lv-dorks"></div><label>情報源</label><div class="chips" id="lv-engines"></div></details>
   <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="24" value="10"><b id="lv-read-v">10</b> <span class="muted">（1 件 2〜5 秒。検証・構造化は本文があるページに対して行う）</span></div>
@@ -35,7 +35,7 @@
 
 <section id="t-check" class="hidden">
  <div class="card"><h2 style="margin-top:0">検証 <span class="muted small">— 集めた記事（コーパス）を多角的に検証する</span></h2>
-  <div class="row"><label style="margin:0">対象</label><select id="ck-corpus" style="max-width:420px"></select><span class="small muted" id="ck-meta"></span></div>
+  <div class="modelbar"></div><div class="row"><label style="margin:0">対象</label><select id="ck-corpus" style="max-width:420px"></select><span class="small muted" id="ck-meta"></span></div>
   <details class="small"><summary>テキストを直接貼って検証する</summary><textarea id="ck-paste" style="min-height:90px" placeholder="複数の文章は --- の行で区切る"></textarea><div class="actbar"><button class="small" id="ck-paste-use">この文章をコーパスにする</button></div></details>
   <div class="chips" id="ck-tabs"><span class="chip on" data-k="consistency">矛盾・整合</span><span class="chip" data-k="bias">偏り・客観性</span><span class="chip" data-k="primary">一次情報</span><span class="chip" data-k="temporal">時間的矛盾</span><span class="chip" data-k="claim">主張を検証</span></div>
   <div id="ck-claim-box" class="row hidden"><input id="ck-claim" placeholder="例：東京スカイツリーの高さは634メートルである"><button class="small primary" id="ck-claim-run">検証</button></div>
@@ -45,7 +45,7 @@
 
 <section id="t-gap" class="hidden">
  <div class="card"><h2 style="margin-top:0">ギャップ・対立 <span class="muted small">— 何がまだ分かっていないか、どんな反対意見があるか</span></h2>
-  <div class="row"><label style="margin:0">対象</label><select id="gp-corpus" style="max-width:420px"></select></div>
+  <div class="modelbar"></div><div class="row"><label style="margin:0">対象</label><select id="gp-corpus" style="max-width:420px"></select></div>
   <div class="row"><input id="gp-topic" placeholder="トピック（問いを作るのに使う。空ならコーパスの名前）" style="max-width:420px"></div>
   <div class="chips" id="gp-tabs"><span class="chip on" data-k="gaps">ナレッジギャップ</span><span class="chip" data-k="opposing">対立視点・矛盾</span></div>
   <div class="actbar"><button class="primary" id="gp-run">実行</button><span id="gp-status" class="small muted"></span></div></div>
@@ -54,7 +54,7 @@
 
 <section id="t-struct" class="hidden">
  <div class="card"><h2 style="margin-top:0">構造化 <span class="muted small">— 比較表・要約・Q&amp;A・意味差分</span></h2>
-  <div class="row"><label style="margin:0">対象</label><select id="st-corpus" style="max-width:420px"></select></div>
+  <div class="modelbar"></div><div class="row"><label style="margin:0">対象</label><select id="st-corpus" style="max-width:420px"></select></div>
   <div class="chips" id="st-tabs"><span class="chip on" data-k="matrix">比較表（マトリクス）</span><span class="chip" data-k="summary">要約</span><span class="chip" data-k="qa">Q&amp;A</span><span class="chip" data-k="diff">意味的な差分</span></div>
   <div id="st-matrix-box"><label>比較の軸（カンマ区切り）</label><input id="st-axes"></div>
   <div id="st-qa-box" class="row hidden"><input id="st-question" placeholder="質問（例：補助金の上限額はいくらか）"></div>
@@ -65,7 +65,7 @@
 
 <section id="t-exp" class="hidden">
  <div class="card"><h2 style="margin-top:0">長文一括 vs 分割 <span class="muted small">— 仮説 1 の実験。同じ文書・同じ問いを、8,192 トークン一括と 512 トークン分割で処理して比べる</span></h2>
-  <div class="row"><label style="margin:0">文書</label><select id="ex-doc" style="max-width:460px"></select></div>
+  <div class="modelbar"></div><div class="row"><label style="margin:0">文書</label><select id="ex-doc" style="max-width:460px"></select></div>
   <div class="row"><input id="ex-q" placeholder="問い、または主張（主張なら含意も比較）"><label style="margin:0">分割幅</label><select id="ex-chunk" style="max-width:110px"><option>256</option><option selected>512</option><option>1024</option></select></div>
   <div class="actbar"><button class="primary" id="ex-run">実行</button><button class="small" id="ex-batch">コーパス全体で実行（表にまとめる）</button><span id="ex-status" class="small muted"></span></div>
   <p class="hint">一括：文書を先頭から最大 8,192 トークン入力（ModernBERT 系のみ）。分割：文を境に分け、各チャンクのスコアの最大値を採用（従来の BERT 系と同じやり方）。</p></div>

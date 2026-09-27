@@ -3,7 +3,7 @@ import * as ML from "./ml.js";
 import * as J from "./judge.js";
 import * as A from "./analysis.js";
 
-const VERSION = "v3.0";
+const VERSION = "v3.1";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -119,6 +119,12 @@ function summarize(items, clusters) { const g = {}, cls = {}; for (const it of i
 
 /* ---------- モデル ---------- */
 const state = {};
+const ROLE_LABEL = { embed: "埋め込み", nli: "含意", rerank: "関連度" };
+async function renderModelBars() {
+  const reg = await registry(); const bars = $$(".modelbar"); if (!bars.length) return;
+  const html = `<span class="tiny muted">使用モデル：</span>` + ["embed", "nli", "rerank"].map(r => `<label class="mb"><span>${ROLE_LABEL[r]}</span><select data-role="${r}">${reg.browser.filter(m => m.role === r).map(m => `<option value="${esc(m.name)}" ${ML.modelName(r) === m.name ? "selected" : ""}>${esc(m.name)}（${m.ctx >= 8192 ? "8192" : m.ctx}・${m.size_mb}MB）</option>`).join("")}</select></label>`).join("") + `<a href="#models" class="tiny" data-go="models">詳細</a>`;
+  for (const b of bars) { b.innerHTML = html; b.querySelectorAll("select").forEach(sel => sel.onchange = () => { ML.setModelName(sel.dataset.role, sel.value); state[sel.dataset.role] = null; renderModelBars(); }); b.querySelector("[data-go]").onclick = e => { e.preventDefault(); show("models"); }; }
+}
 async function models(onStep, roles = ["embed", "nli"]) { for (const r of roles) if (!state[r] || state[r].name !== ML.modelName(r)) state[r] = await ML.get(r, m => onStep?.(m)); return state; }
 
 /* ---------- 集める ---------- */
@@ -129,7 +135,7 @@ chips($("#lv-engines"), Object.fromEntries(Object.entries(NET.ENGINES).map(([k, 
 $("#lv-read").oninput = () => $("#lv-read-v").textContent = $("#lv-read").value;
 const EXAMPLES = ["生成AI 著作権 ガイドライン", "熱中症 対策 効果 エビデンス", "電気自動車 補助金 2026", "マイナ保険証 トラブル", "ふるさと納税 制度変更", "https://ja.wikipedia.org/wiki/オープンソースインテリジェンス"];
 $("#lv-examples").innerHTML = `<span class="tiny muted" style="align-self:center">例：</span>` + EXAMPLES.map(x => `<span class="chip" data-x="${esc(x)}">${esc(x.length > 30 ? x.slice(0, 30) + "…" : x)}</span>`).join(""); $$("#lv-examples .chip").forEach(c => c.onclick = () => { $("#lv-q").value = c.dataset.x; runLive(); });
-$("#lv-run").onclick = runLive; $("#lv-q").onkeydown = e => e.key === "Enter" && runLive();
+$("#lv-run").onclick = runLive; $("#lv-q").onkeydown = e => { if (e.key === "Enter") runLive(); };
 async function collectLive(topic, { dorks, engines, nread, status }) {
   const queries = [{ name: "topic", label: "そのまま", query: topic }, ...[...dorks].map(k => ({ name: k, label: DORKS[k][0], query: DORKS[k][1].replace("{q}", topic) }))];
   const seen = new Map();
@@ -192,7 +198,7 @@ async function saveAnalysis(label, key, html, result_label) { await saveRun({ ki
 /* ---------- 検証 ---------- */
 let ckTab = "consistency";
 function setCheckTab(k) { ckTab = k; $$("#ck-tabs .chip").forEach(c => c.classList.toggle("on", c.dataset.k === k)); $("#ck-claim-box").classList.toggle("hidden", k !== "claim"); }
-$$("#ck-tabs .chip").forEach(c => c.onclick = () => setCheckTab(c.dataset.k)); $("#ck-run").onclick = runCheck; $("#ck-claim-run").onclick = runCheck; $("#ck-claim").onkeydown = e => e.key === "Enter" && runCheck();
+$$("#ck-tabs .chip").forEach(c => c.onclick = () => setCheckTab(c.dataset.k)); $("#ck-run").onclick = runCheck; $("#ck-claim-run").onclick = runCheck; $("#ck-claim").onkeydown = e => { if (e.key === "Enter") runCheck(); };
 async function runCheck() {
   const st = m => $("#ck-status").textContent = m; const out = $("#ck-out"); $("#ck-run").disabled = true; out.innerHTML = "";
   try {
@@ -236,7 +242,7 @@ function wireGapActions(root) { root.querySelectorAll(".act-search").forEach(b =
 /* ---------- 構造化 ---------- */
 let stTab = "matrix"; $("#st-axes").value = A.DEFAULT_AXES.join(", ");
 $$("#st-tabs .chip").forEach(c => c.onclick = () => { stTab = c.dataset.k; $$("#st-tabs .chip").forEach(x => x.classList.toggle("on", x === c)); $("#st-matrix-box").classList.toggle("hidden", stTab !== "matrix"); $("#st-qa-box").classList.toggle("hidden", stTab !== "qa"); $("#st-diff-box").classList.toggle("hidden", stTab !== "diff"); });
-$("#st-run").onclick = runStruct; $("#st-question").onkeydown = e => e.key === "Enter" && runStruct();
+$("#st-run").onclick = runStruct; $("#st-question").onkeydown = e => { if (e.key === "Enter") runStruct(); };
 $("#st-diff-sel-a").onchange = () => { const d = CORPUS?.docs[+$("#st-diff-sel-a").value]; if (d) $("#st-diff-a").value = d.text.slice(0, 6000); }; $("#st-diff-sel-b").onchange = () => { const d = CORPUS?.docs[+$("#st-diff-sel-b").value]; if (d) $("#st-diff-b").value = d.text.slice(0, 6000); };
 async function runStruct() {
   const st = m => $("#st-status").textContent = m; const out = $("#st-out"); $("#st-run").disabled = true; out.innerHTML = "";
@@ -276,7 +282,7 @@ async function renderModels() {
   const stored = {}; for (const m of reg.browser) stored[m.name] = await ML.isStored(m.name);
   const roles = { embed: "埋め込み", nli: "含意", rerank: "関連度" };
   $("#md-browser").innerHTML = `<div class="tw"><table><thead><tr><th>使う</th><th>モデル</th><th>役割</th><th>文脈長</th><th>サイズ</th><th>端末</th><th>備考</th></tr></thead><tbody>${reg.browser.map(m => `<tr><td><input type="radio" name="sel-${m.role}" value="${esc(m.name)}" ${ML.modelName(m.role) === m.name ? "checked" : ""}></td><td><b>${esc(m.name)}</b><div class="tiny muted">${esc(m.arch)}${m.hf ? ` · <a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">HF</a>` : " · 本リポジトリ"}</div></td><td>${roles[m.role]}</td><td>${m.ctx >= 8192 ? '<span class="ok">8,192</span>' : m.ctx}</td><td>${m.size_mb} MB</td><td class="small">${stored[m.name] ? '<span class="ok">保存済み</span>' : `<button class="small md-dl" data-n="${esc(m.name)}">取得</button>`}${stored[m.name] ? ` <button class="small md-rm" data-n="${esc(m.name)}">削除</button>` : ""}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div><div class="small muted" id="md-msg"></div>`;
-  $$("#md-browser input[type=radio]").forEach(r => r.onchange = () => { ML.setModelName(r.name.replace("sel-", ""), r.value); state[r.name.replace("sel-", "")] = null; $("#md-msg").textContent = `${r.value} を ${roles[r.name.replace("sel-", "")]} に使います（次の処理から）`; });
+  $$("#md-browser input[type=radio]").forEach(r => r.onchange = () => { ML.setModelName(r.name.replace("sel-", ""), r.value); state[r.name.replace("sel-", "")] = null; $("#md-msg").textContent = `${r.value} を ${roles[r.name.replace("sel-", "")]} に使います（次の処理から）`; renderModelBars(); });
   $$("#md-browser .md-dl").forEach(b => b.onclick = async () => { b.disabled = true; try { await ML.loadByName(b.dataset.n, m => $("#md-msg").textContent = m); $("#md-msg").textContent = "完了"; renderModels(); } catch (e) { $("#md-msg").textContent = "失敗: " + e.message; b.disabled = false; } });
   $$("#md-browser .md-rm").forEach(b => b.onclick = async () => { await ML.removeStored(b.dataset.n); renderModels(); });
   $("#md-table").innerHTML = `<div class="tw"><table><thead><tr><th>モデル</th><th>役割</th><th>指標</th><th>CPU 遅延</th><th>パラメータ / 配布</th></tr></thead><tbody>${reg.compare.filter(m => m.role !== "base").map(m => { const r = R[m.name] || {}; return `<tr><td><b>${esc(m.name)}</b><div class="tiny muted">${esc(m.arch || "")}</div></td><td>${roles[m.role] || m.role}</td><td class="small">${r.ok ? (m.role === "embed" ? `JSTS ${r.jsts_spearman}・cos差 ${r.nli_cos_gap}` : `JNLI ${(r.jnli_acc * 100).toFixed(1)}%・含意再現 ${(r.entail_recall * 100) | 0}%・ECE ${r.ece}`) : '<span class="muted">未測定</span>'}</td><td>${r.latency_ms != null ? r.latency_ms + " ms" : "—"}</td><td class="small">${m.params_m ?? r.params_m ?? "—"}M / ${m.size_mb ?? "—"} MB</td></tr>`; }).join("")}</tbody></table></div>`;
@@ -324,7 +330,7 @@ async function renderSettings() {
 
 /* ---------- 起動 ---------- */
 (async () => {
-  $("#ver").textContent = VERSION; await J.loadParams(); await loadData();
+  $("#ver").textContent = VERSION; await J.loadParams(); await loadData(); await renderModelBars();
   const t = location.hash.slice(1); if (t && $(`nav button[data-t="${t}"]`)) show(t);
   const u = new URLSearchParams(location.search); if (u.get("q") || u.get("url") || u.get("text")) { $("#lv-q").value = u.get("q") || u.get("url") || u.get("text"); show("live"); runLive(); }
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });

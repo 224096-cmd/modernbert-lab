@@ -32,3 +32,5 @@ details summary{cursor:pointer;font-size:13px;color:var(--acc)}.ev{border-left:3
 .hist{display:flex;gap:3px;align-items:flex-end;height:40px}.hist i{display:block;width:10px;background:var(--acc);border-radius:2px 2px 0 0}
 .pfield{display:grid;grid-template-columns:minmax(120px,max-content) 1fr 56px;gap:4px 8px;align-items:center;font-size:13px}.pfield input[type=number]{padding:3px 6px;font-size:12.5px}
 @media(max-width:640px){main{padding:10px 12px 30px}.hero h1{font-size:19px}.card{padding:12px}.top{gap:6px}nav button{padding:6px 8px;font-size:13px}}
+
+.modelbar{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12.5px;margin:0 0 8px;padding:6px 8px;background:var(--soft);border-radius:10px}.modelbar .mb{display:inline-flex;align-items:center;gap:4px;margin:0;color:var(--muted)}.modelbar select{width:auto;max-width:min(230px,60vw);padding:3px 6px;font-size:12px;border-radius:7px}

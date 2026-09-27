@@ -1,25 +1,40 @@
 <div class="card"><h2 style="margin-top:0">このシステムは何か</h2>
-<p>「公開情報（OSINT）を自動で集め、どれをどの程度信じてよいかを機械が根拠つきで示す」ためのシステム。集める部分は無料の検索エンジンと公開 API だけ、判定する部分は<b>生成しない小さな日本語 BERT 系モデル（ModernBERT-Ja）</b>だけで動く。API キー・課金・サーバは不要で、GitHub（Actions + Pages）の無料枠に収まる。</p>
-<div class="flow"><span>watch.yaml（トピック・主張・ドメイン）</span>→<span>Dorks 生成</span>→<span>検索エンジン／API を巡回</span>→<span>本文抽出</span>→<span>ModernBERT で埋め込み・含意判定</span>→<span>4 軸の信頼性スコア</span>→<span>JSON を push</span>→<span>この PWA</span></div>
+<p>「公開情報（OSINT）を自動で集め、どれをどの程度信じてよいかを機械が根拠つきで示す」ためのシステム。集める部分は無料の検索エンジンと公開 API だけ、判定する部分は<b>生成しない小さな日本語 BERT 系モデル（ModernBERT-Ja）</b>だけで、すべて<b>あなたの端末のブラウザの中</b>で動く。API キー・課金・サーバは不要。サイト（GitHub Pages）は静的ファイルだけで、入力した内容も結果もどこにも送られない。</p>
+<div class="flow"><span>トピック・主張・URL・ドメインを入力</span>→<span>Dorks 生成</span>→<span>ブラウザから検索エンジン／API を巡回</span>→<span>本文抽出（r.jina.ai リーダー）</span>→<span>端末内の ModernBERT で埋め込み・含意判定</span>→<span>4 軸の信頼性スコア</span>→<span>この端末の履歴に保存</span></div>
 <h3>研究としての位置づけ</h3>
 <p>研究テーマは「<b>既存の日本語 BERT 系モデルを同じ土俵で比較し、その上で自分のデータで微調整した独自モデルを作り、公開情報の信頼性判定という実タスクで評価する</b>」。段階は 3 つ。</p>
-<ol class="small"><li><b>比較</b>：埋め込み（Ruri-v3 各サイズ、multilingual-e5、GLuCoSE、Sentence-BERT）と含意（自作 nli-ja-30m、mDeBERTa-XNLI）を JSTS・JNLI・遅延・サイズで比較（「モデル比較」タブ、<code>python -m mbo.bench</code>）</li><li><b>微調整</b>：土台（modernbert-ja-30m/70m/130m、東北大 BERT、LINE DistilBERT、DeBERTa-v2、mDeBERTa）を JNLI と自作ラベルで微調整して独自 NLI モデルを作る（<code>python -m mbo.train_nli --base …</code>、Colab ノートブック）。ONNX int8 にしてブラウザでも動かす</li><li><b>応用評価</b>：このサイトの裏取り・主張検証にモデルを差し替えて入れ、実データ（自動収集した記事）で判定の一致率・処理時間を比べる</li></ol></div>
+<ol class="small"><li><b>比較</b>：埋め込み（Ruri-v3 各サイズ、multilingual-e5、GLuCoSE、Sentence-BERT）と含意（自作 nli-ja-30m、mDeBERTa-XNLI）を JSTS・JNLI・遅延・サイズで比較（「モデル比較」タブ、<code>python -m mbo.bench</code>）</li><li><b>微調整</b>：土台（modernbert-ja-30m/70m/130m、東北大 BERT、LINE DistilBERT、DeBERTa-v2、mDeBERTa）を JNLI と自作ラベルで微調整して独自 NLI モデルを作る（<code>python -m mbo.train_nli --base …</code>、Colab ノートブック）。ONNX int8 にしてブラウザでも動かす</li><li><b>応用評価</b>：このサイトの裏取り・主張検証にモデルを差し替えて入れ、実データ（サイトで集めた記事の履歴）と公開データセットで判定の一致率・処理時間を比べる</li></ol></div>
 
 <div class="card"><h2 style="margin-top:0">使っているモデルと、何のデータで学習したか</h2>
 <div class="tw"><table><thead><tr><th>モデル</th><th>元</th><th>事前学習データ</th><th>追加の学習</th><th>ここでの役割</th></tr></thead><tbody>
 <tr><td><b>sbintuitions/modernbert-ja-30m</b>（土台）</td><td>SB Intuitions（MIT）</td><td>日本語・英語の Web テキスト約 4.39T トークン（CommonCrawl 由来の日本語コーパス、Wikipedia、英語 Web 等）。系列長 8192、マスク率 30%→15% の 3 段階学習。語彙 102,400（unigram）</td><td>—</td><td>すべての土台。10 層・隠れ 256・Local/Global attention・RoPE・GeGLU</td></tr>
 <tr><td><b>cl-nagoya/ruri-v3-30m</b>（埋め込み）</td><td>名古屋大 笹野研（Apache-2.0）</td><td>上の modernbert-ja-30m</td><td>対照学習：日本語の合成データ（LLM 生成の質問・文書対）＋ JSNLI・JaNLI・NU-MNLI・MIRACL・JQaRA・Mr.TyDi など公開データで 2 段階（弱教師→教師あり）。prefix「検索クエリ: / 検索文書: / トピック: 」</td><td>候補段落の検索（cos）、話題クラスタ、文体のゼロショット、要旨と段落の対応づけ</td></tr>
 <tr><td><b>nli-ja-30m</b>（含意・自作）</td><td>このリポジトリ</td><td>上の modernbert-ja-30m</td><td><b>JNLI</b>（JGLUE、YJ Captions の画像説明文の対に 含意／中立／矛盾 を人手付与。訓練 20,073 対・テスト 2,434 対）から 8,000 対をクラス頻度の逆数で重み付けし 2 エポック微調整（lr 5e-5、系列長 128、CPU 約 80 分）。先頭トークン → 線形層 3 値。ONNX int8 化し温度 T で較正</td><td>裏取り（段落が要旨を含意するか）、主張検証（段落が主張を含意／矛盾するか）</td></tr>
-<tr><td>MoritzLaurer/mDeBERTa-v3-base-xnli…（比較）</td><td>公開（MIT）</td><td>mDeBERTa-v3-base：CC100 多言語 2.5T</td><td>XNLI・MultiNLI など 270 万対の多言語 NLI で微調整</td><td>含意の強い基準線（1.1 GB。ブラウザでは動かさない）</td></tr>
+<tr><td>MoritzLaurer/mDeBERTa-v3-base-xnli…（比較）</td><td>公開（MIT）</td><td>mDeBERTa-v3-base：CC100 多言語 2.5T</td><td>XNLI・MultiNLI など 270 万対の多言語 NLI で微調整</td><td>含意の強い基準線（1.1 GB。ブラウザでは動かさず、PC 版で <code>MBO_NLI=hf:…</code> と指定したときだけ）</td></tr>
 </tbody></table></div>
 <p class="small muted">学習ログは <code>models/nli-ja-30m-torch/train_log.jsonl</code>、要約は <code>summary.json</code>、ONNX の精度・較正は <code>models/nli-ja-30m/eval.json</code>。下に自動表示。</p><div id="ab-train"></div></div>
+
+<div class="card"><h2 style="margin-top:0">使っている・使える無料公開データセット</h2>
+<div class="tw"><table><thead><tr><th>データセット</th><th>中身</th><th>ここでの用途</th><th>入手</th></tr></thead><tbody>
+<tr><td><b>JGLUE / JNLI</b></td><td>日本語の含意・中立・矛盾 22,507 対（Yahoo! JAPAN と早稲田大、CC BY-SA 4.0）</td><td>含意モデルの学習・評価（モデル比較の JNLI 正解率）</td><td>Hugging Face <code>zenless-lab/jnli</code></td></tr>
+<tr><td><b>JGLUE / JSTS</b></td><td>文の類似度 0〜5 を人手付与した 13,891 対</td><td>埋め込みモデルの評価（Spearman）</td><td><code>sbintuitions/JMTEB</code>（jsts）</td></tr>
+<tr><td><b>JMTEB</b></td><td>日本語の埋め込み評価ベンチマーク（分類・クラスタ・検索・STS の 16 データセット）</td><td>埋め込みモデルの追加評価</td><td><code>sbintuitions/JMTEB</code></td></tr>
+<tr><td><b>JGLUE / MARC-ja</b></td><td>Amazon レビューの極性（肯定／否定）</td><td>文体・極性の補助評価、微調整の練習</td><td><code>yangwang825/marc-ja</code></td></tr>
+<tr><td><b>livedoor ニュースコーパス</b></td><td>9 カテゴリ 7,367 記事（CC BY-ND 2.1）</td><td>ニュース文の分類・ドメイン適応</td><td><code>llm-book/livedoor-news-corpus</code></td></tr>
+<tr><td><b>Wikipedia 日本語</b></td><td>全記事（CC BY-SA 4.0）</td><td>追加学習のコーパス、出所の評判（exturlusage）</td><td><code>wikimedia/wikipedia</code>（20231101.ja）</td></tr>
+<tr><td><b>WRIME</b></td><td>SNS 投稿の感情強度（8 感情、主観／客観）</td><td>「煽り」文体の評価・学習候補</td><td><code>shunk031/wrime</code></td></tr>
+<tr><td><b>JSICK / JaNLI</b></td><td>日本語 NLI の追加データ</td><td>含意モデルの学習データ拡張候補</td><td><code>hpprc/jsick</code>、<code>hpprc/janli</code>（要スクリプト版）</td></tr>
+<tr><td><b>XNLI / MultiNLI（多言語）</b></td><td>270 万対の多言語 NLI</td><td>比較用 mDeBERTa の学習元</td><td><code>MoritzLaurer/multilingual-NLI-26lang-2mil7</code></td></tr>
+<tr><td><b>FIJ（ファクトチェック・イニシアティブ）</b></td><td>日本語ファクトチェック記事の一覧（真偽判定つき）</td><td>主張検証の正解データを作る材料（公開記事を自分で収集して照合）</td><td>fij.info（Web）</td></tr>
+</tbody></table></div>
+<p class="small muted">再配布条件（CC BY-SA、CC BY-ND）に従い、このリポジトリにはデータ本体を同梱せず、実行時に Hugging Face から取得する。</p></div>
 
 <div class="card"><h2 style="margin-top:0">収集の仕組み</h2>
 <ul class="small">
 <li><b>Dorks</b>：トピックから <code>"…"</code>、<code>site:go.jp OR site:lg.jp OR site:ac.jp</code>、<code>filetype:pdf</code>、ファクトチェック媒体、否定語（デマ／訂正／事実無根）などの検索式を自動生成。Google 固有の <code>after:</code> は使わず、DuckDuckGo・Bing・Yahoo! JAPAN が解釈する演算子だけ</li>
-<li><b>エンジン</b>：DuckDuckGo（lite/html 版、bot 判定に当たれば r.jina.ai リーダー経由）、Bing（HTML）、Yahoo! JAPAN（ページ内 JSON）、Google ニュース RSS、Mojeek。<b>API</b>：はてなブックマーク、Bluesky、Mastodon、Reddit、GDELT、Qiita、GitHub、NHK RSS、Wikipedia／ウィキニュース、Crossref、OpenAlex、Wayback CDX</li>
+<li><b>エンジン（ブラウザ）</b>：DuckDuckGo・Bing・Yahoo! JAPAN（r.jina.ai リーダー経由）、Google ニュース RSS・はてなブックマーク（rss2json 経由）、Wikipedia（API 直接）。<b>PC 版（python -m mbo）</b>ではさらに Mojeek、Bluesky、Mastodon、Reddit、GDELT、Qiita、GitHub、NHK RSS、ウィキニュース、Crossref、OpenAlex、Wayback CDX が使える</li>
 <li><b>マナー</b>：ブラウザ相当の UA、同一ホストへは 1.2 秒以上あける、robots.txt を尊重（禁止ならリーダー経由の要約だけ）、本文は判定に使うだけで公開データには 200 字以内の根拠段落しか残さない</li>
-<li><b>本文抽出</b>：trafilatura（本文・著者・日付・媒体名・JSON-LD）。取れなければ r.jina.ai の Markdown を平文化</li>
+<li><b>本文抽出</b>：ブラウザでは r.jina.ai リーダー（無料・鍵なし）の Markdown を平文化。PC 版は trafilatura（本文・著者・日付・媒体名・JSON-LD）</li>
 <li><b>ドメイン調査</b>：Google DNS over HTTPS、RDAP（gTLD）／JPRS whois（.jp）、crt.sh（証明書ログ→サブドメイン）、HackerTarget（ホスト・GeoIP）、archive.org（最古・最新スナップショット→年齢）、urlscan.io（公開スキャン）、Wikipedia exturlusage（出典に使われた回数）、セキュリティヘッダ</li>
 </ul></div>
 

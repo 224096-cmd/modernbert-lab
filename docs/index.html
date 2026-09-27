@@ -3,45 +3,44 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ModernBERT Lab</title>
-<meta name="description" content="無料の検索エンジン（DuckDuckGo・Bing・Yahoo・Google ニュース）で公開情報を自動収集し、日本語 ModernBERT で裏取り・信頼性を判定する">
+<meta name="description" content="無料の検索エンジン（DuckDuckGo・Bing・Google ニュース・はてな・Wikipedia）で公開情報をその場で集め、端末内の日本語 ModernBERT で裏取り・信頼性を判定する">
 <link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1d4ed8"><link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
 <header class="top"><a class="brand" href="./">🔎 ModernBERT Lab <small id="ver"></small></a>
-<nav id="nav"><button data-t="home" class="on">概要</button><button data-t="topics">自動収集</button><button data-t="live">いま調べる</button><button data-t="verify">主張を検証</button><button data-t="recon">ドメイン調査</button><button data-t="models">モデル比較</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
+<nav id="nav"><button data-t="home" class="on">概要</button><button data-t="live">調べる</button><button data-t="verify">主張を検証</button><button data-t="recon">ドメイン調査</button><button data-t="history">履歴</button><button data-t="models">モデル比較</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
 <span id="net" class="tiny muted"></span></header>
 <main>
 <section id="t-home">
- <div class="hero"><h1>公開情報を自動で集めて、ModernBERT で見極める</h1><p>DuckDuckGo・Bing・Yahoo! JAPAN・Google ニュース・はてな・Wikipedia などを <b>Dorks（検索演算子）</b>で自動巡回し、本文を読み、日本語 ModernBERT（Ruri-v3 埋め込み＋JNLI 含意判定）で<b>他の情報源と突き合わせて信頼性を採点</b>する。収集は GitHub Actions が定期実行し、このページ（PWA）に集まる。手元でもブラウザ内の同じモデルで即時に判定できる。</p></div>
+ <div class="hero"><h1>公開情報をその場で集めて、ModernBERT で見極める</h1><p>トピック・URL・主張・ドメインを入れると、ブラウザが DuckDuckGo・Bing・Google ニュース・はてな・Wikipedia などを <b>Dorks（検索演算子）</b>で巡回し、本文を読み、<b>端末内の日本語 ModernBERT</b>（Ruri-v3 埋め込み＋JNLI 含意判定）で<b>他の情報源と突き合わせて信頼性を採点</b>する。サーバも API キーも不要で、結果はこの端末に保存される（履歴）。</p></div>
  <div class="stats" id="home-stats"></div>
  <div class="tiles" id="home-tiles"></div>
- <div class="card"><h2 style="margin-top:0">新着（自動収集の最新）</h2><div id="home-latest"></div></div>
+ <div class="card"><h2 style="margin-top:0">最近調べたもの</h2><div id="home-latest"></div></div>
  <div class="card"><h2 style="margin-top:0">動画で紹介される OSINT ツールとの対応</h2><div class="tw"><table><thead><tr><th>よく紹介されるもの</th><th>このサイトでの代替（無料・鍵なし）</th><th>どこ</th></tr></thead><tbody>
- <tr><td>Google Dorks / Google Hacking</td><td>Dorks を自動生成して DuckDuckGo・Bing・Yahoo で実行（after: など Google 固有は使わない）</td><td>自動収集・いま調べる</td></tr>
+ <tr><td>Google Dorks / Google Hacking</td><td>Dorks を自動生成して DuckDuckGo・Bing・Yahoo で実行（after: など Google 固有は使わない）</td><td>調べる</td></tr>
  <tr><td>whois</td><td>RDAP（gTLD）＋ JPRS whois（.jp）</td><td>ドメイン調査</td></tr>
  <tr><td>DNS 調査（dig / nslookup）</td><td>Google DNS over HTTPS（A / AAAA / MX / NS / TXT）</td><td>ドメイン調査</td></tr>
  <tr><td>theHarvester / Sublist3r（サブドメイン）</td><td>証明書透明性ログ（crt.sh）＋ HackerTarget ホスト検索</td><td>ドメイン調査</td></tr>
  <tr><td>Shodan / Censys</td><td>urlscan.io 公開スキャン・GeoIP・セキュリティヘッダ（ポートスキャンは行わない）</td><td>ドメイン調査</td></tr>
  <tr><td>Wayback Machine</td><td>最古／最新スナップショット → ドメインの年齢を信頼性に反映</td><td>ドメイン調査・採点</td></tr>
- <tr><td>Maltego（関係の可視化）</td><td>話題クラスタ（埋め込み）と、どのドメインが同じ主張をしているかの一覧</td><td>自動収集</td></tr>
- <tr><td>SNS 検索</td><td>はてな・Bluesky・Mastodon・Reddit（公開 API）。人物検索・アカウント特定は行わない</td><td>自動収集</td></tr>
+ <tr><td>Maltego（関係の可視化）</td><td>話題クラスタ（埋め込み）と、どのドメインが同じ主張をしているかの一覧</td><td>調べる（履歴）</td></tr>
+ <tr><td>SNS 検索</td><td>はてな・Bluesky・Mastodon・Reddit（公開 API）。人物検索・アカウント特定は行わない</td><td>調べる（履歴）</td></tr>
  <tr><td>ファクトチェック</td><td>主張 → 関連段落を検索 → JNLI で含意／矛盾 → 判定と根拠</td><td>主張を検証</td></tr>
  </tbody></table></div></div>
 </section>
 
-<section id="t-topics" class="hidden">
- <div class="card"><div class="row"><select id="tp-sel" style="max-width:420px"></select><span id="tp-meta" class="small muted"></span><button class="small" id="tp-csv">CSV</button><button class="small" id="tp-json">JSON</button></div>
+<section id="t-history" class="hidden">
+ <div class="card"><div class="row"><select id="tp-sel" style="max-width:460px"></select><span id="tp-meta" class="small muted"></span><button class="small" id="tp-csv">CSV</button><button class="small" id="tp-json">JSON</button><button class="small" id="tp-del">削除</button></div>
+  <p class="hint">「調べる」「主張を検証」「ドメイン調査」の結果はこの端末（ブラウザ）に自動保存される。同じトピックをもう一度調べると、前回との差（新しく出たページ）が分かる。</p>
   <div class="stats" id="tp-stats"></div><div id="tp-hist"></div></div>
- <div class="card"><h2 style="margin-top:0">話題のまとまり <span class="muted small">— 同じ話を何ドメインが伝えているか・最初に出たのはどこか</span></h2><div id="tp-clusters"></div></div>
- <div class="card"><h2 style="margin-top:0">収集結果</h2><div class="row"><input id="tp-q" placeholder="絞り込み（語）" style="max-width:260px"><select id="tp-grade" style="max-width:120px"><option value="">全評価</option><option>A</option><option>B</option><option>C</option><option>D</option></select><select id="tp-class" style="max-width:160px"><option value="">全種別</option></select><select id="tp-sort" style="max-width:150px"><option value="rel">信頼性順</option><option value="date">新しい順</option><option value="corr">裏取り順</option></select></div><div id="tp-items"></div></div>
- <div class="card"><h2 style="margin-top:0">使った検索式</h2><div id="tp-queries"></div></div>
+ <div id="tp-body"></div>
 </section>
 
 <section id="t-live" class="hidden">
- <div class="card"><h2 style="margin-top:0">いま調べる <span class="muted small">— ブラウザから検索エンジンを引き、本文を読み、端末内の ModernBERT で採点</span></h2>
-  <div class="row"><input id="lv-q" placeholder="トピック、または検証したい URL"><button class="primary" id="lv-run">調べる</button></div>
-  <div class="chips" id="lv-dorks"></div><div class="chips" id="lv-engines"></div>
+ <div class="card"><h2 style="margin-top:0">調べる <span class="muted small">— 検索エンジンを引き、本文を読み、端末内の ModernBERT で採点。結果は履歴に保存</span></h2>
+  <div class="row"><input id="lv-q" placeholder="トピック（例：生成AI 著作権 ガイドライン）、または検証したい URL"><button class="primary" id="lv-run">調べる</button></div>
+  <div class="chips" id="lv-examples"></div><div class="chips" id="lv-dorks"></div><div class="chips" id="lv-engines"></div>
   <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="20" value="8"><b id="lv-read-v">8</b> <span class="muted">（r.jina.ai 経由、1 件 2〜5 秒）</span></div>
   <div id="lv-status" class="small muted"></div></div>
  <div id="lv-out"></div>
@@ -49,19 +48,19 @@
 
 <section id="t-verify" class="hidden">
  <div class="card"><h2 style="margin-top:0">主張を検証する <span class="muted small">— 文を入れると関連ページを集め、段落ごとに含意／矛盾を判定</span></h2>
-  <div class="row"><input id="vf-q" placeholder="例：三重大学は津市にある国立大学である"><button class="primary" id="vf-run">検証</button></div>
-  <div id="vf-status" class="small muted"></div><div id="vf-out"></div></div>
- <div class="card"><h2 style="margin-top:0">自動収集で検証済みの主張</h2><div id="vf-list"></div></div>
+  <div class="row"><input id="vf-q" placeholder="例：東京スカイツリーの高さは634メートルである"><button class="primary" id="vf-run">検証</button></div>
+  <div class="chips" id="vf-examples"></div><div id="vf-status" class="small muted"></div><div id="vf-out"></div></div>
+ <div class="card"><h2 style="margin-top:0">これまでに検証した主張</h2><div id="vf-list"></div></div>
 </section>
 
 <section id="t-recon" class="hidden">
  <div class="card"><h2 style="margin-top:0">ドメイン調査 <span class="muted small">— DNS・whois/RDAP・証明書ログ・Wayback・Wikipedia 出典・スキャン履歴</span></h2>
-  <div class="row"><input id="rc-q" placeholder="例：www.mie-u.ac.jp"><button class="primary" id="rc-run">調べる</button></div><div id="rc-status" class="small muted"></div><div id="rc-out"></div></div>
- <div class="card"><h2 style="margin-top:0">自動収集で調査済み</h2><div id="rc-list"></div></div>
+  <div class="row"><input id="rc-q" placeholder="例：www.nhk.or.jp"><button class="primary" id="rc-run">調べる</button></div><div class="chips" id="rc-examples"></div><div id="rc-status" class="small muted"></div><div id="rc-out"></div></div>
+ <div class="card"><h2 style="margin-top:0">これまでに調べたドメイン</h2><div id="rc-list"></div></div>
 </section>
 
 <section id="t-how" class="hidden">
- <div class="card"><h2 style="margin-top:0">流れ</h2><div class="flow"><span>トピック／主張／URL</span>→<span>Dorks 生成</span>→<span>DDG・Bing・Yahoo・Google ニュース・はてな・Wikipedia…</span>→<span>本文抽出（trafilatura / r.jina.ai）</span>→<span>ModernBERT：埋め込み（Ruri-v3-30m）・含意（JNLI 微調整 30M）</span>→<span>出所・内容・裏取り・時間の 4 軸で採点</span>→<span>docs/data/*.json → このページ</span></div></div>
+ <div class="card"><h2 style="margin-top:0">流れ</h2><div class="flow"><span>トピック／主張／URL</span>→<span>Dorks 生成</span>→<span>DDG・Bing・Google ニュース・はてな・Wikipedia…</span>→<span>本文抽出（r.jina.ai リーダー）</span>→<span>ModernBERT：埋め込み（Ruri-v3-30m）・含意（JNLI 微調整 30M）</span>→<span>出所・内容・裏取り・時間の 4 軸で採点</span>→<span>この端末に保存（履歴）</span></div></div>
  <div class="card"><h2 style="margin-top:0">信頼性スコア R（0–100）</h2>
   <p class="formula">R = 100 × ( w<sub>src</sub>·s<sub>src</sub> + w<sub>con</sub>·s<sub>con</sub> + w<sub>cor</sub>·s<sub>cor</sub> + w<sub>time</sub>·s<sub>time</sub> )</p>
   <div class="kv">
@@ -73,7 +72,7 @@
   </div>
   <h3>主張の検証</h3><p class="small">主張を「検索クエリ: 」で埋め込み → 段落（「検索文書: 」）の cos 上位 k → JNLI(前提=段落, 仮説=主張) → 支持 = Σ 出所重み×P(含意)、反証 = Σ 出所重み×P(矛盾) → 支持 ≥ 1.5 かつ反証が支持の 60% 未満なら「支持」、逆なら「否定」、両方あれば「食い違い」、どちらも小さければ「根拠不足」。</p>
  </div>
- <div class="card"><h2 style="margin-top:0">パラメータ <span class="muted small">— 変更はこの端末の判定に即時反映。GitHub Actions 側にも効かせるには「ダウンロード」して docs/params.json を置き換えて push</span></h2>
+ <div class="card"><h2 style="margin-top:0">パラメータ <span class="muted small">— 変更はこの端末の判定に即時反映。既定値を変えたいときは「ダウンロード」して docs/params.json を置き換える</span></h2>
   <div id="how-params"></div><div class="actbar"><button class="small" id="pr-save">この端末に保存</button><button class="small" id="pr-dl">params.json をダウンロード</button><button class="small" id="pr-reset">初期値に戻す</button><span id="pr-msg" class="small muted"></span></div></div>
  <div class="card"><h2 style="margin-top:0">モデル</h2><div class="tw"><table><thead><tr><th>役割</th><th>モデル</th><th>中身</th><th>サイズ</th></tr></thead><tbody>
   <tr><td>埋め込み（類似・候補検索・クラスタ・ゼロショット文体）</td><td><a href="https://huggingface.co/cl-nagoya/ruri-v3-30m" target="_blank" rel="noopener">cl-nagoya/ruri-v3-30m</a>（Apache-2.0）</td><td>sbintuitions/modernbert-ja-30m を文埋め込み用に学習したもの。256 次元、mean pooling、8192 トークン</td><td>ONNX int8 37 MB</td></tr>
@@ -86,19 +85,16 @@
 <section id="t-models" class="hidden">
  <div class="card"><h2 style="margin-top:0">既存モデルの比較 <span class="muted small">— 同じデータ（JSTS・JNLI）と同じ CPU で測る。土台を選んで微調整すると独自モデルになる</span></h2>
   <div class="chips" id="md-roles"></div><div id="md-table"></div>
-  <p class="small muted">実行：<code>python -m mbo.bench --roles embed,nli --max-mb 600</code>（Actions の bench ワークフローでも可）。指標：JSTS Spearman（文類似）、JNLI cos 差（含意対と矛盾対の cos の差）、JNLI 正解率・含意再現率・ECE（較正）、1 件あたり CPU 遅延、パラメータ数、配布サイズ。</p></div>
- <div class="card"><h2 style="margin-top:0">微調整して独自モデルを作る</h2><ol class="small"><li>上の表から土台（role=base）を選ぶ。小さい順に modernbert-ja-30m → 70m → 130m、比較用に bert-base-japanese-v3 / line-distilbert / deberta-v2</li><li><code>python -m mbo.train_nli --base sbintuitions/modernbert-ja-70m --n 20073 --epochs 3 --balance --out models/nli-ja-70m-torch</code>（Colab: notebooks/train_nli.ipynb、Actions: train ワークフロー）</li><li><code>python -m mbo.export_onnx --nli models/nli-ja-70m-torch --out models/nli-ja-70m</code> → <code>python -m mbo.calibrate --model models/nli-ja-70m</code></li><li><code>python -m mbo.bench --local models/nli-ja-70m-torch --names nli-ja-70m --role nli</code> で表に載せる</li><li>「設定」でブラウザ用の含意モデルに <code>nli-ja-70m</code> を指定すると、このサイトの判定がそのモデルに切り替わる（Actions 側は <code>MBO_NLI</code> 環境変数）</li></ol></div>
+  <p class="small muted">実行：<code>python -m mbo.bench --roles embed,nli --max-mb 600</code>（GitHub の Actions → bench でも実行できる）。指標：JSTS Spearman（文類似）、JNLI cos 差（含意対と矛盾対の cos の差）、JNLI 正解率・含意再現率・ECE（較正）、1 件あたり CPU 遅延、パラメータ数、配布サイズ。</p></div>
+ <div class="card"><h2 style="margin-top:0">微調整して独自モデルを作る</h2><ol class="small"><li>上の表から土台（role=base）を選ぶ。小さい順に modernbert-ja-30m → 70m → 130m、比較用に bert-base-japanese-v3 / line-distilbert / deberta-v2</li><li><code>python -m mbo.train_nli --base sbintuitions/modernbert-ja-70m --n 20073 --epochs 3 --balance --out models/nli-ja-70m-torch</code>（Colab: notebooks/train_nli.ipynb、Actions: train ワークフロー）</li><li><code>python -m mbo.export_onnx --nli models/nli-ja-70m-torch --out models/nli-ja-70m</code> → <code>python -m mbo.calibrate --model models/nli-ja-70m</code></li><li><code>python -m mbo.bench --local models/nli-ja-70m-torch --names nli-ja-70m --role nli</code> で表に載せる</li><li>「設定」でブラウザ用の含意モデルに <code>nli-ja-70m</code> を指定すると、このサイトの判定がそのモデルに切り替わる</li></ol></div>
 </section>
 <section id="t-about" class="hidden"><div id="about-box"></div></section>
 <section id="t-settings" class="hidden">
- <div class="card"><h2 style="margin-top:0">自動収集の対象（watch.yaml）</h2><p class="hint">追加してできた YAML をリポジトリの <code>watch.yaml</code> に貼って push すると、次回から GitHub Actions が巡回する。</p>
-  <div class="grid3"><div><label>トピック</label><div class="row"><input id="st-topic"><button class="small" id="st-topic-add">追加</button></div></div><div><label>主張</label><div class="row"><input id="st-claim"><button class="small" id="st-claim-add">追加</button></div></div><div><label>ドメイン</label><div class="row"><input id="st-domain"><button class="small" id="st-domain-add">追加</button></div></div></div>
-  <pre id="st-yaml" class="mono"></pre><div class="actbar"><button class="small" id="st-copy">コピー</button><button class="small" id="st-dl">watch.yaml をダウンロード</button><button class="small" id="st-clear">空にする</button></div></div>
- <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load">今ダウンロード</button><button class="small" id="st-del">端末から削除</button><span id="st-mmsg" class="small muted"></span></div>
+ <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load-models">今ダウンロード</button><button class="small" id="st-del">端末から削除</button><span id="st-mmsg" class="small muted"></span></div>
   <div class="grid3"><div><label>ブラウザ用 埋め込みモデル（models/ の名前）</label><input id="st-emb" placeholder="ruri-v3-30m"></div><div><label>ブラウザ用 含意モデル</label><input id="st-nli" placeholder="nli-ja-30m"></div><div><label>&nbsp;</label><button class="small" id="st-model-save">モデル名を保存</button></div></div>
   <label>Hugging Face 配布リポジトリ（空なら GitHub Pages の ./models/）</label><div class="row"><input id="st-hf" placeholder="mie-edu/modernbert-lab-models"><button class="small" id="st-hf-save">保存</button></div></div>
- <div class="card"><h2 style="margin-top:0">GitHub Actions の手動実行</h2><p class="small">リポジトリの Actions → collect → Run workflow で、トピック・主張・ドメインを 1 つ指定して即時実行できる。結果は数分後にこのページの「自動収集」に出る（Pages の更新込みで 3〜5 分）。</p><div id="st-links" class="small"></div></div>
- <div class="card"><h2 style="margin-top:0">アプリとして入れる</h2><p class="small">Android/PC Chrome：アドレスバーの「インストール」。iPhone：共有 → ホーム画面に追加。収集済みデータとモデルは端末に保存され、オフラインでも閲覧・判定できる。</p></div>
+ <div class="card"><h2 style="margin-top:0">履歴</h2><div id="st-hist" class="small"></div><div class="actbar"><button class="small" id="st-hist-export">すべて JSON で書き出す</button><button class="small" id="st-hist-clear">履歴をすべて削除</button></div></div>
+ <div class="card"><h2 style="margin-top:0">アプリとして入れる</h2><p class="small">Android/PC Chrome：アドレスバーの「インストール」。iPhone：共有 → ホーム画面に追加。履歴とモデルは端末に保存され、オフラインでも閲覧・判定できる。</p></div>
 </section>
 </main>
 <script type="module" src="app.js"></script>

@@ -2,13 +2,13 @@
 import numpy as np
 from mbo import models, judge, dorks
 e = models.embedder(); n = models.nli()
-v = e.encode(["三重県で地震があった", "三重県で地震が発生した", "今日はカレー"], "")
+v = e.encode(["関東地方で地震があった", "関東地方で地震が発生した", "今日はカレー"], "")
 assert v[0] @ v[1] > v[0] @ v[2], "埋め込みの類似が不自然"
-p = n.predict(["三重大学は津市にある。", "ピッツァが4等分されて置いてある。"], ["三重大学は三重県にある。", "ピッツァが飛んでいる。"])
+p = n.predict(["東京タワーは港区にある。", "ピッツァが4等分されて置いてある。"], ["東京タワーは東京都にある。", "ピッツァが飛んでいる。"])
 print("nli", np.round(p, 2))
 assert p[1].argmax() == 2, "矛盾を検出できない"
-items = [{"url": "https://www.jma.go.jp/x", "title": "気象庁は臨時情報を発表した", "snippet": "気象庁は27日、南海トラフ地震臨時情報（調査中）を発表した。", "text": "気象庁は27日、南海トラフ地震臨時情報（調査中）を発表した。"},
-         {"url": "https://example.com/y", "title": "臨時情報が出た", "snippet": "27日、気象庁から南海トラフ地震臨時情報が発表された。", "text": "27日、気象庁から南海トラフ地震臨時情報が発表された。"}]
+items = [{"url": "https://www.mhlw.go.jp/x", "title": "厚生労働省が熱中症対策の指針を公表した", "snippet": "厚生労働省は27日、職場での熱中症対策に関する指針を公表した。", "text": "厚生労働省は27日、職場での熱中症対策に関する指針を公表した。"},
+         {"url": "https://example.com/y", "title": "熱中症対策の指針が出た", "snippet": "27日、厚労省から職場の熱中症対策指針が公表された。", "text": "27日、厚労省から職場の熱中症対策指針が公表された。"}]
 judge.score_items(items, {}, emb=e, nli=n)
 print([(i["grade"], i["reliability"], i["s_corr"]) for i in items])
 print(dorks.build("テスト")[:2])

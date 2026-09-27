@@ -1,13 +1,12 @@
-# ModernBERT Lab — 公開情報の自動収集と信頼性判定
+# ModernBERT Lab — 公開情報のその場収集と信頼性判定
 
-無料の検索エンジン（DuckDuckGo・Bing・Yahoo! JAPAN・Google ニュース RSS・はてな・Wikipedia など）を **Dorks（検索演算子）で自動巡回**し、本文を読み、**日本語 ModernBERT**（Ruri-v3-30m 埋め込み＋JNLI 微調整の含意判定）で**他の情報源と突き合わせて信頼性を採点**する。API キー不要・すべて無料枠・GitHub だけで動く。
+トピック・URL・主張・ドメインをサイトに入れると、**ブラウザが** DuckDuckGo・Bing・Google ニュース・はてな・Wikipedia などを **Dorks（検索演算子）で巡回**し、本文を読み、**端末内の日本語 ModernBERT**（Ruri-v3-30m 埋め込み＋JNLI 微調整の含意判定）で**他の情報源と突き合わせて信頼性を採点**する。サーバ・API キー・課金なし。結果はその端末の履歴に保存され、同じトピックを再調査すると差分が分かる。
 
-- **自動収集**：GitHub Actions が 6 時間ごとに `watch.yaml` のトピック／主張／ドメインを巡回し、結果 JSON を `docs/data/` に push → GitHub Pages の PWA に表示
-- **いま調べる**：ブラウザから同じ検索エンジンを引き、**端末内の同じ ONNX モデル**で即時に採点（オフラインでも判定可）
+- **調べる**：トピックか URL → 収集 → 採点 → 履歴
 - **主張を検証**：文を入れると関連ページを集め、段落ごとに含意／矛盾を判定して「支持／否定／食い違い／根拠不足」と根拠を出す
 - **ドメイン調査**：DNS・whois(RDAP/JPRS)・証明書ログ・Wayback・Wikipedia 出典回数・セキュリティヘッダ・公開スキャン履歴（動画で紹介される whois / theHarvester / Shodan / Wayback の無料代替）
 
-サイト: `https://224096-cmd.github.io/modernbert-lab/`（Pages を有効にしたあと）
+サイト: `https://224096-cmd.github.io/modernbert-lab/`（Pages を有効にしたあと）。すべての処理はブラウザ内で行い、入力も結果もどこにも送られない。
 
 ## 信頼性スコア
 
@@ -22,15 +21,11 @@ R = 100 × (0.35·出所 + 0.25·内容 + 0.30·裏取り + 0.10·時間)
 
 式・重み・しきい値はすべて `docs/params.json` にあり、サイトの「仕組み」タブで変えられる（Python 側も同じファイルを読む）。
 
-## 使い方（GitHub だけで動かす）
+## 使い方（GitHub Pages に置く）
 
-1. このリポジトリを `224096-cmd/modernbert-lab` として作成して push
-2. Settings → Pages → Source を **GitHub Actions** に
-3. Settings → Actions → General → Workflow permissions を **Read and write** に
-4. Actions → collect → Run workflow（トピックを 1 つ入れて実行、または空で `watch.yaml` 全部）
-5. 数分後、サイトの「自動収集」に結果が出る。以後は 6 時間ごとに自動
-
-`watch.yaml` を編集して push すれば対象が変わる（サイトの「設定」タブで YAML を生成できる）。
+1. このリポジトリを GitHub に push
+2. Settings → Pages → Source を **GitHub Actions** に（`pages.yml` が `docs/` とモデルを配信する）
+3. `https://<owner>.github.io/modernbert-lab/` を開く。初回はモデル 74 MB を端末にダウンロードする（以後はオフラインでも判定できる）
 
 ## 使い方（手元の PC / PowerShell）
 
@@ -41,14 +36,13 @@ python -m venv .venv; .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
 python -m mbo sources                              # 使える情報源
-python -m mbo search "南海トラフ地震 臨時情報" --engines ddg,bing,yahoo,gnews
-python -m mbo collect "南海トラフ地震 臨時情報"       # 収集→本文→判定→docs/data/topics/
-python -m mbo verify "三重大学は津市にある国立大学である"
-python -m mbo recon www.mie-u.ac.jp
-python -m mbo watch                                # watch.yaml を全部
+python -m mbo search "生成AI 著作権 ガイドライン" --engines ddg,bing,yahoo,gnews
+python -m mbo collect "生成AI 著作権 ガイドライン"     # 収集→本文→判定→docs/data/topics/
+python -m mbo verify "東京スカイツリーの高さは634メートルである"
+python -m mbo recon www.nhk.or.jp
 ```
 
-結果は `docs/data/` の JSON。`docs/` をそのまま開けばサイトで見られる（ブラウザ内モデルは `docs/models/` から読む）。
+PC 版は研究用の集計向け（多くの情報源・trafilatura・強い含意モデル `MBO_NLI=hf:MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` が使える）。結果は `docs/data/` の JSON。サイトの表示はこれとは独立で、端末内の履歴を使う。
 
 ## 研究の流れ：既存モデルの比較 → 微調整 → 独自モデル
 
@@ -67,7 +61,7 @@ python -m mbo watch                                # watch.yaml を全部
    python -m mbo.bench --local models/nli-ja-70m-torch --names nli-ja-70m --role nli
    ```
    GitHub の Actions → train でも同じことができる（CPU）。Colab は `notebooks/train_nli.ipynb`。
-3. **差し替え**：サイトの「設定」でブラウザ用モデル名を `nli-ja-70m` に、Actions は `MBO_NLI=nli-ja-70m`（collect.yml の env）にすると、判定がそのモデルで動く。
+3. **差し替え**：サイトの「設定」でブラウザ用モデル名を `nli-ja-70m` にすると、判定がそのモデルで動く（PC 版は `MBO_NLI=nli-ja-70m`）。
 
 ## モデル
 
@@ -106,15 +100,15 @@ mbo/            Python（収集・判定）
   recon.py      ドメイン調査
   models.py     ONNX 推論（埋め込み・NLI）
   judge.py      信頼性スコア・検証・クラスタ
-  pipeline.py   収集→判定→docs/data
+  pipeline.py   収集→判定→docs/data（PC 版）
   train_nli.py / export_onnx.py
 docs/           GitHub Pages（PWA）
   app.js ui / net.js 収集 / ml.js 端末内モデル / judge.js 判定（Python と同じ式） / params.json
-  data/         結果 JSON（Actions が更新）
-models/         ONNX（Actions 用。Pages 配信時に docs/models へコピー）
-watch.yaml      自動収集の対象
-.github/workflows/collect.yml  6 時間ごと＋手動
-.github/workflows/pages.yml    Pages 配信
+  data/models.json  モデル比較の結果
+models/         ONNX（Pages 配信時に docs/models へコピー。PC 版もここを読む）
+.github/workflows/pages.yml    Pages 配信（docs/ とモデル）
+.github/workflows/bench.yml    モデル比較
+.github/workflows/train.yml    微調整→ONNX
 ```
 
 ## ライセンス

@@ -1,4 +1,4 @@
-"""収集 → 本文 → 判定 → 保存 の一連の流れ。GitHub Actions からは `python -m mbo watch` で呼ぶ。
+"""収集 → 本文 → 判定 → 保存 の一連の流れ（PC で実験するとき用。サイトはブラウザ内で同じ処理をする）。
 
 docs/data/
   index.json              トピック一覧・最終実行・件数
@@ -7,6 +7,7 @@ docs/data/
   verify/<id>.json        主張の検証結果
   domains/<host>.json     ドメイン調査
   domains_cache.json      ドメインの年齢・Wikipedia 出典回数（30 日キャッシュ）
+  ※ これらはサイトには表示しない（サイトは端末内の履歴を表示）。研究の集計用。
 """
 import os, re, json, time, hashlib, datetime, unicodedata
 from . import engines, sources, dorks, fetch, recon, judge, models, http
@@ -205,30 +206,6 @@ def run_recon(target, log=_log):
     idx["updated"] = now(); save_json(os.path.join(DATA, "index.json"), idx)
     log(f"  {p['class']} 初出 {(p.get('wayback') or {}).get('first')} Wikipedia出典 {p.get('wiki_cites')} サブドメイン {len(p.get('crtsh') or [])}")
     return p
-
-
-def run_watch(path=None, log=_log):
-    import yaml
-    path = path or os.path.join(ROOT, "watch.yaml")
-    w = yaml.safe_load(open(path, encoding="utf-8")) or {}
-    for t in w.get("topics", []) or []:
-        if isinstance(t, str):
-            t = {"topic": t}
-        try:
-            run_topic(t["topic"], {k: v for k, v in t.items() if k != "topic"}, log)
-        except Exception as e:
-            log(f"  ERROR {e}")
-    for c in w.get("claims", []) or []:
-        try:
-            run_verify(c if isinstance(c, str) else c["claim"], None if isinstance(c, str) else c, log)
-        except Exception as e:
-            log(f"  ERROR {e}")
-    for d in w.get("domains", []) or []:
-        try:
-            run_recon(d, log)
-        except Exception as e:
-            log(f"  ERROR {e}")
-    save_json(os.path.join(DATA, "last_run.json"), {"run_at": now(), "requests": len(http.LOG), "errors": [l for l in http.LOG if l.get("status") not in (200, 202)][-50:]})
 
 
 def rescore(log=_log):

@@ -65,7 +65,7 @@ def export(src, out, kind, seq=256):
     else:
         m = AutoModelForSequenceClassification.from_pretrained(src, attn_implementation="eager"); w = ClsWrap(m); outname = "logits"
     m.eval()
-    enc = tok(["三重大学は津市にある。", "ModernBERT は長い文脈を速く読める双方向のエンコーダである。"], padding=True, return_tensors="pt")
+    enc = tok(["東京は日本の首都である。", "ModernBERT は長い文脈を速く読める双方向のエンコーダである。"], padding=True, return_tensors="pt")
     with torch.no_grad():
         ref = w(enc["input_ids"], enc["attention_mask"])
     torch.onnx.export(w, (enc["input_ids"], enc["attention_mask"]), os.path.join(out, "model.onnx"), input_names=["input_ids", "attention_mask"], output_names=[outname],

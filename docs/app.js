@@ -6,7 +6,6 @@ const VERSION = "v1.0";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
-const REPO = "224096-cmd/modernbert-lab";
 const DORKS = {
   exact: ["完全一致", '"{q}"'], official_jp: ["公的機関・大学", '{q} (site:go.jp OR site:lg.jp OR site:ac.jp)'], news_pr: ["報道・プレスリリース", '{q} (site:prtimes.jp OR site:nhk.or.jp OR site:nikkei.com OR site:asahi.com OR site:yomiuri.co.jp OR site:mainichi.jp)'],
   pdf: ["PDF 文書", '{q} filetype:pdf'], factcheck: ["ファクトチェック", '{q} (site:fij.info OR site:factcheckcenter.jp OR site:infact.press OR "ファクトチェック")'], deny: ["否定・訂正", '{q} (デマ OR 誤り OR 訂正 OR 事実無根 OR "根拠がない")'],
@@ -17,7 +16,7 @@ const SOURCES_DOC = [
   ["ddg", "DuckDuckGo", "lite/html 版。bot 判定時は r.jina.ai 経由", "両方"], ["bing", "Bing", "HTML 直接（Actions）／r.jina.ai 経由（ブラウザ）", "両方"], ["yahoo", "Yahoo! JAPAN", "ページ内 JSON。日本語に強い", "Actions"], ["gnews", "Google ニュース RSS", "検索クエリ対応・媒体名・日時", "両方"], ["hatena", "はてなブックマーク", "検索 RSS。ブクマ数＝反応の量", "両方"], ["wiki", "Wikipedia / ウィキニュース", "検索 API", "両方"],
   ["mojeek", "Mojeek", "独立インデックス（不安定）", "Actions"], ["bluesky", "Bluesky", "公開検索 API", "Actions"], ["mastodon", "Mastodon", "ハッシュタグ公開タイムライン", "Actions"], ["reddit", "Reddit", "公開 JSON（IP により拒否あり）", "Actions"], ["gdelt", "GDELT", "世界のニュース DB（5 秒間隔）", "Actions"], ["qiita", "Qiita", "技術記事", "Actions"], ["github", "GitHub", "リポジトリ検索", "Actions"], ["nhk", "NHK RSS", "主要・社会ニュース", "Actions"], ["crossref / openalex", "学術論文", "DOI・被引用数", "Actions"], ["wayback", "Wayback Machine", "URL の履歴", "両方"],
 ];
-let INDEX = null, LATEST = null, TOPIC = null;
+let INDEX = [], TOPIC = null;
 const state = { emb: null, nli: null };
 
 /* ---------- ナビ ---------- */
@@ -38,16 +37,23 @@ async function renderAbout() {
   if (sm?.source) h += `<p class="small muted">meta: ${esc(sm.source)} / ${esc(sm.pooling)} / temperature ${sm.temperature ?? 1}</p>`;
   box.innerHTML = h || "<p class='small muted'>学習ログはまだありません</p>";
 }
-function show(t) { $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t)); $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "t-" + t)); location.hash = t; window.scrollTo(0, 0); if (t === "how") renderHow(); if (t === "settings") renderSettings(); if (t === "models") renderModels(); if (t === "about") renderAbout(); }
+function show(t) { $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t)); $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "t-" + t)); location.hash = t; window.scrollTo(0, 0); if (t === "how") renderHow(); if (t === "settings") renderSettings(); if (t === "models") renderModels(); if (t === "about") renderAbout(); if (t === "history") renderTopicSelect(); }
 $$("nav button").forEach(b => b.onclick = () => show(b.dataset.t));
 
-/* ---------- データ ---------- */
+/* ---------- 履歴（IndexedDB、この端末だけ） ---------- */
+const HDB = {
+  db: null,
+  async open() { if (this.db) return this.db; return this.db = await new Promise((ok, ng) => { const r = indexedDB.open("mbo-history", 1); r.onupgradeneeded = () => { const st = r.result.createObjectStore("runs", { keyPath: "id" }); st.createIndex("kind", "kind"); }; r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error); }); },
+  async put(rec) { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").put(rec); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
+  async get(id) { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs").objectStore("runs").get(id); r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error); }); },
+  async all() { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs").objectStore("runs").getAll(); r.onsuccess = () => ok((r.result || []).sort((a, b) => b.run_at.localeCompare(a.run_at))); r.onerror = () => ng(r.error); }); },
+  async del(id) { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").delete(id); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
+  async clear() { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").clear(); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
+};
+const nowJst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 19);
+async function saveRun(rec) { rec.id = rec.id || (rec.kind + ":" + rec.key + ":" + Date.now().toString(36)); rec.run_at = rec.run_at || nowJst(); await HDB.put(rec); INDEX = await HDB.all(); renderHome(); renderTopicSelect(); renderVerifyList(); renderReconList(); return rec; }
 async function getJSON(p) { try { const r = await fetch(new URL(p, import.meta.url), { cache: "no-cache" }); if (!r.ok) return null; return await r.json(); } catch { return null; } }
-async function loadData() {
-  INDEX = await getJSON("./data/index.json") || { topics: [], verify: [], domains: [] };
-  LATEST = await getJSON("./data/latest.json") || { items: [] };
-  renderHome(); renderTopicSelect(); renderVerifyList(); renderReconList();
-}
+async function loadData() { INDEX = await HDB.all(); renderHome(); renderTopicSelect(); renderVerifyList(); renderReconList(); }
 
 /* ---------- 共通描画 ---------- */
 const gradeBadge = it => `<span class="g g${it.grade}">${it.grade}</span> <b>${it.reliability}</b>`;
@@ -86,40 +92,43 @@ async function openReader(url) {
 
 /* ---------- 概要 ---------- */
 function renderHome() {
-  const t = INDEX.topics, n = t.reduce((s, x) => s + (x.n || 0), 0);
-  $("#home-stats").innerHTML = [["トピック", t.length], ["収集ページ", n], ["検証した主張", INDEX.verify?.length || 0], ["調査ドメイン", INDEX.domains?.length || 0], ["最終更新", (INDEX.updated || "—").slice(5, 16).replace("T", " ")]].map(([k, v]) => `<div class="stat">${k}<b>${esc(v)}</b></div>`).join("");
-  $("#home-tiles").innerHTML = [["自動収集", "GitHub Actions が 6 時間ごとに巡回した結果", "topics"], ["いま調べる", "ブラウザから検索エンジンを引いて端末内で採点", "live"], ["主張を検証", "文を入れると含意／矛盾で判定", "verify"], ["ドメイン調査", "whois・DNS・証明書・Wayback", "recon"], ["モデル比較", "既存 BERT 系モデルを同じ指標で比べ、土台を選んで微調整", "models"], ["解説", "何をどのデータで学習したか・仕組み・限界", "about"], ["仕組み", "式・パラメータ・情報源", "how"], ["設定", "watch.yaml・モデル・PWA", "settings"]].map(([a, b, t]) => `<div class="tile" data-t="${t}"><b>${a}</b><span>${b}</span></div>`).join("");
+  const topics = INDEX.filter(r => r.kind === "topic"), n = topics.reduce((s, x) => s + (x.n || 0), 0);
+  $("#home-stats").innerHTML = [["調べたトピック", topics.length], ["採点したページ", n], ["検証した主張", INDEX.filter(r => r.kind === "verify").length], ["調べたドメイン", INDEX.filter(r => r.kind === "recon").length], ["最終", (INDEX[0]?.run_at || "—").slice(5, 16).replace("T", " ")]].map(([k, v]) => `<div class="stat">${k}<b>${esc(v)}</b></div>`).join("");
+  $("#home-tiles").innerHTML = [["調べる", "トピックか URL を入れて、その場で収集・採点", "live"], ["主張を検証", "文を入れると含意／矛盾で判定", "verify"], ["ドメイン調査", "whois・DNS・証明書・Wayback", "recon"], ["履歴", "この端末に保存した結果", "history"], ["モデル比較", "既存 BERT 系モデルを同じ指標で比べ、土台を選んで微調整", "models"], ["解説", "何をどのデータで学習したか・仕組み・限界", "about"], ["仕組み", "式・パラメータ・情報源", "how"], ["設定", "モデル・履歴・PWA", "settings"]].map(([a, b, t]) => `<div class="tile" data-t="${t}"><b>${a}</b><span>${b}</span></div>`).join("");
   $$("#home-tiles .tile").forEach(x => x.onclick = () => show(x.dataset.t));
-  const items = (LATEST.items || []).slice(0, 30);
-  $("#home-latest").innerHTML = items.length ? `<div class="tw"><table><thead><tr><th>評価</th><th>見出し</th><th>出所</th><th>日付</th><th>トピック</th></tr></thead><tbody>${items.map(it => `<tr><td>${gradeBadge(it)}</td><td><a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title || it.url)}</a></td><td class="small">${esc(NET.hostOf(it.url))}<br><span class="muted">${esc(J.CLASS_LABEL[it.source_class] || "")}</span></td><td class="small">${esc(it.published || "—")}</td><td class="small"><a href="#" data-topic="${esc(it.topic)}">${esc(it.topic)}</a></td></tr>`).join("")}</tbody></table></div>` : `<p class="muted small">まだ収集結果がありません。GitHub Actions の collect を実行するか、「いま調べる」で試してください。</p>`;
-  $$("#home-latest a[data-topic]").forEach(a => a.onclick = e => { e.preventDefault(); show("topics"); const s = INDEX.topics.find(t => t.topic === a.dataset.topic); if (s) { $("#tp-sel").value = s.slug; loadTopic(s.slug); } });
+  const rows = INDEX.slice(0, 15);
+  $("#home-latest").innerHTML = rows.length ? `<div class="tw"><table><thead><tr><th>種類</th><th>内容</th><th>結果</th><th>日時</th></tr></thead><tbody>${rows.map(r => `<tr><td>${{ topic: "調べる", verify: "検証", recon: "ドメイン" }[r.kind]}</td><td><a href="#" data-id="${esc(r.id)}">${esc(r.key)}</a></td><td class="small">${r.kind === "topic" ? `${r.n} 件・平均 ${r.summary?.mean}` : r.kind === "verify" ? (J.VERDICT[r.verdict]?.[0] || r.verdict) : esc(J.CLASS_LABEL[r.class] || "")}</td><td class="small">${esc(r.run_at.slice(5, 16).replace("T", " "))}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted small">まだありません。「調べる」にトピックを入れてください（初回はモデル 74 MB をダウンロード）。</p>`;
+  $$("#home-latest a[data-id]").forEach(a => a.onclick = e => { e.preventDefault(); openRun(a.dataset.id); });
 }
+function openRun(id) { const r = INDEX.find(x => x.id === id); if (!r) return; if (r.kind === "topic") { show("history"); $("#tp-sel").value = id; loadTopic(id); } else if (r.kind === "verify") { show("verify"); showVerifyDetail(id); } else { show("recon"); showReconDetail(id); } }
 
-/* ---------- 自動収集 ---------- */
+/* ---------- 履歴（トピック） ---------- */
 function renderTopicSelect() {
-  const sel = $("#tp-sel"); sel.innerHTML = INDEX.topics.map(t => `<option value="${esc(t.slug)}">${esc(t.topic)}（${t.n} 件・${(t.run_at || "").slice(5, 16).replace("T", " ")}）</option>`).join("") || "<option value=''>（結果なし）</option>";
-  sel.onchange = () => loadTopic(sel.value); if (INDEX.topics[0]) loadTopic(INDEX.topics[0].slug);
+  const sel = $("#tp-sel"); const topics = INDEX.filter(r => r.kind === "topic");
+  sel.innerHTML = topics.map(t => `<option value="${esc(t.id)}">${esc(t.key)}（${t.n} 件・${(t.run_at || "").slice(5, 16).replace("T", " ")}）</option>`).join("") || "<option value=''>（まだありません）</option>";
+  sel.onchange = () => loadTopic(sel.value); if (topics[0] && !TOPIC) loadTopic(topics[0].id);
 }
-async function loadTopic(slug) {
-  TOPIC = await getJSON(`./data/topics/${slug}.json`); if (!TOPIC) { $("#tp-items").innerHTML = "<p class='muted'>読めません</p>"; return; }
-  const s = TOPIC.summary; $("#tp-meta").textContent = `${TOPIC.run_at.slice(0, 16).replace("T", " ")} 実行・${TOPIC.n} 件`;
-  $("#tp-stats").innerHTML = [["平均信頼性", s.mean], ["A / B", `${s.grades.A || 0} / ${s.grades.B || 0}`], ["C / D", `${s.grades.C || 0} / ${s.grades.D || 0}`], ["ドメイン", s.domains], ["日付あり", `${s.dated}/${TOPIC.n}`], ["話題", s.clusters]].map(([k, v]) => `<div class="stat">${k}<b>${v}</b></div>`).join("") + `<div class="chips" style="flex-basis:100%">${Object.entries(s.classes).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span class="chip" style="cursor:default">${J.CLASS_LABEL[k] || k} ${v}</span>`).join("")}</div>`;
-  const h = (INDEX.topics.find(t => t.slug === slug)?.history || []); $("#tp-hist").innerHTML = h.length > 1 ? `<div class="small muted">平均信頼性の推移（${h.length} 回）</div><div class="hist">${h.map(x => `<i style="height:${x.mean * 0.4}px" title="${x.run_at} ${x.mean}"></i>`).join("")}</div>` : "";
-  $("#tp-clusters").innerHTML = TOPIC.clusters.filter(c => c.size > 1).slice(0, 12).map(c => `<div class="item"><div class="row"><span class="g g${J.grade(c.reliability)}">${c.reliability}</span><b>${esc(c.title)}</b></div><div class="m"><span>${c.size} 件</span><span>${c.domains.length} ドメイン：${c.domains.slice(0, 6).map(esc).join("・")}${c.domains.length > 6 ? "…" : ""}</span><span>初出 ${esc(c.first || "不明")} <a href="${esc(c.first_url)}" target="_blank" rel="noopener">${esc(NET.hostOf(c.first_url))}</a></span></div></div>`).join("") || "<p class='muted small'>複数ページにまたがる話題はなし</p>";
-  const cs = $("#tp-class"); cs.innerHTML = "<option value=''>全種別</option>" + Object.keys(s.classes).map(k => `<option value="${k}">${J.CLASS_LABEL[k] || k}</option>`).join("");
-  $("#tp-queries").innerHTML = `<div class="tw"><table><thead><tr><th>名前</th><th>検索式</th></tr></thead><tbody>${TOPIC.queries.map(q => `<tr><td>${esc(q.label)}</td><td class="mono">${esc(q.query)}</td></tr>`).join("")}</tbody></table></div><p class="small muted">エンジン：${(TOPIC.engines || []).join("・")}　HTTP ${TOPIC.http?.requests} 回（失敗 ${TOPIC.http?.errors}）</p>`;
-  renderTopicItems();
+async function loadTopic(id) {
+  TOPIC = await HDB.get(id); if (!TOPIC) { $("#tp-body").innerHTML = ""; return; }
+  const s = TOPIC.summary; $("#tp-meta").textContent = `${TOPIC.run_at.slice(0, 16).replace("T", " ")}・${TOPIC.n} 件`;
+  $("#tp-stats").innerHTML = [["平均信頼性", s.mean], ["A / B", `${s.grades.A || 0} / ${s.grades.B || 0}`], ["C / D", `${s.grades.C || 0} / ${s.grades.D || 0}`], ["ドメイン", s.domains], ["日付あり", `${s.dated}/${TOPIC.n}`], ["複数ページの話題", s.clusters]].map(([k, v]) => `<div class="stat">${k}<b>${v}</b></div>`).join("") + `<div class="chips" style="flex-basis:100%">${Object.entries(s.classes).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<span class="chip" style="cursor:default">${J.CLASS_LABEL[k] || k} ${v}</span>`).join("")}</div>`;
+  const prev = INDEX.filter(r => r.kind === "topic" && r.key === TOPIC.key && r.run_at < TOPIC.run_at); const h = INDEX.filter(r => r.kind === "topic" && r.key === TOPIC.key).reverse();
+  $("#tp-hist").innerHTML = h.length > 1 ? `<div class="small muted">平均信頼性の推移（${h.length} 回）</div><div class="hist">${h.map(x => `<i style="height:${x.summary.mean * 0.4}px" title="${x.run_at} ${x.summary.mean}"></i>`).join("")}</div>` : "";
+  const prevUrls = new Set(); for (const p of prev) for (const u of (p.urls || [])) prevUrls.add(u);
+  $("#tp-body").innerHTML = resultHtml(TOPIC, prev.length ? prevUrls : null); wireItemActions($("#tp-body"));
 }
-function renderTopicItems() {
-  if (!TOPIC) return; const q = $("#tp-q").value.trim(), g = $("#tp-grade").value, c = $("#tp-class").value, so = $("#tp-sort").value;
-  let items = TOPIC.items.filter(it => (!g || it.grade === g) && (!c || it.source_class === c) && (!q || (it.title + it.snippet + it.url).includes(q)));
-  items = items.sort((a, b) => so === "date" ? (b.published || "").localeCompare(a.published || "") : so === "corr" ? b.s_corr - a.s_corr : b.reliability - a.reliability);
-  $("#tp-items").innerHTML = `<p class="small muted">${items.length} 件</p>` + items.slice(0, 80).map(it => itemCard(it)).join(""); wireItemActions($("#tp-items"));
+function resultHtml(res, prevUrls) {
+  const items = res.items; const newer = prevUrls ? items.filter(i => !prevUrls.has(i.url)) : [];
+  return `${prevUrls ? `<div class="card"><h2 style="margin-top:0">前回から新しく出たページ <span class="muted small">${newer.length} 件</span></h2>${newer.slice(0, 20).map(it => itemCard(it)).join("") || "<p class='muted small'>なし</p>"}</div>` : ""}
+   <div class="card"><h2 style="margin-top:0">話題のまとまり <span class="muted small">— 同じ話を何ドメインが伝えているか・最初に出たのはどこか</span></h2>${(res.clusters || []).filter(c => c.size > 1).slice(0, 12).map(c => `<div class="item"><div class="row"><span class="g g${J.grade(c.reliability)}">${c.reliability}</span><b>${esc(c.title)}</b></div><div class="m"><span>${c.size} 件</span><span>${c.domains.length} ドメイン：${c.domains.slice(0, 6).map(esc).join("・")}${c.domains.length > 6 ? "…" : ""}</span><span>初出 ${esc(c.first || "不明")} <a href="${esc(c.first_url)}" target="_blank" rel="noopener">${esc(NET.hostOf(c.first_url))}</a></span></div></div>`).join("") || "<p class='muted small'>複数ページにまたがる話題はなし</p>"}</div>
+   <div class="card"><h2 style="margin-top:0">結果 <span class="muted small">${items.length} 件・信頼性順</span></h2>${items.map(it => itemCard(it)).join("")}</div>
+   <div class="card"><h3 style="margin-top:0">使った検索式</h3><div class="tw"><table>${(res.queries || []).map(x => `<tr><td>${esc(x.label)}</td><td class="mono">${esc(x.query)}</td></tr>`).join("")}</table></div></div>`;
 }
-["#tp-q", "#tp-grade", "#tp-class", "#tp-sort"].forEach(s => $(s).oninput = renderTopicItems);
-$("#tp-csv").onclick = () => { if (!TOPIC) return; const rows = [["grade", "reliability", "s_source", "s_content", "s_corr", "s_time", "source_class", "published", "title", "url", "engines", "dorks"]].concat(TOPIC.items.map(it => [it.grade, it.reliability, it.s_source, it.s_content, it.s_corr, it.s_time, it.source_class, it.published || "", it.title, it.url, (it.engines || []).join("|"), (it.dorks || []).join("|")])); dl(TOPIC.slug + ".csv", "﻿" + rows.map(r => r.map(x => `"${String(x ?? "").replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv"); };
-$("#tp-json").onclick = () => TOPIC && dl(TOPIC.slug + ".json", JSON.stringify(TOPIC, null, 1), "application/json");
+$("#tp-csv").onclick = () => { if (!TOPIC) return; const rows = [["grade", "reliability", "s_source", "s_content", "s_corr", "s_time", "source_class", "published", "title", "url", "engines", "dorks"]].concat(TOPIC.items.map(it => [it.grade, it.reliability, it.s_source, it.s_content, it.s_corr, it.s_time, it.source_class, it.published || "", it.title, it.url, (it.engines || []).join("|"), (it.dorks || []).join("|")])); dl(TOPIC.key + ".csv", "﻿" + rows.map(r => r.map(x => `"${String(x ?? "").replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv"); };
+$("#tp-json").onclick = () => TOPIC && dl(TOPIC.key + ".json", JSON.stringify(TOPIC, null, 1), "application/json");
+$("#tp-del").onclick = async () => { if (!TOPIC) return; await HDB.del(TOPIC.id); TOPIC = null; await loadData(); };
 function dl(name, text, type = "text/plain") { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+function summarize(items, clusters) { const g = {}, cls = {}; for (const it of items) { g[it.grade] = (g[it.grade] || 0) + 1; cls[it.source_class] = (cls[it.source_class] || 0) + 1; } return { mean: items.length ? Math.round(items.reduce((s, x) => s + x.reliability, 0) / items.length) : 0, grades: g, classes: cls, clusters: clusters.filter(c => c.size > 1).length, domains: new Set(items.map(i => NET.hostOf(i.url))).size, dated: items.filter(i => i.published).length }; }
 
 /* ---------- モデル ---------- */
 async function models(onStep) {
@@ -134,6 +143,13 @@ const lvSel = { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck"])
 chips($("#lv-dorks"), DORKS, () => { lvSel.dorks = new Set($$("#lv-dorks .chip.on").map(c => c.dataset.k)); }, lvSel.dorks);
 chips($("#lv-engines"), Object.fromEntries(Object.entries(NET.ENGINES).map(([k, v]) => [k, [v.label, v.note]])), () => { lvSel.engines = new Set($$("#lv-engines .chip.on").map(c => c.dataset.k)); }, lvSel.engines);
 $("#lv-read").oninput = () => $("#lv-read-v").textContent = $("#lv-read").value;
+const EXAMPLES = {
+  live: ["生成AI 著作権 ガイドライン", "熱中症 対策 効果 エビデンス", "電気自動車 補助金 2026", "マイナ保険証 トラブル", "ふるさと納税 制度変更", "https://ja.wikipedia.org/wiki/オープンソースインテリジェンス"],
+  verify: ["東京スカイツリーの高さは634メートルである", "日本の消費税率は10%である", "富士山の標高は3776メートルである", "地球温暖化の主因は太陽活動の変化である"],
+  recon: ["www.nhk.or.jp", "ja.wikipedia.org", "www.mhlw.go.jp", "example.com"],
+};
+const exampleChips = (root, input, list, run) => { root.innerHTML = `<span class="tiny muted" style="align-self:center">例：</span>` + list.map(x => `<span class="chip" data-x="${esc(x)}">${esc(x.length > 30 ? x.slice(0, 30) + "…" : x)}</span>`).join(""); root.querySelectorAll(".chip").forEach(c => c.onclick = () => { input.value = c.dataset.x; run(); }); };
+exampleChips($("#lv-examples"), $("#lv-q"), EXAMPLES.live, () => runLive()); exampleChips($("#vf-examples"), $("#vf-q"), EXAMPLES.verify, () => runVerify()); exampleChips($("#rc-examples"), $("#rc-q"), EXAMPLES.recon, () => runRecon());
 $("#lv-run").onclick = runLive; $("#lv-q").onkeydown = e => e.key === "Enter" && runLive();
 async function collectLive(topic, { dorks, engines, nread, status }) {
   const queries = [{ name: "topic", label: "そのまま", query: topic }, ...[...dorks].map(k => ({ name: k, label: DORKS[k][0], query: DORKS[k][1].replace("{q}", topic) }))];
@@ -167,13 +183,10 @@ async function runLive() {
     if (!items.length) { st("何も見つかりませんでした（r.jina.ai の制限に当たった可能性。1 分ほど待って再試行）"); return; }
     const dom = await domInfosFor(items, st); await J.scoreItems(items, dom, state.emb, state.nli, st); const clusters = await J.cluster(items, state.emb);
     items.sort((a, b) => b.reliability - a.reliability); st(`${items.length} 件・${new Set(items.map(i => NET.hostOf(i.url))).size} ドメイン`);
-    const mean = Math.round(items.reduce((s, x) => s + x.reliability, 0) / items.length);
-    $("#lv-out").innerHTML = `<div class="card"><div class="stats"><div class="stat">平均信頼性<b>${mean}</b></div><div class="stat">A/B/C/D<b>${["A", "B", "C", "D"].map(g => items.filter(i => i.grade === g).length).join("/")}</b></div><div class="stat">複数ページの話題<b>${clusters.filter(c => c.size > 1).length}</b></div></div>
-      <div class="actbar"><button class="small" id="lv-add">watch.yaml に追加</button><button class="small" id="lv-dl">JSON</button></div>
-      ${clusters.filter(c => c.size > 1).slice(0, 8).map(c => `<div class="item"><div class="row"><span class="g g${J.grade(c.reliability)}">${c.reliability}</span><b>${esc(c.title)}</b></div><div class="m"><span>${c.size} 件</span><span>${c.domains.slice(0, 6).map(esc).join("・")}</span><span>初出 ${esc(c.first || "不明")}</span></div></div>`).join("")}</div>
-      <div class="card">${items.map(it => itemCard(it)).join("")}</div>
-      <div class="card"><h3 style="margin-top:0">使った検索式</h3><div class="tw"><table>${queries.map(x => `<tr><td>${esc(x.label)}</td><td class="mono">${esc(x.query)}</td></tr>`).join("")}</table></div></div>`;
-    wireItemActions($("#lv-out")); $("#lv-add").onclick = () => { addWatch("topics", q); show("settings"); }; $("#lv-dl").onclick = () => dl("live.json", JSON.stringify({ topic: q, items, clusters, queries }, null, 1), "application/json");
+    const rec = await saveRun({ kind: "topic", key: q, n: items.length, items, clusters, queries, urls: items.map(i => i.url), summary: summarize(items, clusters), engines: [...lvSel.engines], dorks: [...lvSel.dorks] });
+    const prev = INDEX.filter(r => r.kind === "topic" && r.key === q && r.id !== rec.id); const prevUrls = new Set(); for (const p of prev) for (const u of (p.urls || [])) prevUrls.add(u);
+    $("#lv-out").innerHTML = `<div class="card"><div class="stats"><div class="stat">平均信頼性<b>${rec.summary.mean}</b></div><div class="stat">A/B/C/D<b>${["A", "B", "C", "D"].map(g => rec.summary.grades[g] || 0).join("/")}</b></div><div class="stat">ドメイン<b>${rec.summary.domains}</b></div><div class="stat">複数ページの話題<b>${rec.summary.clusters}</b></div></div><p class="small muted">履歴に保存しました${prev.length ? `（${prev.length} 回目の再調査）` : ""}</p></div>` + resultHtml(rec, prev.length ? prevUrls : null);
+    wireItemActions($("#lv-out"));
   } catch (e) { st("エラー: " + (e.message || e)); console.error(e); } finally { $("#lv-run").disabled = false; }
 }
 async function liveUrl(url, st) {
@@ -181,7 +194,8 @@ async function liveUrl(url, st) {
   const me = { id: "target", url, title: r.title, snippet: r.text.slice(0, 200), text: r.text.slice(0, 8000), engines: [], dorks: [], published: null };
   const claim = J.keyClaim(me); st("同じ話を探す：" + claim.slice(0, 40));
   const { items } = await collectLive(r.title || claim.slice(0, 60), { dorks: new Set(["exact"]), engines: new Set(["ddg", "gnews"]), nread: 6, status: st });
-  const all = [me, ...items.filter(i => i.url !== url)]; const dom = await domInfosFor(all, st); await J.scoreItems(all, dom, state.emb, state.nli, st); st("");
+  const all = [me, ...items.filter(i => i.url !== url)]; const dom = await domInfosFor(all, st); await J.scoreItems(all, dom, state.emb, state.nli, st); st("履歴に保存しました");
+  await saveRun({ kind: "topic", key: url, n: all.length, items: all, clusters: [], queries: [], urls: all.map(i => i.url), summary: summarize(all, []) });
   $("#lv-out").innerHTML = `<div class="card"><h3 style="margin-top:0">この URL の判定</h3>${itemCard(me)}<div class="mono" style="max-height:40vh;overflow:auto;white-space:pre-wrap;word-break:normal;margin-top:8px">${esc(r.text.slice(0, 4000))}</div></div><div class="card"><h3 style="margin-top:0">同じ話を伝えている他のページ</h3>${all.slice(1).sort((a, b) => b.reliability - a.reliability).map(it => itemCard(it)).join("") || "<p class='muted small'>見つからず</p>"}</div>`; wireItemActions($("#lv-out"));
 }
 
@@ -197,11 +211,13 @@ async function runVerify() {
   try {
     await models(st); const { items } = await collectLive(c, { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck", "deny"]), engines: new Set(["ddg", "gnews", "wiki"]), nread: 10, status: st });
     const dom = await domInfosFor(items, st); for (const it of items) { const { s, cls } = J.sourceScore(it, dom[NET.hostOf(it.url)]); it.s_source = s; it.source_class = cls; }
-    const v = await J.verify(c, items, state.emb, state.nli, st); st(`${items.length} ページ・${v.n_passages} 段落を照合`);
-    $("#vf-out").innerHTML = verdictCard(v) + `<div class="actbar"><button class="small" id="vf-add">watch.yaml に追加</button></div>`; $("#vf-add").onclick = () => { addWatch("claims", c); show("settings"); };
+    const v = await J.verify(c, items, state.emb, state.nli, st); st(`${items.length} ページ・${v.n_passages} 段落を照合（履歴に保存）`);
+    await saveRun({ kind: "verify", key: c, ...v, n_items: items.length, items: items.map(it => ({ url: it.url, title: it.title, published: it.published, reliability: it.reliability, grade: it.grade, source_class: it.source_class })) });
+    $("#vf-out").innerHTML = verdictCard(v);
   } catch (e) { st("エラー: " + (e.message || e)); } finally { $("#vf-run").disabled = false; }
 }
-function renderVerifyList() { const l = INDEX.verify || []; $("#vf-list").innerHTML = l.length ? `<div class="tw"><table><thead><tr><th>判定</th><th>主張</th><th>支持/反証</th><th>日時</th></tr></thead><tbody>${l.map(v => `<tr><td><span class="${J.VERDICT[v.verdict]?.[1] || ""}"><b>${J.VERDICT[v.verdict]?.[0] || v.verdict}</b></span></td><td><a href="#" data-id="${esc(v.id)}">${esc(v.claim)}</a></td><td>${v.support} / ${v.refute}</td><td class="small">${esc((v.run_at || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("")}</tbody></table></div><div id="vf-detail"></div>` : "<p class='muted small'>まだありません（watch.yaml の claims に書くと自動で検証）</p>"; $$("#vf-list a[data-id]").forEach(a => a.onclick = async e => { e.preventDefault(); const v = await getJSON(`./data/verify/${a.dataset.id}.json`); $("#vf-detail").innerHTML = v ? `<h3>${esc(v.claim)}</h3>` + verdictCard(v) : "読めません"; }); }
+function renderVerifyList() { const l = INDEX.filter(r => r.kind === "verify"); $("#vf-list").innerHTML = l.length ? `<div class="tw"><table><thead><tr><th>判定</th><th>主張</th><th>支持/反証</th><th>日時</th><th></th></tr></thead><tbody>${l.map(v => `<tr><td><span class="${J.VERDICT[v.verdict]?.[1] || ""}"><b>${J.VERDICT[v.verdict]?.[0] || v.verdict}</b></span></td><td><a href="#" data-id="${esc(v.id)}">${esc(v.key)}</a></td><td>${v.support} / ${v.refute}</td><td class="small">${esc((v.run_at || "").slice(0, 16).replace("T", " "))}</td><td><button class="small" data-del="${esc(v.id)}">削除</button></td></tr>`).join("")}</tbody></table></div><div id="vf-detail"></div>` : "<p class='muted small'>まだありません</p>"; $$("#vf-list a[data-id]").forEach(a => a.onclick = e => { e.preventDefault(); showVerifyDetail(a.dataset.id); }); $$("#vf-list button[data-del]").forEach(b => b.onclick = async () => { await HDB.del(b.dataset.del); loadData(); }); }
+async function showVerifyDetail(id) { const v = await HDB.get(id); const box = $("#vf-detail") || $("#vf-out"); box.innerHTML = v ? `<h3>${esc(v.key)}</h3>` + verdictCard(v) : "読めません"; }
 
 /* ---------- ドメイン調査 ---------- */
 $("#rc-run").onclick = runRecon; $("#rc-q").onkeydown = e => e.key === "Enter" && runRecon();
@@ -220,10 +236,11 @@ function profileHtml(p) {
 }
 async function runRecon() {
   const q = $("#rc-q").value.trim(); if (!q) return; const st = m => $("#rc-status").textContent = m; $("#rc-run").disabled = true;
-  try { const p = await NET.profile(q, k => st("取得中：" + k)); p.class = J.domainClass(p.host.replace(/^www\./, "")); st(""); $("#rc-out").innerHTML = profileHtml(p) + `<div class="actbar"><button class="small" id="rc-add">watch.yaml に追加</button><button class="small" id="rc-dl">JSON</button></div>`; $("#rc-add").onclick = () => { addWatch("domains", p.host); show("settings"); }; $("#rc-dl").onclick = () => dl(p.host + ".json", JSON.stringify(p, null, 1), "application/json"); }
+  try { const p = await NET.profile(q, k => st("取得中：" + k)); p.class = J.domainClass(p.host.replace(/^www\./, "")); st("履歴に保存しました"); await saveRun({ kind: "recon", key: p.host, ...p }); $("#rc-out").innerHTML = profileHtml(p) + `<div class="actbar"><button class="small" id="rc-dl">JSON</button></div>`; $("#rc-dl").onclick = () => dl(p.host + ".json", JSON.stringify(p, null, 1), "application/json"); }
   catch (e) { st("エラー: " + (e.message || e)); } finally { $("#rc-run").disabled = false; }
 }
-function renderReconList() { const l = INDEX.domains || []; $("#rc-list").innerHTML = l.length ? `<div class="tw"><table><thead><tr><th>ホスト</th><th>種別</th><th>初出</th><th>Wikipedia 出典</th><th>サブドメイン</th><th>日時</th></tr></thead><tbody>${l.map(d => `<tr><td><a href="#" data-host="${esc(d.host)}">${esc(d.host)}</a></td><td>${esc(J.CLASS_LABEL[d.class] || d.class)}</td><td>${esc(d.first || "—")}</td><td>${d.wiki_cites ?? "—"}</td><td>${d.subdomains ?? "—"}</td><td class="small">${esc((d.run_at || "").slice(0, 16).replace("T", " "))}</td></tr>`).join("")}</tbody></table></div><div id="rc-detail"></div>` : "<p class='muted small'>まだありません</p>"; $$("#rc-list a[data-host]").forEach(a => a.onclick = async e => { e.preventDefault(); const p = await getJSON(`./data/domains/${a.dataset.host}.json`); $("#rc-detail").innerHTML = p ? `<h3>${esc(p.host)}</h3>` + profileHtml(p) : "読めません"; }); }
+function renderReconList() { const l = INDEX.filter(r => r.kind === "recon"); $("#rc-list").innerHTML = l.length ? `<div class="tw"><table><thead><tr><th>ホスト</th><th>種別</th><th>初出</th><th>Wikipedia 出典</th><th>日時</th><th></th></tr></thead><tbody>${l.map(d => `<tr><td><a href="#" data-id="${esc(d.id)}">${esc(d.host)}</a></td><td>${esc(J.CLASS_LABEL[d.class] || d.class)}</td><td>${esc(d.wayback?.first || "—")}</td><td>${d.wiki_cites ?? "—"}</td><td class="small">${esc((d.run_at || "").slice(0, 16).replace("T", " "))}</td><td><button class="small" data-del="${esc(d.id)}">削除</button></td></tr>`).join("")}</tbody></table></div><div id="rc-detail"></div>` : "<p class='muted small'>まだありません</p>"; $$("#rc-list a[data-id]").forEach(a => a.onclick = e => { e.preventDefault(); showReconDetail(a.dataset.id); }); $$("#rc-list button[data-del]").forEach(b => b.onclick = async () => { await HDB.del(b.dataset.del); loadData(); }); }
+async function showReconDetail(id) { const p = await HDB.get(id); const box = $("#rc-detail") || $("#rc-out"); box.innerHTML = p ? `<h3>${esc(p.host)}</h3>` + profileHtml(p) : "読めません"; }
 
 /* ---------- 仕組み ---------- */
 function renderHow() {
@@ -242,20 +259,16 @@ function renderHow() {
 function setPath(o, p, v) { const ks = p.split("."); let x = o; for (const k of ks.slice(0, -1)) x = x[k]; x[ks.at(-1)] = v; }
 
 /* ---------- 設定 ---------- */
-function watch() { try { return JSON.parse(localStorage.getItem("mbo.watch") || '{"topics":[],"claims":[],"domains":[]}'); } catch { return { topics: [], claims: [], domains: [] }; } }
-function addWatch(kind, v) { const w = watch(); if (v && !w[kind].includes(v)) w[kind].push(v); localStorage.setItem("mbo.watch", JSON.stringify(w)); renderSettings(); }
-function yaml() { const w = watch(); const q = s => `"${String(s).replace(/"/g, '\\"')}"`; return `# 自動収集の対象（このサイトの「設定」で生成）\ntopics:\n${w.topics.map(t => `  - topic: ${q(t)}`).join("\n") || "  []"}\n\nclaims:\n${w.claims.map(c => `  - ${q(c)}`).join("\n") || "  []"}\n\ndomains:\n${w.domains.map(d => `  - ${q(d)}`).join("\n") || "  []"}\n`; }
 async function renderSettings() {
-  $("#st-yaml").textContent = yaml();
-  [["topic", "topics"], ["claim", "claims"], ["domain", "domains"]].forEach(([id, k]) => $(`#st-${id}-add`).onclick = () => { addWatch(k, $(`#st-${id}`).value.trim()); $(`#st-${id}`).value = ""; });
-  $("#st-copy").onclick = () => navigator.clipboard.writeText(yaml()); $("#st-dl").onclick = () => dl("watch.yaml", yaml()); $("#st-clear").onclick = () => { localStorage.removeItem("mbo.watch"); renderSettings(); };
   $("#st-emb").value = ML.modelName("embed"); $("#st-nli").value = ML.modelName("nli"); $("#st-model-save").onclick = () => { ML.setModelName("embed", $("#st-emb").value.trim()); ML.setModelName("nli", $("#st-nli").value.trim()); state.emb = state.nli = null; $("#st-mmsg").textContent = "保存（次の判定から使用）"; };
   $("#st-hf").value = ML.hfRepo(); $("#st-hf-save").onclick = () => { ML.setHfRepo($("#st-hf").value.trim()); $("#st-mmsg").textContent = "保存"; };
   const a = await ML.isStored("ruri-v3-30m"), b = await ML.isStored("nli-ja-30m"); const bytes = await ML.storedBytes();
   $("#st-models").innerHTML = `<div class="kv"><span>埋め込み ruri-v3-30m</span><span>${a ? "端末内に保存済み" : "未取得（初回の判定時に自動ダウンロード、37 MB）"}</span><span>含意 nli-ja-30m</span><span>${b ? "端末内に保存済み" : "未取得（37 MB）"}</span><span>使用容量</span><span>${(bytes / 1e6).toFixed(1)} MB</span></div>`;
-  $("#st-load").onclick = async () => { try { await models(m => $("#st-mmsg").textContent = m); $("#st-mmsg").textContent = "完了"; renderSettings(); } catch (e) { $("#st-mmsg").textContent = "失敗: " + e.message; } };
+  $("#st-load-models").onclick = async () => { try { await models(m => $("#st-mmsg").textContent = m); $("#st-mmsg").textContent = "完了"; renderSettings(); } catch (e) { $("#st-mmsg").textContent = "失敗: " + e.message; } };
   $("#st-del").onclick = async () => { await ML.removeStored("ruri-v3-30m"); await ML.removeStored("nli-ja-30m"); state.emb = state.nli = null; renderSettings(); };
-  $("#st-links").innerHTML = `<a href="https://github.com/${REPO}/actions/workflows/collect.yml" target="_blank" rel="noopener">Actions → collect</a> ・ <a href="https://github.com/${REPO}/edit/main/watch.yaml" target="_blank" rel="noopener">watch.yaml を編集</a> ・ <a href="https://github.com/${REPO}" target="_blank" rel="noopener">リポジトリ</a>`;
+  $("#st-hist").textContent = `保存件数 ${INDEX.length}（トピック ${INDEX.filter(r => r.kind === "topic").length}・主張 ${INDEX.filter(r => r.kind === "verify").length}・ドメイン ${INDEX.filter(r => r.kind === "recon").length}）`;
+  $("#st-hist-export").onclick = async () => dl("history.json", JSON.stringify(await HDB.all(), null, 1), "application/json");
+  $("#st-hist-clear").onclick = async () => { if (confirm("履歴をすべて削除しますか？")) { await HDB.clear(); loadData(); renderSettings(); } };
 }
 
 /* ---------- 起動 ---------- */

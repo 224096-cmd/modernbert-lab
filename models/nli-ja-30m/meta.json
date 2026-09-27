@@ -1,0 +1,20 @@
+{
+ "kind": "nli",
+ "source": "models/nli-ja-30m-torch",
+ "output": "logits",
+ "pooling": "cls",
+ "labels": {
+  "0": "entailment",
+  "1": "neutral",
+  "2": "contradiction"
+ },
+ "max_seq": 256,
+ "prefixes": null,
+ "temperature": 1.5,
+ "eval": {
+  "n": 600,
+  "acc": 0.83,
+  "ece_T1": 0.06844614927967388,
+  "ece_T": 0.02789757503705819
+ }
+}

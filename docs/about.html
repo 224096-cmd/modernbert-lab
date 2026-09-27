@@ -1,0 +1,38 @@
+<div class="card"><h2 style="margin-top:0">このシステムは何か</h2>
+<p>「公開情報（OSINT）を自動で集め、どれをどの程度信じてよいかを機械が根拠つきで示す」ためのシステム。集める部分は無料の検索エンジンと公開 API だけ、判定する部分は<b>生成しない小さな日本語 BERT 系モデル（ModernBERT-Ja）</b>だけで動く。API キー・課金・サーバは不要で、GitHub（Actions + Pages）の無料枠に収まる。</p>
+<div class="flow"><span>watch.yaml（トピック・主張・ドメイン）</span>→<span>Dorks 生成</span>→<span>検索エンジン／API を巡回</span>→<span>本文抽出</span>→<span>ModernBERT で埋め込み・含意判定</span>→<span>4 軸の信頼性スコア</span>→<span>JSON を push</span>→<span>この PWA</span></div>
+<h3>研究としての位置づけ</h3>
+<p>研究テーマは「<b>既存の日本語 BERT 系モデルを同じ土俵で比較し、その上で自分のデータで微調整した独自モデルを作り、公開情報の信頼性判定という実タスクで評価する</b>」。段階は 3 つ。</p>
+<ol class="small"><li><b>比較</b>：埋め込み（Ruri-v3 各サイズ、multilingual-e5、GLuCoSE、Sentence-BERT）と含意（自作 nli-ja-30m、mDeBERTa-XNLI）を JSTS・JNLI・遅延・サイズで比較（「モデル比較」タブ、<code>python -m mbo.bench</code>）</li><li><b>微調整</b>：土台（modernbert-ja-30m/70m/130m、東北大 BERT、LINE DistilBERT、DeBERTa-v2、mDeBERTa）を JNLI と自作ラベルで微調整して独自 NLI モデルを作る（<code>python -m mbo.train_nli --base …</code>、Colab ノートブック）。ONNX int8 にしてブラウザでも動かす</li><li><b>応用評価</b>：このサイトの裏取り・主張検証にモデルを差し替えて入れ、実データ（自動収集した記事）で判定の一致率・処理時間を比べる</li></ol></div>
+
+<div class="card"><h2 style="margin-top:0">使っているモデルと、何のデータで学習したか</h2>
+<div class="tw"><table><thead><tr><th>モデル</th><th>元</th><th>事前学習データ</th><th>追加の学習</th><th>ここでの役割</th></tr></thead><tbody>
+<tr><td><b>sbintuitions/modernbert-ja-30m</b>（土台）</td><td>SB Intuitions（MIT）</td><td>日本語・英語の Web テキスト約 4.39T トークン（CommonCrawl 由来の日本語コーパス、Wikipedia、英語 Web 等）。系列長 8192、マスク率 30%→15% の 3 段階学習。語彙 102,400（unigram）</td><td>—</td><td>すべての土台。10 層・隠れ 256・Local/Global attention・RoPE・GeGLU</td></tr>
+<tr><td><b>cl-nagoya/ruri-v3-30m</b>（埋め込み）</td><td>名古屋大 笹野研（Apache-2.0）</td><td>上の modernbert-ja-30m</td><td>対照学習：日本語の合成データ（LLM 生成の質問・文書対）＋ JSNLI・JaNLI・NU-MNLI・MIRACL・JQaRA・Mr.TyDi など公開データで 2 段階（弱教師→教師あり）。prefix「検索クエリ: / 検索文書: / トピック: 」</td><td>候補段落の検索（cos）、話題クラスタ、文体のゼロショット、要旨と段落の対応づけ</td></tr>
+<tr><td><b>nli-ja-30m</b>（含意・自作）</td><td>このリポジトリ</td><td>上の modernbert-ja-30m</td><td><b>JNLI</b>（JGLUE、YJ Captions の画像説明文の対に 含意／中立／矛盾 を人手付与。訓練 20,073 対・テスト 2,434 対）から 8,000 対をクラス頻度の逆数で重み付けし 2 エポック微調整（lr 5e-5、系列長 128、CPU 約 80 分）。先頭トークン → 線形層 3 値。ONNX int8 化し温度 T で較正</td><td>裏取り（段落が要旨を含意するか）、主張検証（段落が主張を含意／矛盾するか）</td></tr>
+<tr><td>MoritzLaurer/mDeBERTa-v3-base-xnli…（比較）</td><td>公開（MIT）</td><td>mDeBERTa-v3-base：CC100 多言語 2.5T</td><td>XNLI・MultiNLI など 270 万対の多言語 NLI で微調整</td><td>含意の強い基準線（1.1 GB。ブラウザでは動かさない）</td></tr>
+</tbody></table></div>
+<p class="small muted">学習ログは <code>models/nli-ja-30m-torch/train_log.jsonl</code>、要約は <code>summary.json</code>、ONNX の精度・較正は <code>models/nli-ja-30m/eval.json</code>。下に自動表示。</p><div id="ab-train"></div></div>
+
+<div class="card"><h2 style="margin-top:0">収集の仕組み</h2>
+<ul class="small">
+<li><b>Dorks</b>：トピックから <code>"…"</code>、<code>site:go.jp OR site:lg.jp OR site:ac.jp</code>、<code>filetype:pdf</code>、ファクトチェック媒体、否定語（デマ／訂正／事実無根）などの検索式を自動生成。Google 固有の <code>after:</code> は使わず、DuckDuckGo・Bing・Yahoo! JAPAN が解釈する演算子だけ</li>
+<li><b>エンジン</b>：DuckDuckGo（lite/html 版、bot 判定に当たれば r.jina.ai リーダー経由）、Bing（HTML）、Yahoo! JAPAN（ページ内 JSON）、Google ニュース RSS、Mojeek。<b>API</b>：はてなブックマーク、Bluesky、Mastodon、Reddit、GDELT、Qiita、GitHub、NHK RSS、Wikipedia／ウィキニュース、Crossref、OpenAlex、Wayback CDX</li>
+<li><b>マナー</b>：ブラウザ相当の UA、同一ホストへは 1.2 秒以上あける、robots.txt を尊重（禁止ならリーダー経由の要約だけ）、本文は判定に使うだけで公開データには 200 字以内の根拠段落しか残さない</li>
+<li><b>本文抽出</b>：trafilatura（本文・著者・日付・媒体名・JSON-LD）。取れなければ r.jina.ai の Markdown を平文化</li>
+<li><b>ドメイン調査</b>：Google DNS over HTTPS、RDAP（gTLD）／JPRS whois（.jp）、crt.sh（証明書ログ→サブドメイン）、HackerTarget（ホスト・GeoIP）、archive.org（最古・最新スナップショット→年齢）、urlscan.io（公開スキャン）、Wikipedia exturlusage（出典に使われた回数）、セキュリティヘッダ</li>
+</ul></div>
+
+<div class="card"><h2 style="margin-top:0">判定の仕組み（式は「仕組み」タブ、値は params.json）</h2>
+<ol class="small">
+<li><b>出所</b>：ドメイン種別（公的／教育／報道／学術／百科／団体／企業／ブログ／SNS）に基礎点。HTTPS、Wayback で見た年齢、Wikipedia 出典回数、著者・日付で加減点</li>
+<li><b>内容</b>：本文の長さ、具体性（数値・日付・引用・固有名詞の密度）、文体（Ruri 埋め込みとラベル文「煽り／報告／意見／宣伝」の類似 → softmax）</li>
+<li><b>裏取り</b>：各ページの要旨（冒頭の 1 文）を「検索クエリ」として埋め込み、<b>他ドメイン</b>の段落（「検索文書」）の上位 k を取り、JNLI モデルで含意／中立／矛盾を判定。含意は出所重み×確率で加点、高類似の中立は部分点、矛盾は減点。飽和関数 1−e<sup>−S/2</sup> で 0〜1 に</li>
+<li><b>時間</b>：日付の新しさ（半減期 30 日）</li>
+<li><b>主張検証</b>：主張を埋め込み → 段落上位 k → NLI → 支持 Σw·P(含意)、反証 Σw·P(矛盾) → 支持／否定／食い違い／根拠不足</li>
+<li><b>話題クラスタ</b>：見出し＋抜粋の「トピック」埋め込みで cos ≥ 0.975 をつなぐ単純な連結法。何ドメインが同じ話を伝えているか、最初に出たのはどこかを出す</li>
+</ol>
+<p class="small">Ruri の cos は無関係な文でも 0.85 前後と高い（異方性）ので、しきい値は 0.90〜0.975 に置いてある。ONNX int8 化で JNLI 正解率は fp32 より 2〜3 ポイント下がる（分類ヘッドは量子化しない）。</p></div>
+
+<div class="card"><h2 style="margin-top:0">限界と注意</h2>
+<ul class="small"><li>信頼性スコアは「他の情報源との整合と出所の性質」を数値化したもので、真偽そのものではない。A でも誤り、D でも正しいことはある。根拠段落を必ず読む</li><li>JNLI は画像説明文で作られたデータなので、ニュース文への転移は完全ではない（だから自作ラベルでの微調整が研究の中心になる）</li><li>検索エンジンの HTML は予告なく変わる。壊れたら engines.py のパーサを直す。r.jina.ai は無料枠 20 回/分</li><li>人物検索・アカウント特定・ポートスキャン・ログインが必要な取得は実装しない（以後も）</li></ul></div>

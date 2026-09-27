@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+models/nli-ja-30m/model.safetensors
+models/nli-ja-30m/*.bin
+models/_*.log
+models/*/model.onnx
+.venv/
+docs/models/
+docs/registry.json
+models/*-torch/model.safetensors
+models/*-torch/*.bin
+data/

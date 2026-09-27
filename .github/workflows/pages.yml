@@ -1,0 +1,34 @@
+name: pages
+# docs/ を GitHub Pages に公開（Settings → Pages → Source: GitHub Actions）。data の push ごとにサイトも更新される。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: ブラウザ用モデルを docs/models にコピー（git には models/ だけ置く）
+        run: |
+          mkdir -p docs/models
+          for d in models/*/; do [ -f "$d/model_int8.onnx" ] && cp -r "$d" docs/models/; done
+          cp models/registry.json docs/registry.json
+          cp models/nli-ja-30m-torch/summary.json docs/models/nli-ja-30m/ 2>/dev/null || true
+          rm -f docs/models/*/model.onnx docs/models/*/*.safetensors docs/models/*/train_log.jsonl
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4

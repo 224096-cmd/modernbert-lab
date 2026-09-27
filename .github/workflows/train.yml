@@ -1,0 +1,38 @@
+name: train
+# 土台モデルを JNLI で微調整して独自 NLI モデルを作り、ONNX int8 にして models/ に push（CPU ランナー、30m で約 3 時間／全件）。
+# 大きい土台は Colab（notebooks/train_nli.ipynb）の GPU で。
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: "土台（Hugging Face ID）"
+        default: "sbintuitions/modernbert-ja-30m"
+      name:
+        description: "出来上がるモデル名（models/<name>）"
+        default: "nli-ja-30m"
+      n:
+        description: "訓練件数（最大 20073）"
+        default: "8000"
+      epochs:
+        default: "2"
+permissions:
+  contents: write
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install -r requirements.txt -r requirements-train.txt fugashi unidic-lite ipadic
+      - run: |
+          python -m mbo.train_nli --base "${{ github.event.inputs.base }}" --n ${{ github.event.inputs.n }} --epochs ${{ github.event.inputs.epochs }} --balance --out "models/${{ github.event.inputs.name }}-torch"
+          python -m mbo.export_onnx --nli "models/${{ github.event.inputs.name }}-torch" --out "models/${{ github.event.inputs.name }}"
+          python -m mbo.calibrate --model "models/${{ github.event.inputs.name }}"
+          python -m mbo.bench --local "models/${{ github.event.inputs.name }}-torch" --names "${{ github.event.inputs.name }}" --role nli --note "土台 ${{ github.event.inputs.base }}"
+          cp "models/${{ github.event.inputs.name }}-torch/summary.json" "models/${{ github.event.inputs.name }}/"
+      - run: |
+          git config user.name mbo-bot; git config user.email actions@users.noreply.github.com
+          git add "models/${{ github.event.inputs.name }}" docs/data/models.json
+          git commit -m "train: ${{ github.event.inputs.name }}"; git pull --rebase -X theirs || true; git push

@@ -1,0 +1,103 @@
+{
+ "version": 1,
+ "note": "信頼性スコアと検証の全パラメータ。Python（GitHub Actions）とブラウザの両方がこのファイルを読む。サイトの「仕組み」タブで変更→ダウンロードして置き換える。 埋め込みの cos は全体に高い：無関係な文で 0.77 前後、同趣旨で 0.95 以上。裏取り候補は 0.88 以上、話題クラスタは 0.93 以上。",
+ "weights": {
+  "source": 0.35,
+  "content": 0.25,
+  "corroboration": 0.3,
+  "time": 0.1
+ },
+ "source_class": {
+  "gov": 1.0,
+  "edu": 0.9,
+  "news": 0.85,
+  "academic": 0.9,
+  "wiki": 0.7,
+  "org": 0.65,
+  "corp": 0.55,
+  "other": 0.45,
+  "blog": 0.35,
+  "sns": 0.3
+ },
+ "source_bonus": {
+  "https": 0.05,
+  "age_5y": 0.12,
+  "age_1y": 0.05,
+  "age_lt_90d": -0.2,
+  "wiki_cites_50": 0.12,
+  "wiki_cites_5": 0.06,
+  "author": 0.03,
+  "date": 0.03
+ },
+ "content": {
+  "min_chars_full": 800,
+  "specificity_targets": {
+   "numbers": 6,
+   "dates": 2,
+   "quotes": 1,
+   "proper": 3
+  },
+  "zero_shot_labels": {
+   "煽り": "緊急・拡散希望・衝撃・閲覧注意など感情を煽る表現",
+   "報告": "事実や発表内容を客観的に淡々と報告する文章",
+   "意見": "個人の感想や推測、意見を述べる文章",
+   "宣伝": "商品やサービスの購入・登録を促す宣伝文"
+  },
+  "zero_shot_weight": {
+   "煽り": -0.3,
+   "報告": 0.2,
+   "意見": -0.1,
+   "宣伝": -0.2
+  },
+  "temperature": 20
+ },
+ "corroboration": {
+  "top_k": 8,
+  "min_sim": 0.88,
+  "entail_min": 0.5,
+  "contra_min": 0.75,
+  "saturation": 2.0,
+  "same_domain_discount": 0.0,
+  "topical_alpha": 0.5,
+  "max_pairs": 600
+ },
+ "time": {
+  "half_life_days": 30,
+  "undated": 0.4
+ },
+ "verify": {
+  "top_k": 20,
+  "min_sim": 0.88,
+  "support_min": 0.55,
+  "refute_min": 0.7,
+  "verdict": {
+   "supported": 1.5,
+   "refuted": 1.5,
+   "mixed_ratio": 0.6
+  }
+ },
+ "cluster": {
+  "threshold": 0.93
+ },
+ "collect": {
+  "engines": [
+   "ddg",
+   "bing",
+   "yahoo",
+   "gnews",
+   "hatena",
+   "wiki"
+  ],
+  "per_engine": 10,
+  "dorks": [
+   "exact",
+   "official_jp",
+   "news_pr",
+   "pdf",
+   "factcheck",
+   "deny"
+  ],
+  "read_bodies": 24,
+  "max_items": 120
+ }
+}

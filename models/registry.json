@@ -1,0 +1,27 @@
+{
+ "note": "比較・ファインチューニングの候補モデル。size_mb は Hugging Face 上の重み（fp32 か fp16）の概算。role: embed=文埋め込み, nli=含意（学習済みヘッドあり）, base=事前学習のみ（JNLI で微調整して独自 NLI モデルにする）。onnx が true のものはこのリポジトリの models/<name>/ に int8 ONNX がありブラウザでも動く。",
+ "models": [
+  {"name": "ruri-v3-30m", "hf": "cl-nagoya/ruri-v3-30m", "role": "embed", "arch": "ModernBERT-Ja", "params_m": 37, "size_mb": 150, "onnx": true, "license": "Apache-2.0", "note": "modernbert-ja-30m ベースの文埋め込み。8192 トークン。既定"},
+  {"name": "ruri-v3-70m", "hf": "cl-nagoya/ruri-v3-70m", "role": "embed", "arch": "ModernBERT-Ja", "params_m": 70, "size_mb": 280, "onnx": false, "license": "Apache-2.0", "note": "同上 70M"},
+  {"name": "ruri-v3-130m", "hf": "cl-nagoya/ruri-v3-130m", "role": "embed", "arch": "ModernBERT-Ja", "params_m": 132, "size_mb": 530, "onnx": false, "license": "Apache-2.0", "note": "同上 130M（JMTEB 上位）"},
+  {"name": "ruri-v3-310m", "hf": "cl-nagoya/ruri-v3-310m", "role": "embed", "arch": "ModernBERT-Ja", "params_m": 315, "size_mb": 1260, "onnx": false, "license": "Apache-2.0", "note": "同上 310M（最高精度、2GB 以内）"},
+  {"name": "ruri-small-v2", "hf": "cl-nagoya/ruri-small-v2", "role": "embed", "arch": "BERT（日本語）", "params_m": 68, "size_mb": 270, "onnx": false, "license": "Apache-2.0", "note": "旧世代 BERT ベースの Ruri。ModernBERT との比較用"},
+  {"name": "multilingual-e5-small", "hf": "intfloat/multilingual-e5-small", "role": "embed", "arch": "多言語 MiniLM", "params_m": 118, "size_mb": 470, "onnx": false, "license": "MIT", "note": "多言語で有名な小型埋め込み。prefix は query:/passage:"},
+  {"name": "glucose-base-ja-v2", "hf": "pkshatech/GLuCoSE-base-ja-v2", "role": "embed", "arch": "LUKE（日本語）", "params_m": 133, "size_mb": 530, "onnx": false, "license": "Apache-2.0", "note": "日本語向け汎用埋め込み"},
+  {"name": "sbert-base-ja-mean", "hf": "sonoisa/sentence-bert-base-ja-mean-tokens-v2", "role": "embed", "arch": "BERT（日本語）", "params_m": 111, "size_mb": 440, "onnx": false, "license": "CC-BY-SA-4.0", "note": "古典的な日本語 Sentence-BERT"},
+
+  {"name": "nli-ja-30m", "hf": null, "role": "nli", "arch": "ModernBERT-Ja", "params_m": 37, "size_mb": 150, "onnx": true, "license": "MIT（学習コード）", "note": "このリポジトリで modernbert-ja-30m を JNLI で微調整した独自モデル。既定"},
+  {"name": "mdeberta-xnli", "hf": "MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7", "role": "nli", "arch": "mDeBERTa-v3-base", "params_m": 278, "size_mb": 1110, "onnx": false, "license": "MIT", "note": "多言語 NLI の定番（日本語含む）。ラベル順 entailment/neutral/contradiction。強い基準線"},
+  {"name": "xlm-r-xnli", "hf": "joeddav/xlm-roberta-large-xnli", "role": "nli", "arch": "XLM-R large", "params_m": 560, "size_mb": 2240, "onnx": false, "license": "MIT", "note": "2GB 超（参考。手元 GPU 向け）", "skip_default": true},
+
+  {"name": "modernbert-ja-30m", "hf": "sbintuitions/modernbert-ja-30m", "role": "base", "arch": "ModernBERT-Ja", "params_m": 37, "size_mb": 150, "license": "MIT", "note": "ファインチューニングの土台（既定）。python -m mbo.train_nli --base"},
+  {"name": "modernbert-ja-70m", "hf": "sbintuitions/modernbert-ja-70m", "role": "base", "arch": "ModernBERT-Ja", "params_m": 70, "size_mb": 280, "license": "MIT", "note": "土台 70M"},
+  {"name": "modernbert-ja-130m", "hf": "sbintuitions/modernbert-ja-130m", "role": "base", "arch": "ModernBERT-Ja", "params_m": 132, "size_mb": 530, "license": "MIT", "note": "土台 130M"},
+  {"name": "modernbert-ja-310m", "hf": "sbintuitions/modernbert-ja-310m", "role": "base", "arch": "ModernBERT-Ja", "params_m": 315, "size_mb": 1260, "license": "MIT", "note": "土台 310M（GPU 推奨）"},
+  {"name": "bert-base-japanese-v3", "hf": "tohoku-nlp/bert-base-japanese-v3", "role": "base", "arch": "BERT-base（日本語, MeCab）", "params_m": 111, "size_mb": 440, "license": "Apache-2.0", "note": "日本語 BERT の代表。fugashi/unidic-lite が必要"},
+  {"name": "line-distilbert-ja", "hf": "line-corporation/line-distilbert-base-japanese", "role": "base", "arch": "DistilBERT（日本語）", "params_m": 68, "size_mb": 270, "license": "Apache-2.0", "note": "軽量 BERT。fugashi/unidic-lite が必要"},
+  {"name": "deberta-v2-base-ja", "hf": "ku-nlp/deberta-v2-base-japanese", "role": "base", "arch": "DeBERTa-v2-base（日本語）", "params_m": 112, "size_mb": 450, "license": "CC-BY-SA-4.0", "note": "JGLUE で高性能。Juman++ 不要版（sentencepiece）"},
+  {"name": "mdeberta-v3-base", "hf": "microsoft/mdeberta-v3-base", "role": "base", "arch": "mDeBERTa-v3-base（多言語）", "params_m": 278, "size_mb": 1110, "license": "MIT", "note": "多言語の高性能土台"},
+  {"name": "xlm-roberta-base", "hf": "FacebookAI/xlm-roberta-base", "role": "base", "arch": "XLM-R base（多言語）", "params_m": 278, "size_mb": 1110, "license": "MIT", "note": "多言語 BERT の定番"}
+ ]
+}

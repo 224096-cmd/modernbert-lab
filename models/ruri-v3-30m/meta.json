@@ -1,0 +1,13 @@
+{
+ "kind": "embed",
+ "source": "cl-nagoya/ruri-v3-30m",
+ "output": "embedding",
+ "pooling": "mean+l2norm",
+ "labels": null,
+ "max_seq": 256,
+ "prefixes": {
+  "query": "検索クエリ: ",
+  "doc": "検索文書: ",
+  "topic": "トピック: "
+ }
+}

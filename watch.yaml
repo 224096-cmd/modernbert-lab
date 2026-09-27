@@ -1,0 +1,22 @@
+# 自動収集の対象。GitHub Actions が 6 時間ごと（.github/workflows/collect.yml）にこのファイルを読んで実行し、
+# 結果を docs/data/ に書いて push する。サイトの「設定」タブで編集 → このファイルに貼って push。
+#
+# topics : トピック（検索語）。Dorks を自動生成して DuckDuckGo / Bing / Yahoo / Google ニュースなどを巡回し、
+#          本文を読んで ModernBERT で信頼性を判定する
+# claims : 主張（文）。関連ページを集めて含意/矛盾を判定する（ファクトチェック）
+# domains: ドメイン。DNS / whois(RDAP・JPRS) / 証明書ログ / Wayback / Wikipedia 出典回数 / セキュリティヘッダ
+
+topics:
+  - topic: 南海トラフ地震 臨時情報
+  - topic: 三重大学
+    dorks: [exact, official_jp, news_pr, pdf]
+  - topic: 給付金 申請 SMS
+    dorks: [exact, news_pr, factcheck, deny]
+
+claims:
+  - 三重大学は津市にある国立大学である
+  - 南海トラフ地震は今後30年以内に70〜80%の確率で発生するとされている
+
+domains:
+  - www.mie-u.ac.jp
+  - www.jma.go.jp

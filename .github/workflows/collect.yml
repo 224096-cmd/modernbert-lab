@@ -1,0 +1,68 @@
+name: collect
+# 6 時間ごとに watch.yaml のトピック・主張・ドメインを自動収集・判定し、docs/data/ を更新して push する。
+# 「Run workflow」からはトピック／主張／ドメインを 1 つ指定して即時実行もできる。
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "トピック（空なら watch.yaml を全部）"
+        required: false
+      claim:
+        description: "検証する主張（文）"
+        required: false
+      domain:
+        description: "調査するドメイン"
+        required: false
+      engines:
+        description: "使うエンジン（例 ddg,bing,yahoo,gnews,hatena,wiki）"
+        required: false
+        default: ""
+permissions:
+  contents: write
+concurrency:
+  group: collect
+  cancel-in-progress: false
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: 含意モデル（既定は多言語 NLI mDeBERTa。小型自作モデルにするなら MBO_NLI を nli-ja-30m に）
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu && pip install transformers
+      - name: モデルを用意（リポジトリに無ければ Hugging Face から）
+        run: python -c "from mbo import models; models.embedder(); models.nli(); print('models ok')"
+      - name: 収集・判定
+        env:
+          MBO_MIN_GAP: "1.5"
+          MBO_NLI: ${{ vars.MBO_NLI || 'hf:MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7' }}
+        run: |
+          set -e
+          if [ -n "${{ github.event.inputs.topic }}" ]; then
+            python -m mbo collect "${{ github.event.inputs.topic }}" ${{ github.event.inputs.engines && format('--engines {0}', github.event.inputs.engines) || '' }}
+          fi
+          if [ -n "${{ github.event.inputs.claim }}" ]; then
+            python -m mbo verify "${{ github.event.inputs.claim }}"
+          fi
+          if [ -n "${{ github.event.inputs.domain }}" ]; then
+            python -m mbo recon "${{ github.event.inputs.domain }}"
+          fi
+          if [ -z "${{ github.event.inputs.topic }}${{ github.event.inputs.claim }}${{ github.event.inputs.domain }}" ]; then
+            python -m mbo watch
+          fi
+      - name: 結果を push
+        run: |
+          git config user.name "mbo-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/data
+          git diff --cached --quiet && echo "変更なし" && exit 0
+          git commit -m "data: $(date -u +%Y-%m-%dT%H:%MZ)"
+          git pull --rebase -X theirs || true
+          git push

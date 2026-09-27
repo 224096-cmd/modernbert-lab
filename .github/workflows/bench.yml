@@ -1,0 +1,31 @@
+name: bench
+# 既存モデルの比較（models/registry.json）。CPU ランナーで 600 MB 以下を既定に。結果は docs/data/models.json に push。
+on:
+  workflow_dispatch:
+    inputs:
+      names:
+        description: "モデル名（カンマ区切り。空なら --roles/--max-mb で選ぶ）"
+        required: false
+      roles:
+        description: "役割（embed,nli）"
+        default: "embed,nli"
+      max_mb:
+        description: "配布サイズ上限 MB"
+        default: "600"
+permissions:
+  contents: write
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install -r requirements.txt -r requirements-train.txt fugashi unidic-lite ipadic
+      - run: |
+          if [ -n "${{ github.event.inputs.names }}" ]; then python -m mbo.bench --names "${{ github.event.inputs.names }}"; else python -m mbo.bench --roles "${{ github.event.inputs.roles }}" --max-mb "${{ github.event.inputs.max_mb }}"; fi
+      - run: |
+          git config user.name mbo-bot; git config user.email actions@users.noreply.github.com
+          git add docs/data/models.json; git diff --cached --quiet && exit 0
+          git commit -m "bench: $(date -u +%Y-%m-%dT%H:%MZ)"; git pull --rebase -X theirs || true; git push

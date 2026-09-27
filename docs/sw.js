@@ -1,5 +1,5 @@
-/* PWA：アプリ本体と data/*.json をキャッシュ（ネット優先、失敗時キャッシュ）。モデルは IndexedDB（ml.js）。*/
-const C = "mbo-v1";
+/* PWA・壹い繝励Μ譛ｬ菴薙→ data/*.json 繧偵く繝｣繝・す繝･・医ロ繝・ヨ蜆ｪ蜈医∝､ｱ謨玲凾繧ｭ繝｣繝・す繝･・峨ゅΔ繝・Ν縺ｯ IndexedDB・・l.js・峨・/
+const C = "mbl-v1";
 const APP = ["./", "./index.html", "./app.css", "./app.js", "./net.js", "./ml.js", "./judge.js", "./params.json", "./manifest.json", "./icon.svg",
   "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/transformers.min.js", "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.wasm.min.mjs",
   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort-wasm-simd-threaded.mjs", "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort-wasm-simd-threaded.wasm"];

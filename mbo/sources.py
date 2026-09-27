@@ -1,17 +1,10 @@
-"""検索エンジン以外の公開情報源（無料・鍵なし）。search(query, n) -> [item]
+"""讀懃ｴ｢繧ｨ繝ｳ繧ｸ繝ｳ莉･螟悶・蜈ｬ髢区ュ蝣ｱ貅撰ｼ育┌譁吶・骰ｵ縺ｪ縺暦ｼ峨Ｔearch(query, n) -> [item]
 
-  hatena    はてなブックマーク（話題のエントリ検索・ブクマ数＝反応の量）
-  reddit    Reddit 検索（公開 JSON）
-  mastodon  Mastodon（mstdn.jp など）ハッシュタグ公開タイムライン
-  bluesky   Bluesky 公開検索 API
-  gdelt     GDELT DOC API（世界のニュース、日本語対応）
-  qiita     Qiita 記事検索
-  github    GitHub リポジトリ／Issue 検索
-  nhk       NHK ニュース RSS（クエリで絞り込み）
-  wayback   Wayback Machine の CDX（URL の履歴）
-  crossref  Crossref（学術論文）
-  openalex  OpenAlex（学術論文）
-"""
+  hatena    縺ｯ縺ｦ縺ｪ繝悶ャ繧ｯ繝槭・繧ｯ・郁ｩｱ鬘後・繧ｨ繝ｳ繝医Μ讀懃ｴ｢繝ｻ繝悶け繝樊焚・晏渚蠢懊・驥擾ｼ・  reddit    Reddit 讀懃ｴ｢・亥・髢・JSON・・  mastodon  Mastodon・・stdn.jp 縺ｪ縺ｩ・峨ワ繝・す繝･繧ｿ繧ｰ蜈ｬ髢九ち繧､繝繝ｩ繧､繝ｳ
+  bluesky   Bluesky 蜈ｬ髢区､懃ｴ｢ API
+  gdelt     GDELT DOC API・井ｸ也阜縺ｮ繝九Η繝ｼ繧ｹ縲∵律譛ｬ隱槫ｯｾ蠢懶ｼ・  qiita     Qiita 險倅ｺ区､懃ｴ｢
+  github    GitHub 繝ｪ繝昴ず繝医Μ・終ssue 讀懃ｴ｢
+  nhk       NHK 繝九Η繝ｼ繧ｹ RSS・医け繧ｨ繝ｪ縺ｧ邨槭ｊ霎ｼ縺ｿ・・  wayback   Wayback Machine 縺ｮ CDX・・RL 縺ｮ螻･豁ｴ・・  crossref  Crossref・亥ｭｦ陦楢ｫ匁枚・・  openalex  OpenAlex・亥ｭｦ陦楢ｫ匁枚・・"""
 import re, html, json, urllib.parse, datetime
 from . import http
 from .engines import _item, ENGINES, engine, _clean
@@ -26,7 +19,7 @@ def source(name, label, note=""):
     return deco
 
 
-@source("hatena", "はてなブックマーク", "検索 RSS。ブクマ数は反応の量の目安")
+@source("hatena", "縺ｯ縺ｦ縺ｪ繝悶ャ繧ｯ繝槭・繧ｯ", "讀懃ｴ｢ RSS縲ゅヶ繧ｯ繝樊焚縺ｯ蜿榊ｿ懊・驥上・逶ｮ螳・)
 def hatena(query, n=10, **_):
     s, t, _u = http.text(f"https://b.hatena.ne.jp/search/text?q={urllib.parse.quote(query)}&mode=rss&sort=recent")
     if s != 200:
@@ -44,9 +37,9 @@ def hatena(query, n=10, **_):
     return out[:n]
 
 
-@source("reddit", "Reddit", "公開 JSON 検索")
+@source("reddit", "Reddit", "蜈ｬ髢・JSON 讀懃ｴ｢")
 def reddit(query, n=10, **_):
-    d = http.json_get(f"https://www.reddit.com/search.json?q={urllib.parse.quote(query)}&limit={n}&sort=new", headers={"User-Agent": "modernbert-osint/1.0"})
+    d = http.json_get(f"https://www.reddit.com/search.json?q={urllib.parse.quote(query)}&limit={n}&sort=new", headers={"User-Agent": "modernbert-lab/1.0"})
     out = []
     for c in (d or {}).get("data", {}).get("children", []):
         p = c.get("data", {})
@@ -57,7 +50,7 @@ def reddit(query, n=10, **_):
     return out
 
 
-@source("mastodon", "Mastodon (mstdn.jp)", "ハッシュタグの公開タイムライン（認証不要）")
+@source("mastodon", "Mastodon (mstdn.jp)", "繝上ャ繧ｷ繝･繧ｿ繧ｰ縺ｮ蜈ｬ髢九ち繧､繝繝ｩ繧､繝ｳ・郁ｪ崎ｨｼ荳崎ｦ・ｼ・)
 def mastodon(query, n=10, instance="mstdn.jp", **_):
     tag = re.sub(r"[\s#]+", "", query.split()[0]) if query.strip() else ""
     if not tag:
@@ -72,7 +65,7 @@ def mastodon(query, n=10, instance="mstdn.jp", **_):
     return out
 
 
-@source("bluesky", "Bluesky", "公開検索 API（認証不要）")
+@source("bluesky", "Bluesky", "蜈ｬ髢区､懃ｴ｢ API・郁ｪ崎ｨｼ荳崎ｦ・ｼ・)
 def bluesky(query, n=10, **_):
     d = http.json_get(f"https://public.api.bsky.app/xrpc/app.bsky.feed.searchPosts?q={urllib.parse.quote(query)}&limit={n}&sort=latest")
     out = []
@@ -85,7 +78,7 @@ def bluesky(query, n=10, **_):
     return out
 
 
-@source("gdelt", "GDELT", "世界のニュース記事データベース（DOC API）")
+@source("gdelt", "GDELT", "荳也阜縺ｮ繝九Η繝ｼ繧ｹ險倅ｺ九ョ繝ｼ繧ｿ繝吶・繧ｹ・・OC API・・)
 def gdelt(query, n=15, days=30, **_):
     d = http.json_get(f"https://api.gdeltproject.org/api/v2/doc/doc?query={urllib.parse.quote(query + ' sourcelang:jpn')}&mode=artlist&maxrecords={n}&format=json&timespan={days}d", timeout=40)
     out = []
@@ -96,7 +89,7 @@ def gdelt(query, n=15, days=30, **_):
     return out
 
 
-@source("qiita", "Qiita", "技術記事検索")
+@source("qiita", "Qiita", "謚陦楢ｨ倅ｺ区､懃ｴ｢")
 def qiita(query, n=10, **_):
     d = http.json_get(f"https://qiita.com/api/v2/items?query={urllib.parse.quote(query)}&per_page={n}")
     out = []
@@ -107,7 +100,7 @@ def qiita(query, n=10, **_):
     return out
 
 
-@source("github", "GitHub", "リポジトリ検索（認証なし 10 回/分）")
+@source("github", "GitHub", "繝ｪ繝昴ず繝医Μ讀懃ｴ｢・郁ｪ崎ｨｼ縺ｪ縺・10 蝗・蛻・ｼ・)
 def github(query, n=10, **_):
     d = http.json_get(f"https://api.github.com/search/repositories?q={urllib.parse.quote(query)}&per_page={n}&sort=updated")
     out = []
@@ -118,7 +111,7 @@ def github(query, n=10, **_):
     return out
 
 
-@source("nhk", "NHK ニュース (RSS)", "主要・社会・科学の RSS をクエリで絞り込み")
+@source("nhk", "NHK 繝九Η繝ｼ繧ｹ (RSS)", "荳ｻ隕√・遉ｾ莨壹・遘大ｭｦ縺ｮ RSS 繧偵け繧ｨ繝ｪ縺ｧ邨槭ｊ霎ｼ縺ｿ")
 def nhk(query, n=10, **_):
     out = []
     words = [w for w in re.split(r"\s+", query) if w and not w.startswith("-") and ":" not in w]
@@ -144,7 +137,7 @@ def nhk(query, n=10, **_):
     return out[:n]
 
 
-@source("wayback", "Wayback Machine", "URL の保存履歴（CDX API）")
+@source("wayback", "Wayback Machine", "URL 縺ｮ菫晏ｭ伜ｱ･豁ｴ・・DX API・・)
 def wayback(query, n=10, **_):
     if not re.match(r"^https?://|^[\w.-]+\.[a-z]{2,}", query.strip()):
         return []
@@ -152,11 +145,11 @@ def wayback(query, n=10, **_):
     out = []
     for row in (d or [])[1:]:
         ts, orig = row[1], row[2]
-        out.append(_item(f"https://web.archive.org/web/{ts}/{orig}", f"保存 {ts[:4]}-{ts[4:6]}-{ts[6:8]}", orig, "wayback", query, len(out) + 1, f"{ts[:4]}-{ts[4:6]}-{ts[6:8]}"))
+        out.append(_item(f"https://web.archive.org/web/{ts}/{orig}", f"菫晏ｭ・{ts[:4]}-{ts[4:6]}-{ts[6:8]}", orig, "wayback", query, len(out) + 1, f"{ts[:4]}-{ts[4:6]}-{ts[6:8]}"))
     return out
 
 
-@source("crossref", "Crossref（論文）", "DOI つき学術文献")
+@source("crossref", "Crossref・郁ｫ匁枚・・, "DOI 縺､縺榊ｭｦ陦捺枚迪ｮ")
 def crossref(query, n=5, **_):
     d = http.json_get(f"https://api.crossref.org/works?query={urllib.parse.quote(query)}&rows={n}&select=DOI,title,issued,container-title,author")
     out = []
@@ -167,7 +160,7 @@ def crossref(query, n=5, **_):
     return out
 
 
-@source("openalex", "OpenAlex（論文）", "オープンな学術データベース")
+@source("openalex", "OpenAlex・郁ｫ匁枚・・, "繧ｪ繝ｼ繝励Φ縺ｪ蟄ｦ陦薙ョ繝ｼ繧ｿ繝吶・繧ｹ")
 def openalex(query, n=5, **_):
     d = http.json_get(f"https://api.openalex.org/works?search={urllib.parse.quote(query)}&per-page={n}&select=id,title,publication_date,doi,primary_location,cited_by_count")
     out = []

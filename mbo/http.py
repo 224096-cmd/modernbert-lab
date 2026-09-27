@@ -1,7 +1,5 @@
-"""HTTP 共通：ブラウザ相当の UA、ホストごとの間隔、リトライ、r.jina.ai 経由の読み取り代替。
-
-すべて無料・API キーなし。相手サイトの負荷にならないよう、同一ホストへは MIN_GAP 秒以上あける。
-"""
+"""HTTP 蜈ｱ騾夲ｼ壹ヶ繝ｩ繧ｦ繧ｶ逶ｸ蠖薙・ UA縲√・繧ｹ繝医＃縺ｨ縺ｮ髢馴囈縲√Μ繝医Λ繧､縲〉.jina.ai 邨檎罰縺ｮ隱ｭ縺ｿ蜿悶ｊ莉｣譖ｿ縲・
+縺吶∋縺ｦ辟｡譁吶・API 繧ｭ繝ｼ縺ｪ縺励ら嶌謇九し繧､繝医・雋闕ｷ縺ｫ縺ｪ繧峨↑縺・ｈ縺・∝酔荳繝帙せ繝医∈縺ｯ MIN_GAP 遘剃ｻ･荳翫≠縺代ｋ縲・"""
 import time, random, urllib.parse, urllib.request, urllib.error, gzip, io, json, re, os
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
@@ -21,7 +19,7 @@ def _wait(host):
 
 
 def get(url, headers=None, timeout=None, retries=1, data=None, accept=None):
-    """GET/POST。(status, bytes, final_url, headers) を返す。失敗時は status=0。"""
+    """GET/POST縲・status, bytes, final_url, headers) 繧定ｿ斐☆縲ょ､ｱ謨玲凾縺ｯ status=0縲・""
     host = urllib.parse.urlsplit(url).hostname or ""
     h = {"User-Agent": UA, "Accept": accept or "text/html,application/xhtml+xml,application/json,application/xml;q=0.9,*/*;q=0.8",
          "Accept-Language": "ja,en;q=0.8", "Accept-Encoding": "gzip"}
@@ -74,12 +72,12 @@ def decode(b, headers=None):
 
 
 def jina(url, timeout=45):
-    """r.jina.ai リーダー（無料・鍵なし）で本文を Markdown として取得。ブラウザ側と同じ経路。"""
+    """r.jina.ai 繝ｪ繝ｼ繝繝ｼ・育┌譁吶・骰ｵ縺ｪ縺暦ｼ峨〒譛ｬ譁・ｒ Markdown 縺ｨ縺励※蜿門ｾ励ゅヶ繝ｩ繧ｦ繧ｶ蛛ｴ縺ｨ蜷後§邨瑚ｷｯ縲・""
     s, b, u, h = get(JINA + url, headers={"Accept": "text/plain", "User-Agent": "curl/8.6.0"}, timeout=timeout)
     return s, decode(b, h)
 
 
-WIKI_UA = "modernbert-osint/1.0 (https://github.com/mie-edu/modernbert-osint; research bot)"
+WIKI_UA = "modernbert-lab/1.0 (https://github.com/224096-cmd/modernbert-lab; research bot)"
 
 
 def json_get(url, **kw):

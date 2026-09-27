@@ -1,2 +1,2 @@
-{"name":"ModernBERT OSINT","short_name":"MB OSINT","start_url":"./","scope":"./","display":"standalone","background_color":"#f4f6f9","theme_color":"#1d4ed8","lang":"ja","description":"無料の検索エンジンで公開情報を自動収集し、日本語 ModernBERT で信頼性を判定する","icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}],
+{"name":"ModernBERT Lab","short_name":"MB Lab","start_url":"./","scope":"./","display":"standalone","background_color":"#f4f6f9","theme_color":"#1d4ed8","lang":"ja","description":"辟｡譁吶・讀懃ｴ｢繧ｨ繝ｳ繧ｸ繝ｳ縺ｧ蜈ｬ髢区ュ蝣ｱ繧定・蜍募庶髮・＠縲∵律譛ｬ隱・ModernBERT 縺ｧ菫｡鬆ｼ諤ｧ繧貞愛螳壹☆繧・,"icons":[{"src":"icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}],
 "share_target":{"action":"./","method":"GET","params":{"title":"title","text":"text","url":"url"}}}

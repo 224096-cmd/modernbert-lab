@@ -2,103 +2,103 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ModernBERT OSINT</title>
-<meta name="description" content="無料の検索エンジン（DuckDuckGo・Bing・Yahoo・Google ニュース）で公開情報を自動収集し、日本語 ModernBERT で裏取り・信頼性を判定する">
+<title>ModernBERT Lab</title>
+<meta name="description" content="辟｡譁吶・讀懃ｴ｢繧ｨ繝ｳ繧ｸ繝ｳ・・uckDuckGo繝ｻBing繝ｻYahoo繝ｻGoogle 繝九Η繝ｼ繧ｹ・峨〒蜈ｬ髢区ュ蝣ｱ繧定・蜍募庶髮・＠縲∵律譛ｬ隱・ModernBERT 縺ｧ陬丞叙繧翫・菫｡鬆ｼ諤ｧ繧貞愛螳壹☆繧・>
 <link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1d4ed8"><link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="top"><a class="brand" href="./">🔎 ModernBERT OSINT <small id="ver"></small></a>
-<nav id="nav"><button data-t="home" class="on">概要</button><button data-t="topics">自動収集</button><button data-t="live">いま調べる</button><button data-t="verify">主張を検証</button><button data-t="recon">ドメイン調査</button><button data-t="models">モデル比較</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
+<header class="top"><a class="brand" href="./">博 ModernBERT Lab <small id="ver"></small></a>
+<nav id="nav"><button data-t="home" class="on">讎りｦ・/button><button data-t="topics">閾ｪ蜍募庶髮・/button><button data-t="live">縺・∪隱ｿ縺ｹ繧・/button><button data-t="verify">荳ｻ蠑ｵ繧呈､懆ｨｼ</button><button data-t="recon">繝峨Γ繧､繝ｳ隱ｿ譟ｻ</button><button data-t="models">繝｢繝・Ν豈碑ｼ・/button><button data-t="how">莉慕ｵ・∩</button><button data-t="about">隗｣隱ｬ</button><button data-t="settings">險ｭ螳・/button></nav>
 <span id="net" class="tiny muted"></span></header>
 <main>
 <section id="t-home">
- <div class="hero"><h1>公開情報を自動で集めて、ModernBERT で見極める</h1><p>DuckDuckGo・Bing・Yahoo! JAPAN・Google ニュース・はてな・Wikipedia などを <b>Dorks（検索演算子）</b>で自動巡回し、本文を読み、日本語 ModernBERT（Ruri-v3 埋め込み＋JNLI 含意判定）で<b>他の情報源と突き合わせて信頼性を採点</b>する。収集は GitHub Actions が定期実行し、このページ（PWA）に集まる。手元でもブラウザ内の同じモデルで即時に判定できる。</p></div>
+ <div class="hero"><h1>蜈ｬ髢区ュ蝣ｱ繧定・蜍輔〒髮・ａ縺ｦ縲｀odernBERT 縺ｧ隕区･ｵ繧√ｋ</h1><p>DuckDuckGo繝ｻBing繝ｻYahoo! JAPAN繝ｻGoogle 繝九Η繝ｼ繧ｹ繝ｻ縺ｯ縺ｦ縺ｪ繝ｻWikipedia 縺ｪ縺ｩ繧・<b>Dorks・域､懃ｴ｢貍皮ｮ怜ｭ撰ｼ・/b>縺ｧ閾ｪ蜍募ｷ｡蝗槭＠縲∵悽譁・ｒ隱ｭ縺ｿ縲∵律譛ｬ隱・ModernBERT・・uri-v3 蝓九ａ霎ｼ縺ｿ・徽NLI 蜷ｫ諢丞愛螳夲ｼ峨〒<b>莉悶・諠・ｱ貅舌→遯√″蜷医ｏ縺帙※菫｡鬆ｼ諤ｧ繧呈治轤ｹ</b>縺吶ｋ縲ょ庶髮・・ GitHub Actions 縺悟ｮ壽悄螳溯｡後＠縲√％縺ｮ繝壹・繧ｸ・・WA・峨↓髮・∪繧九よ焔蜈・〒繧ゅヶ繝ｩ繧ｦ繧ｶ蜀・・蜷後§繝｢繝・Ν縺ｧ蜊ｳ譎ゅ↓蛻､螳壹〒縺阪ｋ縲・/p></div>
  <div class="stats" id="home-stats"></div>
  <div class="tiles" id="home-tiles"></div>
- <div class="card"><h2 style="margin-top:0">新着（自動収集の最新）</h2><div id="home-latest"></div></div>
- <div class="card"><h2 style="margin-top:0">動画で紹介される OSINT ツールとの対応</h2><div class="tw"><table><thead><tr><th>よく紹介されるもの</th><th>このサイトでの代替（無料・鍵なし）</th><th>どこ</th></tr></thead><tbody>
- <tr><td>Google Dorks / Google Hacking</td><td>Dorks を自動生成して DuckDuckGo・Bing・Yahoo で実行（after: など Google 固有は使わない）</td><td>自動収集・いま調べる</td></tr>
- <tr><td>whois</td><td>RDAP（gTLD）＋ JPRS whois（.jp）</td><td>ドメイン調査</td></tr>
- <tr><td>DNS 調査（dig / nslookup）</td><td>Google DNS over HTTPS（A / AAAA / MX / NS / TXT）</td><td>ドメイン調査</td></tr>
- <tr><td>theHarvester / Sublist3r（サブドメイン）</td><td>証明書透明性ログ（crt.sh）＋ HackerTarget ホスト検索</td><td>ドメイン調査</td></tr>
- <tr><td>Shodan / Censys</td><td>urlscan.io 公開スキャン・GeoIP・セキュリティヘッダ（ポートスキャンは行わない）</td><td>ドメイン調査</td></tr>
- <tr><td>Wayback Machine</td><td>最古／最新スナップショット → ドメインの年齢を信頼性に反映</td><td>ドメイン調査・採点</td></tr>
- <tr><td>Maltego（関係の可視化）</td><td>話題クラスタ（埋め込み）と、どのドメインが同じ主張をしているかの一覧</td><td>自動収集</td></tr>
- <tr><td>SNS 検索</td><td>はてな・Bluesky・Mastodon・Reddit（公開 API）。人物検索・アカウント特定は行わない</td><td>自動収集</td></tr>
- <tr><td>ファクトチェック</td><td>主張 → 関連段落を検索 → JNLI で含意／矛盾 → 判定と根拠</td><td>主張を検証</td></tr>
+ <div class="card"><h2 style="margin-top:0">譁ｰ逹・郁・蜍募庶髮・・譛譁ｰ・・/h2><div id="home-latest"></div></div>
+ <div class="card"><h2 style="margin-top:0">蜍慕判縺ｧ邏ｹ莉九＆繧後ｋ OSINT 繝・・繝ｫ縺ｨ縺ｮ蟇ｾ蠢・/h2><div class="tw"><table><thead><tr><th>繧医￥邏ｹ莉九＆繧後ｋ繧ゅ・</th><th>縺薙・繧ｵ繧､繝医〒縺ｮ莉｣譖ｿ・育┌譁吶・骰ｵ縺ｪ縺暦ｼ・/th><th>縺ｩ縺・/th></tr></thead><tbody>
+ <tr><td>Google Dorks / Google Hacking</td><td>Dorks 繧定・蜍慕函謌舌＠縺ｦ DuckDuckGo繝ｻBing繝ｻYahoo 縺ｧ螳溯｡鯉ｼ・fter: 縺ｪ縺ｩ Google 蝗ｺ譛峨・菴ｿ繧上↑縺・ｼ・/td><td>閾ｪ蜍募庶髮・・縺・∪隱ｿ縺ｹ繧・/td></tr>
+ <tr><td>whois</td><td>RDAP・・TLD・会ｼ・JPRS whois・・jp・・/td><td>繝峨Γ繧､繝ｳ隱ｿ譟ｻ</td></tr>
+ <tr><td>DNS 隱ｿ譟ｻ・・ig / nslookup・・/td><td>Google DNS over HTTPS・・ / AAAA / MX / NS / TXT・・/td><td>繝峨Γ繧､繝ｳ隱ｿ譟ｻ</td></tr>
+ <tr><td>theHarvester / Sublist3r・医し繝悶ラ繝｡繧､繝ｳ・・/td><td>險ｼ譏取嶌騾乗・諤ｧ繝ｭ繧ｰ・・rt.sh・会ｼ・HackerTarget 繝帙せ繝域､懃ｴ｢</td><td>繝峨Γ繧､繝ｳ隱ｿ譟ｻ</td></tr>
+ <tr><td>Shodan / Censys</td><td>urlscan.io 蜈ｬ髢九せ繧ｭ繝｣繝ｳ繝ｻGeoIP繝ｻ繧ｻ繧ｭ繝･繝ｪ繝・ぅ繝倥ャ繝・医・繝ｼ繝医せ繧ｭ繝｣繝ｳ縺ｯ陦後ｏ縺ｪ縺・ｼ・/td><td>繝峨Γ繧､繝ｳ隱ｿ譟ｻ</td></tr>
+ <tr><td>Wayback Machine</td><td>譛蜿､・乗怙譁ｰ繧ｹ繝翫ャ繝励す繝ｧ繝・ヨ 竊・繝峨Γ繧､繝ｳ縺ｮ蟷ｴ鮨｢繧剃ｿ｡鬆ｼ諤ｧ縺ｫ蜿肴丐</td><td>繝峨Γ繧､繝ｳ隱ｿ譟ｻ繝ｻ謗｡轤ｹ</td></tr>
+ <tr><td>Maltego・磯未菫ゅ・蜿ｯ隕門喧・・/td><td>隧ｱ鬘後け繝ｩ繧ｹ繧ｿ・亥沂繧∬ｾｼ縺ｿ・峨→縲√←縺ｮ繝峨Γ繧､繝ｳ縺悟酔縺倅ｸｻ蠑ｵ繧偵＠縺ｦ縺・ｋ縺九・荳隕ｧ</td><td>閾ｪ蜍募庶髮・/td></tr>
+ <tr><td>SNS 讀懃ｴ｢</td><td>縺ｯ縺ｦ縺ｪ繝ｻBluesky繝ｻMastodon繝ｻReddit・亥・髢・API・峨ゆｺｺ迚ｩ讀懃ｴ｢繝ｻ繧｢繧ｫ繧ｦ繝ｳ繝育音螳壹・陦後ｏ縺ｪ縺・/td><td>閾ｪ蜍募庶髮・/td></tr>
+ <tr><td>繝輔ぃ繧ｯ繝医メ繧ｧ繝・け</td><td>荳ｻ蠑ｵ 竊・髢｢騾｣谿ｵ關ｽ繧呈､懃ｴ｢ 竊・JNLI 縺ｧ蜷ｫ諢擾ｼ冗泝逶ｾ 竊・蛻､螳壹→譬ｹ諡</td><td>荳ｻ蠑ｵ繧呈､懆ｨｼ</td></tr>
  </tbody></table></div></div>
 </section>
 
 <section id="t-topics" class="hidden">
  <div class="card"><div class="row"><select id="tp-sel" style="max-width:420px"></select><span id="tp-meta" class="small muted"></span><button class="small" id="tp-csv">CSV</button><button class="small" id="tp-json">JSON</button></div>
   <div class="stats" id="tp-stats"></div><div id="tp-hist"></div></div>
- <div class="card"><h2 style="margin-top:0">話題のまとまり <span class="muted small">— 同じ話を何ドメインが伝えているか・最初に出たのはどこか</span></h2><div id="tp-clusters"></div></div>
- <div class="card"><h2 style="margin-top:0">収集結果</h2><div class="row"><input id="tp-q" placeholder="絞り込み（語）" style="max-width:260px"><select id="tp-grade" style="max-width:120px"><option value="">全評価</option><option>A</option><option>B</option><option>C</option><option>D</option></select><select id="tp-class" style="max-width:160px"><option value="">全種別</option></select><select id="tp-sort" style="max-width:150px"><option value="rel">信頼性順</option><option value="date">新しい順</option><option value="corr">裏取り順</option></select></div><div id="tp-items"></div></div>
- <div class="card"><h2 style="margin-top:0">使った検索式</h2><div id="tp-queries"></div></div>
+ <div class="card"><h2 style="margin-top:0">隧ｱ鬘後・縺ｾ縺ｨ縺ｾ繧・<span class="muted small">窶・蜷後§隧ｱ繧剃ｽ輔ラ繝｡繧､繝ｳ縺御ｼ昴∴縺ｦ縺・ｋ縺九・譛蛻昴↓蜃ｺ縺溘・縺ｯ縺ｩ縺薙°</span></h2><div id="tp-clusters"></div></div>
+ <div class="card"><h2 style="margin-top:0">蜿朱寔邨先棡</h2><div class="row"><input id="tp-q" placeholder="邨槭ｊ霎ｼ縺ｿ・郁ｪ橸ｼ・ style="max-width:260px"><select id="tp-grade" style="max-width:120px"><option value="">蜈ｨ隧穂ｾ｡</option><option>A</option><option>B</option><option>C</option><option>D</option></select><select id="tp-class" style="max-width:160px"><option value="">蜈ｨ遞ｮ蛻･</option></select><select id="tp-sort" style="max-width:150px"><option value="rel">菫｡鬆ｼ諤ｧ鬆・/option><option value="date">譁ｰ縺励＞鬆・/option><option value="corr">陬丞叙繧企・/option></select></div><div id="tp-items"></div></div>
+ <div class="card"><h2 style="margin-top:0">菴ｿ縺｣縺滓､懃ｴ｢蠑・/h2><div id="tp-queries"></div></div>
 </section>
 
 <section id="t-live" class="hidden">
- <div class="card"><h2 style="margin-top:0">いま調べる <span class="muted small">— ブラウザから検索エンジンを引き、本文を読み、端末内の ModernBERT で採点</span></h2>
-  <div class="row"><input id="lv-q" placeholder="トピック、または検証したい URL"><button class="primary" id="lv-run">調べる</button></div>
+ <div class="card"><h2 style="margin-top:0">縺・∪隱ｿ縺ｹ繧・<span class="muted small">窶・繝悶Λ繧ｦ繧ｶ縺九ｉ讀懃ｴ｢繧ｨ繝ｳ繧ｸ繝ｳ繧貞ｼ輔″縲∵悽譁・ｒ隱ｭ縺ｿ縲∫ｫｯ譛ｫ蜀・・ ModernBERT 縺ｧ謗｡轤ｹ</span></h2>
+  <div class="row"><input id="lv-q" placeholder="繝医ヴ繝・け縲√∪縺溘・讀懆ｨｼ縺励◆縺・URL"><button class="primary" id="lv-run">隱ｿ縺ｹ繧・/button></div>
   <div class="chips" id="lv-dorks"></div><div class="chips" id="lv-engines"></div>
-  <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="20" value="8"><b id="lv-read-v">8</b> <span class="muted">（r.jina.ai 経由、1 件 2〜5 秒）</span></div>
+  <div class="gate small">譛ｬ譁・ｒ隱ｭ繧莉ｶ謨ｰ <input type="range" id="lv-read" min="0" max="20" value="8"><b id="lv-read-v">8</b> <span class="muted">・・.jina.ai 邨檎罰縲・ 莉ｶ 2縲・ 遘抵ｼ・/span></div>
   <div id="lv-status" class="small muted"></div></div>
  <div id="lv-out"></div>
 </section>
 
 <section id="t-verify" class="hidden">
- <div class="card"><h2 style="margin-top:0">主張を検証する <span class="muted small">— 文を入れると関連ページを集め、段落ごとに含意／矛盾を判定</span></h2>
-  <div class="row"><input id="vf-q" placeholder="例：三重大学は津市にある国立大学である"><button class="primary" id="vf-run">検証</button></div>
+ <div class="card"><h2 style="margin-top:0">荳ｻ蠑ｵ繧呈､懆ｨｼ縺吶ｋ <span class="muted small">窶・譁・ｒ蜈･繧後ｋ縺ｨ髢｢騾｣繝壹・繧ｸ繧帝寔繧√∵ｮｵ關ｽ縺斐→縺ｫ蜷ｫ諢擾ｼ冗泝逶ｾ繧貞愛螳・/span></h2>
+  <div class="row"><input id="vf-q" placeholder="萓具ｼ壻ｸ蛾㍾螟ｧ蟄ｦ縺ｯ豢･蟶ゅ↓縺ゅｋ蝗ｽ遶句､ｧ蟄ｦ縺ｧ縺ゅｋ"><button class="primary" id="vf-run">讀懆ｨｼ</button></div>
   <div id="vf-status" class="small muted"></div><div id="vf-out"></div></div>
- <div class="card"><h2 style="margin-top:0">自動収集で検証済みの主張</h2><div id="vf-list"></div></div>
+ <div class="card"><h2 style="margin-top:0">閾ｪ蜍募庶髮・〒讀懆ｨｼ貂医∩縺ｮ荳ｻ蠑ｵ</h2><div id="vf-list"></div></div>
 </section>
 
 <section id="t-recon" class="hidden">
- <div class="card"><h2 style="margin-top:0">ドメイン調査 <span class="muted small">— DNS・whois/RDAP・証明書ログ・Wayback・Wikipedia 出典・スキャン履歴</span></h2>
-  <div class="row"><input id="rc-q" placeholder="例：www.mie-u.ac.jp"><button class="primary" id="rc-run">調べる</button></div><div id="rc-status" class="small muted"></div><div id="rc-out"></div></div>
- <div class="card"><h2 style="margin-top:0">自動収集で調査済み</h2><div id="rc-list"></div></div>
+ <div class="card"><h2 style="margin-top:0">繝峨Γ繧､繝ｳ隱ｿ譟ｻ <span class="muted small">窶・DNS繝ｻwhois/RDAP繝ｻ險ｼ譏取嶌繝ｭ繧ｰ繝ｻWayback繝ｻWikipedia 蜃ｺ蜈ｸ繝ｻ繧ｹ繧ｭ繝｣繝ｳ螻･豁ｴ</span></h2>
+  <div class="row"><input id="rc-q" placeholder="萓具ｼ嗹ww.mie-u.ac.jp"><button class="primary" id="rc-run">隱ｿ縺ｹ繧・/button></div><div id="rc-status" class="small muted"></div><div id="rc-out"></div></div>
+ <div class="card"><h2 style="margin-top:0">閾ｪ蜍募庶髮・〒隱ｿ譟ｻ貂医∩</h2><div id="rc-list"></div></div>
 </section>
 
 <section id="t-how" class="hidden">
- <div class="card"><h2 style="margin-top:0">流れ</h2><div class="flow"><span>トピック／主張／URL</span>→<span>Dorks 生成</span>→<span>DDG・Bing・Yahoo・Google ニュース・はてな・Wikipedia…</span>→<span>本文抽出（trafilatura / r.jina.ai）</span>→<span>ModernBERT：埋め込み（Ruri-v3-30m）・含意（JNLI 微調整 30M）</span>→<span>出所・内容・裏取り・時間の 4 軸で採点</span>→<span>docs/data/*.json → このページ</span></div></div>
- <div class="card"><h2 style="margin-top:0">信頼性スコア R（0–100）</h2>
-  <p class="formula">R = 100 × ( w<sub>src</sub>·s<sub>src</sub> + w<sub>con</sub>·s<sub>con</sub> + w<sub>cor</sub>·s<sub>cor</sub> + w<sub>time</sub>·s<sub>time</sub> )</p>
+ <div class="card"><h2 style="margin-top:0">豬√ｌ</h2><div class="flow"><span>繝医ヴ繝・け・丈ｸｻ蠑ｵ・酋RL</span>竊・span>Dorks 逕滓・</span>竊・span>DDG繝ｻBing繝ｻYahoo繝ｻGoogle 繝九Η繝ｼ繧ｹ繝ｻ縺ｯ縺ｦ縺ｪ繝ｻWikipedia窶ｦ</span>竊・span>譛ｬ譁・歓蜃ｺ・・rafilatura / r.jina.ai・・/span>竊・span>ModernBERT・壼沂繧∬ｾｼ縺ｿ・・uri-v3-30m・峨・蜷ｫ諢擾ｼ・NLI 蠕ｮ隱ｿ謨ｴ 30M・・/span>竊・span>蜃ｺ謇繝ｻ蜀・ｮｹ繝ｻ陬丞叙繧翫・譎る俣縺ｮ 4 霆ｸ縺ｧ謗｡轤ｹ</span>竊・span>docs/data/*.json 竊・縺薙・繝壹・繧ｸ</span></div></div>
+ <div class="card"><h2 style="margin-top:0">菫｡鬆ｼ諤ｧ繧ｹ繧ｳ繧｢ R・・窶・00・・/h2>
+  <p class="formula">R = 100 ﾃ・( w<sub>src</sub>ﾂｷs<sub>src</sub> + w<sub>con</sub>ﾂｷs<sub>con</sub> + w<sub>cor</sub>ﾂｷs<sub>cor</sub> + w<sub>time</sub>ﾂｷs<sub>time</sub> )</p>
   <div class="kv">
-   <span>s<sub>src</sub> 出所</span><span>ドメイン種別の基礎点（公的 1.0 … SNS 0.3）＋ HTTPS ＋ ドメイン年齢（Wayback 最古） ＋ Wikipedia 出典回数 ＋ 著者・日付の有無</span>
-   <span>s<sub>con</sub> 内容</span><span>0.35·長さ(本文/800字) ＋ 0.40·具体性(数値・日付・引用・固有名詞) ＋ 0.25 ＋ 文体（ゼロショット：煽り −0.3、報告 +0.2、意見 −0.1、宣伝 −0.2）</span>
-   <span>s<sub>cor</sub> 裏取り</span><span>要旨（冒頭の 1 文）を、<b>他ドメイン</b>の段落が含意する重み付き件数 S（含意に届かない同趣旨の段落は 0.5×類似度の余裕×P(中立) の部分点）、矛盾 C：0.15 + 0.85·(1−e<sup>−S/2</sup>) − 0.6·(1−e<sup>−C/2</sup>)。含意判定は JNLI 微調整モデル、候補は Ruri 埋め込みの cos 上位 k</span>
-   <span>s<sub>time</sub> 時間</span><span>0.2 + 0.8·0.5<sup>経過日数/半減期</sup>（日付なしは 0.4）</span>
-   <span>評価</span><span>A ≥ 75、B ≥ 60、C ≥ 45、D</span>
+   <span>s<sub>src</sub> 蜃ｺ謇</span><span>繝峨Γ繧､繝ｳ遞ｮ蛻･縺ｮ蝓ｺ遉守せ・亥・逧・1.0 窶ｦ SNS 0.3・会ｼ・HTTPS ・・繝峨Γ繧､繝ｳ蟷ｴ鮨｢・・ayback 譛蜿､・・・・Wikipedia 蜃ｺ蜈ｸ蝗樊焚 ・・闡苓・・譌･莉倥・譛臥┌</span>
+   <span>s<sub>con</sub> 蜀・ｮｹ</span><span>0.35ﾂｷ髟ｷ縺・譛ｬ譁・800蟄・ ・・0.40ﾂｷ蜈ｷ菴捺ｧ(謨ｰ蛟､繝ｻ譌･莉倥・蠑慕畑繝ｻ蝗ｺ譛牙錐隧・ ・・0.25 ・・譁・ｽ難ｼ医ぞ繝ｭ繧ｷ繝ｧ繝・ヨ・夂・繧・竏・.3縲∝ｱ蜻・+0.2縲∵э隕・竏・.1縲∝ｮ｣莨・竏・.2・・/span>
+   <span>s<sub>cor</sub> 陬丞叙繧・/span><span>隕∵葎・亥・鬆ｭ縺ｮ 1 譁・ｼ峨ｒ縲・b>莉悶ラ繝｡繧､繝ｳ</b>縺ｮ谿ｵ關ｽ縺悟性諢上☆繧矩㍾縺ｿ莉倥″莉ｶ謨ｰ S・亥性諢上↓螻翫°縺ｪ縺・酔雜｣譌ｨ縺ｮ谿ｵ關ｽ縺ｯ 0.5ﾃ鈴｡樔ｼｼ蠎ｦ縺ｮ菴呵｣陛猶(荳ｭ遶・ 縺ｮ驛ｨ蛻・せ・峨∫泝逶ｾ C・・.15 + 0.85ﾂｷ(1竏弾<sup>竏担/2</sup>) 竏・0.6ﾂｷ(1竏弾<sup>竏辰/2</sup>)縲ょ性諢丞愛螳壹・ JNLI 蠕ｮ隱ｿ謨ｴ繝｢繝・Ν縲∝呵｣懊・ Ruri 蝓九ａ霎ｼ縺ｿ縺ｮ cos 荳贋ｽ・k</span>
+   <span>s<sub>time</sub> 譎る俣</span><span>0.2 + 0.8ﾂｷ0.5<sup>邨碁℃譌･謨ｰ/蜊頑ｸ帶悄</sup>・域律莉倥↑縺励・ 0.4・・/span>
+   <span>隧穂ｾ｡</span><span>A 竕･ 75縲。 竕･ 60縲， 竕･ 45縲．</span>
   </div>
-  <h3>主張の検証</h3><p class="small">主張を「検索クエリ: 」で埋め込み → 段落（「検索文書: 」）の cos 上位 k → JNLI(前提=段落, 仮説=主張) → 支持 = Σ 出所重み×P(含意)、反証 = Σ 出所重み×P(矛盾) → 支持 ≥ 1.5 かつ反証が支持の 60% 未満なら「支持」、逆なら「否定」、両方あれば「食い違い」、どちらも小さければ「根拠不足」。</p>
+  <h3>荳ｻ蠑ｵ縺ｮ讀懆ｨｼ</h3><p class="small">荳ｻ蠑ｵ繧偵梧､懃ｴ｢繧ｯ繧ｨ繝ｪ: 縲阪〒蝓九ａ霎ｼ縺ｿ 竊・谿ｵ關ｽ・医梧､懃ｴ｢譁・嶌: 縲搾ｼ峨・ cos 荳贋ｽ・k 竊・JNLI(蜑肴署=谿ｵ關ｽ, 莉ｮ隱ｬ=荳ｻ蠑ｵ) 竊・謾ｯ謖・= ﾎ｣ 蜃ｺ謇驥阪∩ﾃ猶(蜷ｫ諢・縲∝渚險ｼ = ﾎ｣ 蜃ｺ謇驥阪∩ﾃ猶(遏帷崟) 竊・謾ｯ謖・竕･ 1.5 縺九▽蜿崎ｨｼ縺梧髪謖√・ 60% 譛ｪ貅縺ｪ繧峨梧髪謖√阪・・↑繧峨悟凄螳壹阪∽ｸ｡譁ｹ縺ゅｌ縺ｰ縲碁｣溘＞驕輔＞縲阪√←縺｡繧峨ｂ蟆上＆縺代ｌ縺ｰ縲梧ｹ諡荳崎ｶｳ縲阪・/p>
  </div>
- <div class="card"><h2 style="margin-top:0">パラメータ <span class="muted small">— 変更はこの端末の判定に即時反映。GitHub Actions 側にも効かせるには「ダウンロード」して docs/params.json を置き換えて push</span></h2>
-  <div id="how-params"></div><div class="actbar"><button class="small" id="pr-save">この端末に保存</button><button class="small" id="pr-dl">params.json をダウンロード</button><button class="small" id="pr-reset">初期値に戻す</button><span id="pr-msg" class="small muted"></span></div></div>
- <div class="card"><h2 style="margin-top:0">モデル</h2><div class="tw"><table><thead><tr><th>役割</th><th>モデル</th><th>中身</th><th>サイズ</th></tr></thead><tbody>
-  <tr><td>埋め込み（類似・候補検索・クラスタ・ゼロショット文体）</td><td><a href="https://huggingface.co/cl-nagoya/ruri-v3-30m" target="_blank" rel="noopener">cl-nagoya/ruri-v3-30m</a>（Apache-2.0）</td><td>sbintuitions/modernbert-ja-30m を文埋め込み用に学習したもの。256 次元、mean pooling、8192 トークン</td><td>ONNX int8 37 MB</td></tr>
-  <tr><td>含意判定（裏取り・主張検証）</td><td>nli-ja-30m（このリポジトリで学習）</td><td>sbintiutions/modernbert-ja-30m を JNLI（含意・中立・矛盾）で微調整。<code>python -m mbo.train_nli</code> で再学習できる</td><td>ONNX int8 37 MB</td></tr>
+ <div class="card"><h2 style="margin-top:0">繝代Λ繝｡繝ｼ繧ｿ <span class="muted small">窶・螟画峩縺ｯ縺薙・遶ｯ譛ｫ縺ｮ蛻､螳壹↓蜊ｳ譎ょ渚譏縲・itHub Actions 蛛ｴ縺ｫ繧ょ柑縺九○繧九↓縺ｯ縲後ム繧ｦ繝ｳ繝ｭ繝ｼ繝峨阪＠縺ｦ docs/params.json 繧堤ｽｮ縺肴鋤縺医※ push</span></h2>
+  <div id="how-params"></div><div class="actbar"><button class="small" id="pr-save">縺薙・遶ｯ譛ｫ縺ｫ菫晏ｭ・/button><button class="small" id="pr-dl">params.json 繧偵ム繧ｦ繝ｳ繝ｭ繝ｼ繝・/button><button class="small" id="pr-reset">蛻晄悄蛟､縺ｫ謌ｻ縺・/button><span id="pr-msg" class="small muted"></span></div></div>
+ <div class="card"><h2 style="margin-top:0">繝｢繝・Ν</h2><div class="tw"><table><thead><tr><th>蠖ｹ蜑ｲ</th><th>繝｢繝・Ν</th><th>荳ｭ霄ｫ</th><th>繧ｵ繧､繧ｺ</th></tr></thead><tbody>
+  <tr><td>蝓九ａ霎ｼ縺ｿ・磯｡樔ｼｼ繝ｻ蛟呵｣懈､懃ｴ｢繝ｻ繧ｯ繝ｩ繧ｹ繧ｿ繝ｻ繧ｼ繝ｭ繧ｷ繝ｧ繝・ヨ譁・ｽ難ｼ・/td><td><a href="https://huggingface.co/cl-nagoya/ruri-v3-30m" target="_blank" rel="noopener">cl-nagoya/ruri-v3-30m</a>・・pache-2.0・・/td><td>sbintuitions/modernbert-ja-30m 繧呈枚蝓九ａ霎ｼ縺ｿ逕ｨ縺ｫ蟄ｦ鄙偵＠縺溘ｂ縺ｮ縲・56 谺｡蜈・［ean pooling縲・192 繝医・繧ｯ繝ｳ</td><td>ONNX int8 37 MB</td></tr>
+  <tr><td>蜷ｫ諢丞愛螳夲ｼ郁｣丞叙繧翫・荳ｻ蠑ｵ讀懆ｨｼ・・/td><td>nli-ja-30m・医％縺ｮ繝ｪ繝昴ず繝医Μ縺ｧ蟄ｦ鄙抵ｼ・/td><td>sbintiutions/modernbert-ja-30m 繧・JNLI・亥性諢上・荳ｭ遶九・遏帷崟・峨〒蠕ｮ隱ｿ謨ｴ縲・code>python -m mbo.train_nli</code> 縺ｧ蜀榊ｭｦ鄙偵〒縺阪ｋ</td><td>ONNX int8 37 MB</td></tr>
   </tbody></table></div><div id="how-models" class="small"></div></div>
- <div class="card"><h2 style="margin-top:0">情報源</h2><div id="how-sources"></div></div>
- <div class="card"><h2 style="margin-top:0">Dorks テンプレート</h2><div id="how-dorks"></div></div>
+ <div class="card"><h2 style="margin-top:0">諠・ｱ貅・/h2><div id="how-sources"></div></div>
+ <div class="card"><h2 style="margin-top:0">Dorks 繝・Φ繝励Ξ繝ｼ繝・/h2><div id="how-dorks"></div></div>
 </section>
 
 <section id="t-models" class="hidden">
- <div class="card"><h2 style="margin-top:0">既存モデルの比較 <span class="muted small">— 同じデータ（JSTS・JNLI）と同じ CPU で測る。土台を選んで微調整すると独自モデルになる</span></h2>
+ <div class="card"><h2 style="margin-top:0">譌｢蟄倥Δ繝・Ν縺ｮ豈碑ｼ・<span class="muted small">窶・蜷後§繝・・繧ｿ・・STS繝ｻJNLI・峨→蜷後§ CPU 縺ｧ貂ｬ繧九ょ悄蜿ｰ繧帝∈繧薙〒蠕ｮ隱ｿ謨ｴ縺吶ｋ縺ｨ迢ｬ閾ｪ繝｢繝・Ν縺ｫ縺ｪ繧・/span></h2>
   <div class="chips" id="md-roles"></div><div id="md-table"></div>
-  <p class="small muted">実行：<code>python -m mbo.bench --roles embed,nli --max-mb 600</code>（Actions の bench ワークフローでも可）。指標：JSTS Spearman（文類似）、JNLI cos 差（含意対と矛盾対の cos の差）、JNLI 正解率・含意再現率・ECE（較正）、1 件あたり CPU 遅延、パラメータ数、配布サイズ。</p></div>
- <div class="card"><h2 style="margin-top:0">微調整して独自モデルを作る</h2><ol class="small"><li>上の表から土台（role=base）を選ぶ。小さい順に modernbert-ja-30m → 70m → 130m、比較用に bert-base-japanese-v3 / line-distilbert / deberta-v2</li><li><code>python -m mbo.train_nli --base sbintuitions/modernbert-ja-70m --n 20073 --epochs 3 --balance --out models/nli-ja-70m-torch</code>（Colab: notebooks/train_nli.ipynb、Actions: train ワークフロー）</li><li><code>python -m mbo.export_onnx --nli models/nli-ja-70m-torch --out models/nli-ja-70m</code> → <code>python -m mbo.calibrate --model models/nli-ja-70m</code></li><li><code>python -m mbo.bench --local models/nli-ja-70m-torch --names nli-ja-70m --role nli</code> で表に載せる</li><li>「設定」でブラウザ用の含意モデルに <code>nli-ja-70m</code> を指定すると、このサイトの判定がそのモデルに切り替わる（Actions 側は <code>MBO_NLI</code> 環境変数）</li></ol></div>
+  <p class="small muted">螳溯｡鯉ｼ・code>python -m mbo.bench --roles embed,nli --max-mb 600</code>・・ctions 縺ｮ bench 繝ｯ繝ｼ繧ｯ繝輔Ο繝ｼ縺ｧ繧ょ庄・峨よ欠讓呻ｼ哽STS Spearman・域枚鬘樔ｼｼ・峨゛NLI cos 蟾ｮ・亥性諢丞ｯｾ縺ｨ遏帷崟蟇ｾ縺ｮ cos 縺ｮ蟾ｮ・峨゛NLI 豁｣隗｣邇・・蜷ｫ諢丞・迴ｾ邇・・ECE・郁ｼ・ｭ｣・峨・ 莉ｶ縺ゅ◆繧・CPU 驕・ｻｶ縲√ヱ繝ｩ繝｡繝ｼ繧ｿ謨ｰ縲・・蟶・し繧､繧ｺ縲・/p></div>
+ <div class="card"><h2 style="margin-top:0">蠕ｮ隱ｿ謨ｴ縺励※迢ｬ閾ｪ繝｢繝・Ν繧剃ｽ懊ｋ</h2><ol class="small"><li>荳翫・陦ｨ縺九ｉ蝨溷床・・ole=base・峨ｒ驕ｸ縺ｶ縲ょｰ上＆縺・・↓ modernbert-ja-30m 竊・70m 竊・130m縲∵ｯ碑ｼ・畑縺ｫ bert-base-japanese-v3 / line-distilbert / deberta-v2</li><li><code>python -m mbo.train_nli --base sbintuitions/modernbert-ja-70m --n 20073 --epochs 3 --balance --out models/nli-ja-70m-torch</code>・・olab: notebooks/train_nli.ipynb縲、ctions: train 繝ｯ繝ｼ繧ｯ繝輔Ο繝ｼ・・/li><li><code>python -m mbo.export_onnx --nli models/nli-ja-70m-torch --out models/nli-ja-70m</code> 竊・<code>python -m mbo.calibrate --model models/nli-ja-70m</code></li><li><code>python -m mbo.bench --local models/nli-ja-70m-torch --names nli-ja-70m --role nli</code> 縺ｧ陦ｨ縺ｫ霈峨○繧・/li><li>縲瑚ｨｭ螳壹阪〒繝悶Λ繧ｦ繧ｶ逕ｨ縺ｮ蜷ｫ諢上Δ繝・Ν縺ｫ <code>nli-ja-70m</code> 繧呈欠螳壹☆繧九→縲√％縺ｮ繧ｵ繧､繝医・蛻､螳壹′縺昴・繝｢繝・Ν縺ｫ蛻・ｊ譖ｿ繧上ｋ・・ctions 蛛ｴ縺ｯ <code>MBO_NLI</code> 迺ｰ蠅・､画焚・・/li></ol></div>
 </section>
 <section id="t-about" class="hidden"><div id="about-box"></div></section>
 <section id="t-settings" class="hidden">
- <div class="card"><h2 style="margin-top:0">自動収集の対象（watch.yaml）</h2><p class="hint">追加してできた YAML をリポジトリの <code>watch.yaml</code> に貼って push すると、次回から GitHub Actions が巡回する。</p>
-  <div class="grid3"><div><label>トピック</label><div class="row"><input id="st-topic"><button class="small" id="st-topic-add">追加</button></div></div><div><label>主張</label><div class="row"><input id="st-claim"><button class="small" id="st-claim-add">追加</button></div></div><div><label>ドメイン</label><div class="row"><input id="st-domain"><button class="small" id="st-domain-add">追加</button></div></div></div>
-  <pre id="st-yaml" class="mono"></pre><div class="actbar"><button class="small" id="st-copy">コピー</button><button class="small" id="st-dl">watch.yaml をダウンロード</button><button class="small" id="st-clear">空にする</button></div></div>
- <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load">今ダウンロード</button><button class="small" id="st-del">端末から削除</button><span id="st-mmsg" class="small muted"></span></div>
-  <div class="grid3"><div><label>ブラウザ用 埋め込みモデル（models/ の名前）</label><input id="st-emb" placeholder="ruri-v3-30m"></div><div><label>ブラウザ用 含意モデル</label><input id="st-nli" placeholder="nli-ja-30m"></div><div><label>&nbsp;</label><button class="small" id="st-model-save">モデル名を保存</button></div></div>
-  <label>Hugging Face 配布リポジトリ（空なら GitHub Pages の ./models/）</label><div class="row"><input id="st-hf" placeholder="mie-edu/modernbert-osint-models"><button class="small" id="st-hf-save">保存</button></div></div>
- <div class="card"><h2 style="margin-top:0">GitHub Actions の手動実行</h2><p class="small">リポジトリの Actions → collect → Run workflow で、トピック・主張・ドメインを 1 つ指定して即時実行できる。結果は数分後にこのページの「自動収集」に出る（Pages の更新込みで 3〜5 分）。</p><div id="st-links" class="small"></div></div>
- <div class="card"><h2 style="margin-top:0">アプリとして入れる</h2><p class="small">Android/PC Chrome：アドレスバーの「インストール」。iPhone：共有 → ホーム画面に追加。収集済みデータとモデルは端末に保存され、オフラインでも閲覧・判定できる。</p></div>
+ <div class="card"><h2 style="margin-top:0">閾ｪ蜍募庶髮・・蟇ｾ雎｡・・atch.yaml・・/h2><p class="hint">霑ｽ蜉縺励※縺ｧ縺阪◆ YAML 繧偵Μ繝昴ず繝医Μ縺ｮ <code>watch.yaml</code> 縺ｫ雋ｼ縺｣縺ｦ push 縺吶ｋ縺ｨ縲∵ｬ｡蝗槭°繧・GitHub Actions 縺悟ｷ｡蝗槭☆繧九・/p>
+  <div class="grid3"><div><label>繝医ヴ繝・け</label><div class="row"><input id="st-topic"><button class="small" id="st-topic-add">霑ｽ蜉</button></div></div><div><label>荳ｻ蠑ｵ</label><div class="row"><input id="st-claim"><button class="small" id="st-claim-add">霑ｽ蜉</button></div></div><div><label>繝峨Γ繧､繝ｳ</label><div class="row"><input id="st-domain"><button class="small" id="st-domain-add">霑ｽ蜉</button></div></div></div>
+  <pre id="st-yaml" class="mono"></pre><div class="actbar"><button class="small" id="st-copy">繧ｳ繝斐・</button><button class="small" id="st-dl">watch.yaml 繧偵ム繧ｦ繝ｳ繝ｭ繝ｼ繝・/button><button class="small" id="st-clear">遨ｺ縺ｫ縺吶ｋ</button></div></div>
+ <div class="card"><h2 style="margin-top:0">遶ｯ譛ｫ蜀・Δ繝・Ν</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load">莉翫ム繧ｦ繝ｳ繝ｭ繝ｼ繝・/button><button class="small" id="st-del">遶ｯ譛ｫ縺九ｉ蜑企勁</button><span id="st-mmsg" class="small muted"></span></div>
+  <div class="grid3"><div><label>繝悶Λ繧ｦ繧ｶ逕ｨ 蝓九ａ霎ｼ縺ｿ繝｢繝・Ν・・odels/ 縺ｮ蜷榊燕・・/label><input id="st-emb" placeholder="ruri-v3-30m"></div><div><label>繝悶Λ繧ｦ繧ｶ逕ｨ 蜷ｫ諢上Δ繝・Ν</label><input id="st-nli" placeholder="nli-ja-30m"></div><div><label>&nbsp;</label><button class="small" id="st-model-save">繝｢繝・Ν蜷阪ｒ菫晏ｭ・/button></div></div>
+  <label>Hugging Face 驟榊ｸ・Μ繝昴ず繝医Μ・育ｩｺ縺ｪ繧・GitHub Pages 縺ｮ ./models/・・/label><div class="row"><input id="st-hf" placeholder="224096-cmd/modernbert-lab-models"><button class="small" id="st-hf-save">菫晏ｭ・/button></div></div>
+ <div class="card"><h2 style="margin-top:0">GitHub Actions 縺ｮ謇句虚螳溯｡・/h2><p class="small">繝ｪ繝昴ず繝医Μ縺ｮ Actions 竊・collect 竊・Run workflow 縺ｧ縲√ヨ繝斐ャ繧ｯ繝ｻ荳ｻ蠑ｵ繝ｻ繝峨Γ繧､繝ｳ繧・1 縺､謖・ｮ壹＠縺ｦ蜊ｳ譎ょｮ溯｡後〒縺阪ｋ縲らｵ先棡縺ｯ謨ｰ蛻・ｾ後↓縺薙・繝壹・繧ｸ縺ｮ縲瑚・蜍募庶髮・阪↓蜃ｺ繧具ｼ・ages 縺ｮ譖ｴ譁ｰ霎ｼ縺ｿ縺ｧ 3縲・ 蛻・ｼ峨・/p><div id="st-links" class="small"></div></div>
+ <div class="card"><h2 style="margin-top:0">繧｢繝励Μ縺ｨ縺励※蜈･繧後ｋ</h2><p class="small">Android/PC Chrome・壹い繝峨Ξ繧ｹ繝舌・縺ｮ縲後う繝ｳ繧ｹ繝医・繝ｫ縲阪ＪPhone・壼・譛・竊・繝帙・繝逕ｻ髱｢縺ｫ霑ｽ蜉縲ょ庶髮・ｸ医∩繝・・繧ｿ縺ｨ繝｢繝・Ν縺ｯ遶ｯ譛ｫ縺ｫ菫晏ｭ倥＆繧後√が繝輔Λ繧､繝ｳ縺ｧ繧る夢隕ｧ繝ｻ蛻､螳壹〒縺阪ｋ縲・/p></div>
 </section>
 </main>
 <script type="module" src="app.js"></script>

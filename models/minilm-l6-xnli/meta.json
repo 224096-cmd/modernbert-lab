@@ -1,0 +1,35 @@
+{
+ "kind": "nli",
+ "source": "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli",
+ "output": "logits",
+ "pooling": "cls",
+ "pruned_vocab": true,
+ "quant": "none",
+ "pad_id": 1,
+ "n_labels": 3,
+ "labels": {
+  "0": "entailment",
+  "1": "neutral",
+  "2": "contradiction"
+ },
+ "max_seq": 256,
+ "prefixes": null,
+ "temperature": 2.95,
+ "eval": {
+  "n": 600,
+  "acc": 0.6216666666666667,
+  "ece_T1": 0.242946076542139,
+  "ece_T": 0.03194649744563824
+ },
+ "max_position": 512,
+ "max_seq_browser": 512,
+ "label": "MiniLM-L6 XNLI（多言語 NLI）",
+ "hf": "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli",
+ "lang": "multi",
+ "label_order": [
+  0,
+  1,
+  2
+ ],
+ "size_mb": 52.5
+}

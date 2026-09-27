@@ -1,6 +1,6 @@
 /* PWA：アプリ本体と data/*.json をキャッシュ（ネット優先、失敗時キャッシュ）。モデルは IndexedDB（ml.js）。*/
-const C = "mbl-v21";
-const APP = ["./", "./index.html", "./app.css", "./app.js", "./net.js", "./ml.js", "./judge.js", "./params.json", "./manifest.json", "./icon.svg",
+const C = "mbl-v31";
+const APP = ["./", "./index.html", "./app.css", "./app.js", "./net.js", "./ml.js", "./judge.js", "./params.json", "./manifest.json", "./icon.svg", "./analysis.js", "./about.html", "./registry.json",
   "https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.5.2/dist/transformers.min.js", "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort.wasm.min.mjs",
   "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort-wasm-simd-threaded.mjs", "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.20.1/dist/ort-wasm-simd-threaded.wasm"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(C).then(c => Promise.allSettled(APP.map(u => c.add(u)))).then(() => self.skipWaiting())); });

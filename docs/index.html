@@ -3,96 +3,114 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ModernBERT Lab</title>
-<meta name="description" content="無料の検索エンジン（DuckDuckGo・Bing・Google ニュース・はてな・Wikipedia）で公開情報をその場で集め、端末内の日本語 ModernBERT で裏取り・信頼性を判定する">
+<meta name="description" content="長文をそのまま読む日本語 ModernBERT で、公開情報を集めて検証・比較・構造化する。すべてブラウザの中で動く">
 <link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1d4ed8"><link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="top"><a class="brand" href="./">🔎 ModernBERT Lab <small id="ver"></small></a>
-<nav id="nav"><button data-t="home" class="on">概要</button><button data-t="live">調べる</button><button data-t="verify">主張を検証</button><button data-t="recon">ドメイン調査</button><button data-t="history">履歴</button><button data-t="models">モデル比較</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
+<header class="top"><a class="brand" href="./">🧭 ModernBERT Lab <small id="ver"></small></a>
+<nav id="nav"><button data-t="home" class="on">概要</button><button data-t="live">集める</button><button data-t="check">検証</button><button data-t="gap">ギャップ・対立</button><button data-t="struct">構造化</button><button data-t="exp">長文 vs 分割</button><button data-t="history">履歴</button><button data-t="models">モデル</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
 <span id="net" class="tiny muted"></span></header>
 <main>
 <section id="t-home">
- <div class="hero"><h1>公開情報をその場で集めて、ModernBERT で見極める</h1><p>トピック・URL・主張・ドメインを入れると、ブラウザが DuckDuckGo・Bing・Google ニュース・はてな・Wikipedia などを <b>Dorks（検索演算子）</b>で巡回し、本文を読み、<b>端末内の日本語 ModernBERT</b>（Ruri-v3 埋め込み＋JNLI 含意判定）で<b>他の情報源と突き合わせて信頼性を採点</b>する。サーバも API キーも不要で、結果はこの端末に保存される（履歴）。</p></div>
+ <div class="hero"><h1>長文をそのまま読む ModernBERT で、公開情報を見極める</h1><p>トピックを入れるとブラウザが検索エンジンを巡回して記事を集め、<b>端末内の日本語 ModernBERT</b>（最大 8,192 トークンを分割せずに読む）で、<b>矛盾・偏り・一次情報・時間的ずれ</b>を検証し、<b>足りない情報と反対意見</b>を洗い出し、<b>比較表・要約・Q&amp;A</b>に構造化する。LLM を使わず、サーバも API キーも不要。</p></div>
  <div class="stats" id="home-stats"></div>
  <div class="tiles" id="home-tiles"></div>
- <div class="card"><h2 style="margin-top:0">最近調べたもの</h2><div id="home-latest"></div></div>
- <div class="card"><h2 style="margin-top:0">動画で紹介される OSINT ツールとの対応</h2><div class="tw"><table><thead><tr><th>よく紹介されるもの</th><th>このサイトでの代替（無料・鍵なし）</th><th>どこ</th></tr></thead><tbody>
- <tr><td>Google Dorks / Google Hacking</td><td>Dorks を自動生成して DuckDuckGo・Bing・Yahoo で実行（after: など Google 固有は使わない）</td><td>調べる</td></tr>
- <tr><td>whois</td><td>RDAP（gTLD）＋ JPRS whois（.jp）</td><td>ドメイン調査</td></tr>
- <tr><td>DNS 調査（dig / nslookup）</td><td>Google DNS over HTTPS（A / AAAA / MX / NS / TXT）</td><td>ドメイン調査</td></tr>
- <tr><td>theHarvester / Sublist3r（サブドメイン）</td><td>証明書透明性ログ（crt.sh）＋ HackerTarget ホスト検索</td><td>ドメイン調査</td></tr>
- <tr><td>Shodan / Censys</td><td>urlscan.io 公開スキャン・GeoIP・セキュリティヘッダ（ポートスキャンは行わない）</td><td>ドメイン調査</td></tr>
- <tr><td>Wayback Machine</td><td>最古／最新スナップショット → ドメインの年齢を信頼性に反映</td><td>ドメイン調査・採点</td></tr>
- <tr><td>Maltego（関係の可視化）</td><td>話題クラスタ（埋め込み）と、どのドメインが同じ主張をしているかの一覧</td><td>調べる（履歴）</td></tr>
- <tr><td>SNS 検索</td><td>はてな・Bluesky・Mastodon・Reddit（公開 API）。人物検索・アカウント特定は行わない</td><td>調べる（履歴）</td></tr>
- <tr><td>ファクトチェック</td><td>主張 → 関連段落を検索 → JNLI で含意／矛盾 → 判定と根拠</td><td>主張を検証</td></tr>
- </tbody></table></div></div>
-</section>
-
-<section id="t-history" class="hidden">
- <div class="card"><div class="row"><select id="tp-sel" style="max-width:460px"></select><span id="tp-meta" class="small muted"></span><button class="small" id="tp-csv">CSV</button><button class="small" id="tp-json">JSON</button><button class="small" id="tp-del">削除</button></div>
-  <p class="hint">「調べる」「主張を検証」「ドメイン調査」の結果はこの端末（ブラウザ）に自動保存される。同じトピックをもう一度調べると、前回との差（新しく出たページ）が分かる。</p>
-  <div class="stats" id="tp-stats"></div><div id="tp-hist"></div></div>
- <div id="tp-body"></div>
+ <div class="card"><h2 style="margin-top:0">最近の作業</h2><div id="home-latest"></div></div>
+ <div class="card"><h2 style="margin-top:0">この研究で確かめること</h2><ol class="small">
+  <li><b>長文を一括処理すると精度が上がるか</b> — 同じ記事・同じ問いを「8,192 トークン一括」と「512 トークンに分割して最大値」で処理し、判定と時間を比べる（「長文 vs 分割」タブ）</li>
+  <li><b>不足している情報・反対視点を自律的に見つけられるか</b> — 12 種類の問い（誰が・いつ・根拠・反対意見…）が集めた記事で答えられているかをリランカーで判定し、答えのない問いに検索式を提案する（「ギャップ・対立」タブ）</li>
+  <li><b>長文から人が見やすい構造化データに直接変換できるか</b> — 記事群を「メリット／デメリット／費用／時期／根拠」などの軸で表にし、根拠つきで要約する（「構造化」タブ）</li></ol></div>
 </section>
 
 <section id="t-live" class="hidden">
- <div class="card"><h2 style="margin-top:0">調べる <span class="muted small">— 検索エンジンを引き、本文を読み、端末内の ModernBERT で採点。結果は履歴に保存</span></h2>
-  <div class="row"><input id="lv-q" placeholder="トピック（例：生成AI 著作権 ガイドライン）、または検証したい URL"><button class="primary" id="lv-run">調べる</button></div>
-  <div class="chips" id="lv-examples"></div><details class="small"><summary>検索式と情報源を選ぶ</summary><label>検索式（Dorks）— トピックに組み合わせる演算子</label><div class="chips" id="lv-dorks"></div><label>情報源</label><div class="chips" id="lv-engines"></div></details>
-  <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="20" value="8"><b id="lv-read-v">8</b> <span class="muted">（1 件 2〜5 秒）</span></div>
+ <div class="card"><h2 style="margin-top:0">集める <span class="muted small">— トピックか URL。検索エンジンを巡回し本文を読み、信頼性を採点して履歴に保存。以後の検証・構造化はこのコーパスに対して行う</span></h2>
+  <div class="row"><input id="lv-q" placeholder="トピック（例：生成AI 著作権 ガイドライン）、または URL"><button class="primary" id="lv-run">集める</button></div>
+  <div class="chips" id="lv-examples"></div>
+  <details class="small"><summary>検索式と情報源を選ぶ</summary><label>検索式（Dorks）</label><div class="chips" id="lv-dorks"></div><label>情報源</label><div class="chips" id="lv-engines"></div></details>
+  <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="24" value="10"><b id="lv-read-v">10</b> <span class="muted">（1 件 2〜5 秒。検証・構造化は本文があるページに対して行う）</span></div>
   <div id="lv-status" class="small muted"></div></div>
  <div id="lv-out"></div>
 </section>
 
-<section id="t-verify" class="hidden">
- <div class="card"><h2 style="margin-top:0">主張を検証する <span class="muted small">— 文を入れると関連ページを集め、段落ごとに含意／矛盾を判定</span></h2>
-  <div class="row"><input id="vf-q" placeholder="例：東京スカイツリーの高さは634メートルである"><button class="primary" id="vf-run">検証</button></div>
-  <div class="chips" id="vf-examples"></div><div id="vf-status" class="small muted"></div><div id="vf-out"></div></div>
- <div class="card"><h2 style="margin-top:0">これまでに検証した主張</h2><div id="vf-list"></div></div>
+<section id="t-check" class="hidden">
+ <div class="card"><h2 style="margin-top:0">検証 <span class="muted small">— 集めた記事（コーパス）を多角的に検証する</span></h2>
+  <div class="row"><label style="margin:0">対象</label><select id="ck-corpus" style="max-width:420px"></select><span class="small muted" id="ck-meta"></span></div>
+  <details class="small"><summary>テキストを直接貼って検証する</summary><textarea id="ck-paste" style="min-height:90px" placeholder="複数の文章は --- の行で区切る"></textarea><div class="actbar"><button class="small" id="ck-paste-use">この文章をコーパスにする</button></div></details>
+  <div class="chips" id="ck-tabs"><span class="chip on" data-k="consistency">矛盾・整合</span><span class="chip" data-k="bias">偏り・客観性</span><span class="chip" data-k="primary">一次情報</span><span class="chip" data-k="temporal">時間的矛盾</span><span class="chip" data-k="claim">主張を検証</span></div>
+  <div id="ck-claim-box" class="row hidden"><input id="ck-claim" placeholder="例：東京スカイツリーの高さは634メートルである"><button class="small primary" id="ck-claim-run">検証</button></div>
+  <div class="actbar"><button class="primary" id="ck-run">実行</button><span id="ck-status" class="small muted"></span></div></div>
+ <div id="ck-out"></div>
 </section>
 
-<section id="t-recon" class="hidden">
- <div class="card"><h2 style="margin-top:0">ドメイン調査 <span class="muted small">— DNS・whois/RDAP・証明書ログ・Wayback・Wikipedia 出典・スキャン履歴</span></h2>
-  <div class="row"><input id="rc-q" placeholder="例：www.nhk.or.jp"><button class="primary" id="rc-run">調べる</button></div><div class="chips" id="rc-examples"></div><div id="rc-status" class="small muted"></div><div id="rc-out"></div></div>
- <div class="card"><h2 style="margin-top:0">これまでに調べたドメイン</h2><div id="rc-list"></div></div>
+<section id="t-gap" class="hidden">
+ <div class="card"><h2 style="margin-top:0">ギャップ・対立 <span class="muted small">— 何がまだ分かっていないか、どんな反対意見があるか</span></h2>
+  <div class="row"><label style="margin:0">対象</label><select id="gp-corpus" style="max-width:420px"></select></div>
+  <div class="row"><input id="gp-topic" placeholder="トピック（問いを作るのに使う。空ならコーパスの名前）" style="max-width:420px"></div>
+  <div class="chips" id="gp-tabs"><span class="chip on" data-k="gaps">ナレッジギャップ</span><span class="chip" data-k="opposing">対立視点・矛盾</span></div>
+  <div class="actbar"><button class="primary" id="gp-run">実行</button><span id="gp-status" class="small muted"></span></div></div>
+ <div id="gp-out"></div>
 </section>
 
-<section id="t-how" class="hidden">
- <div class="card"><h2 style="margin-top:0">流れ</h2><div class="flow"><span>トピック／主張／URL</span>→<span>Dorks 生成</span>→<span>DDG・Bing・Google ニュース・はてな・Wikipedia…</span>→<span>本文抽出（r.jina.ai リーダー）</span>→<span>ModernBERT：埋め込み（Ruri-v3-30m）・含意（JNLI 微調整 30M）</span>→<span>出所・内容・裏取り・時間の 4 軸で採点</span>→<span>この端末に保存（履歴）</span></div></div>
- <div class="card"><h2 style="margin-top:0">信頼性スコア R（0–100）</h2>
-  <p class="formula">R = 100 × ( w<sub>src</sub>·s<sub>src</sub> + w<sub>con</sub>·s<sub>con</sub> + w<sub>cor</sub>·s<sub>cor</sub> + w<sub>time</sub>·s<sub>time</sub> )</p>
-  <div class="kv">
-   <span>s<sub>src</sub> 出所</span><span>ドメイン種別の基礎点（公的 1.0 … SNS 0.3）＋ HTTPS ＋ ドメイン年齢（Wayback 最古） ＋ Wikipedia 出典回数 ＋ 著者・日付の有無</span>
-   <span>s<sub>con</sub> 内容</span><span>0.35·長さ(本文/800字) ＋ 0.40·具体性(数値・日付・引用・固有名詞) ＋ 0.25 ＋ 文体（ゼロショット：煽り −0.3、報告 +0.2、意見 −0.1、宣伝 −0.2）</span>
-   <span>s<sub>cor</sub> 裏取り</span><span>要旨（冒頭の 1 文）を、<b>他ドメイン</b>の段落が含意する重み付き件数 S（含意に届かない同趣旨の段落は 0.5×類似度の余裕×P(中立) の部分点）、矛盾 C：0.15 + 0.85·(1−e<sup>−S/2</sup>) − 0.6·(1−e<sup>−C/2</sup>)。含意判定は JNLI 微調整モデル、候補は Ruri 埋め込みの cos 上位 k</span>
-   <span>s<sub>time</sub> 時間</span><span>0.2 + 0.8·0.5<sup>経過日数/半減期</sup>（日付なしは 0.4）</span>
-   <span>評価</span><span>A ≥ 75、B ≥ 60、C ≥ 45、D</span>
-  </div>
-  <h3>主張の検証</h3><p class="small">主張を「検索クエリ: 」で埋め込み → 段落（「検索文書: 」）の cos 上位 k → JNLI(前提=段落, 仮説=主張) → 支持 = Σ 出所重み×P(含意)、反証 = Σ 出所重み×P(矛盾) → 支持 ≥ 1.5 かつ反証が支持の 60% 未満なら「支持」、逆なら「否定」、両方あれば「食い違い」、どちらも小さければ「根拠不足」。</p>
- </div>
- <div class="card"><h2 style="margin-top:0">パラメータ <span class="muted small">— 変更はこの端末の判定に即時反映。既定値を変えたいときは「ダウンロード」して docs/params.json を置き換える</span></h2>
-  <div id="how-params"></div><div class="actbar"><button class="small" id="pr-save">この端末に保存</button><button class="small" id="pr-dl">params.json をダウンロード</button><button class="small" id="pr-reset">初期値に戻す</button><span id="pr-msg" class="small muted"></span></div></div>
- <div class="card"><h2 style="margin-top:0">モデル</h2><div class="tw"><table><thead><tr><th>役割</th><th>モデル</th><th>中身</th><th>サイズ</th></tr></thead><tbody>
-  <tr><td>埋め込み（類似・候補検索・クラスタ・ゼロショット文体）</td><td><a href="https://huggingface.co/cl-nagoya/ruri-v3-30m" target="_blank" rel="noopener">cl-nagoya/ruri-v3-30m</a>（Apache-2.0）</td><td>sbintuitions/modernbert-ja-30m を文埋め込み用に学習したもの。256 次元、mean pooling、8192 トークン</td><td>ONNX int8 37 MB</td></tr>
-  <tr><td>含意判定（裏取り・主張検証）</td><td>nli-ja-30m（このリポジトリで学習）</td><td>sbintiutions/modernbert-ja-30m を JNLI（含意・中立・矛盾）で微調整。<code>python -m mbo.train_nli</code> で再学習できる</td><td>ONNX int8 37 MB</td></tr>
-  </tbody></table></div><div id="how-models" class="small"></div></div>
- <div class="card"><h2 style="margin-top:0">情報源</h2><div id="how-sources"></div></div>
- <div class="card"><h2 style="margin-top:0">Dorks テンプレート</h2><div id="how-dorks"></div></div>
+<section id="t-struct" class="hidden">
+ <div class="card"><h2 style="margin-top:0">構造化 <span class="muted small">— 比較表・要約・Q&amp;A・意味差分</span></h2>
+  <div class="row"><label style="margin:0">対象</label><select id="st-corpus" style="max-width:420px"></select></div>
+  <div class="chips" id="st-tabs"><span class="chip on" data-k="matrix">比較表（マトリクス）</span><span class="chip" data-k="summary">要約</span><span class="chip" data-k="qa">Q&amp;A</span><span class="chip" data-k="diff">意味的な差分</span></div>
+  <div id="st-matrix-box"><label>比較の軸（カンマ区切り）</label><input id="st-axes"></div>
+  <div id="st-qa-box" class="row hidden"><input id="st-question" placeholder="質問（例：補助金の上限額はいくらか）"></div>
+  <div id="st-diff-box" class="hidden"><div class="grid2"><div><label>旧テキスト</label><textarea id="st-diff-a" style="min-height:100px"></textarea></div><div><label>新テキスト</label><textarea id="st-diff-b" style="min-height:100px"></textarea></div></div><p class="hint">コーパスから選ぶ：<select id="st-diff-sel-a" style="max-width:220px;display:inline-block"></select> → <select id="st-diff-sel-b" style="max-width:220px;display:inline-block"></select></p></div>
+  <div class="actbar"><button class="primary" id="st-run">実行</button><span id="st-status" class="small muted"></span></div></div>
+ <div id="st-out"></div>
+</section>
+
+<section id="t-exp" class="hidden">
+ <div class="card"><h2 style="margin-top:0">長文一括 vs 分割 <span class="muted small">— 仮説 1 の実験。同じ文書・同じ問いを、8,192 トークン一括と 512 トークン分割で処理して比べる</span></h2>
+  <div class="row"><label style="margin:0">文書</label><select id="ex-doc" style="max-width:460px"></select></div>
+  <div class="row"><input id="ex-q" placeholder="問い、または主張（主張なら含意も比較）"><label style="margin:0">分割幅</label><select id="ex-chunk" style="max-width:110px"><option>256</option><option selected>512</option><option>1024</option></select></div>
+  <div class="actbar"><button class="primary" id="ex-run">実行</button><button class="small" id="ex-batch">コーパス全体で実行（表にまとめる）</button><span id="ex-status" class="small muted"></span></div>
+  <p class="hint">一括：文書を先頭から最大 8,192 トークン入力（ModernBERT 系のみ）。分割：文を境に分け、各チャンクのスコアの最大値を採用（従来の BERT 系と同じやり方）。</p></div>
+ <div id="ex-out"></div>
+</section>
+
+<section id="t-history" class="hidden">
+ <div class="card"><div class="row"><select id="tp-sel" style="max-width:460px"></select><span id="tp-meta" class="small muted"></span><button class="small" id="tp-csv">CSV</button><button class="small" id="tp-json">JSON</button><button class="small" id="tp-del">削除</button></div>
+  <p class="hint">「集める」の結果と、検証・構造化の結果はこの端末（ブラウザ）に保存される。同じトピックを再度集めると前回との差分が出る。</p>
+  <div class="stats" id="tp-stats"></div><div id="tp-hist"></div></div>
+ <div id="tp-body"></div>
 </section>
 
 <section id="t-models" class="hidden">
- <div class="card"><h2 style="margin-top:0">既存モデルの比較 <span class="muted small">— 同じデータ（JSTS・JNLI）と同じ CPU で測る。土台を選んで微調整すると独自モデルになる</span></h2>
-  <div class="chips" id="md-roles"></div><div id="md-table"></div>
-  <p class="small muted">実行：<code>python -m mbo.bench --roles embed,nli --max-mb 600</code>（GitHub の Actions → bench でも実行できる）。指標：JSTS Spearman（文類似）、JNLI cos 差（含意対と矛盾対の cos の差）、JNLI 正解率・含意再現率・ECE（較正）、1 件あたり CPU 遅延、パラメータ数、配布サイズ。</p></div>
- <div class="card"><h2 style="margin-top:0">微調整して独自モデルを作る</h2><ol class="small"><li>上の表から土台（role=base）を選ぶ。小さい順に modernbert-ja-30m → 70m → 130m、比較用に bert-base-japanese-v3 / line-distilbert / deberta-v2</li><li><code>python -m mbo.train_nli --base sbintuitions/modernbert-ja-70m --n 20073 --epochs 3 --balance --out models/nli-ja-70m-torch</code>（Colab: notebooks/train_nli.ipynb、Actions: train ワークフロー）</li><li><code>python -m mbo.export_onnx --nli models/nli-ja-70m-torch --out models/nli-ja-70m</code> → <code>python -m mbo.calibrate --model models/nli-ja-70m</code></li><li><code>python -m mbo.bench --local models/nli-ja-70m-torch --names nli-ja-70m --role nli</code> で表に載せる</li><li>「設定」でブラウザ用の含意モデルに <code>nli-ja-70m</code> を指定すると、このサイトの判定がそのモデルに切り替わる</li></ol></div>
+ <div class="card"><h2 style="margin-top:0">ブラウザで動くモデル <span class="muted small">— 役割ごとに選ぶ。スマホでも動くサイズ（22〜68 MB）</span></h2><div id="md-browser"></div><p class="hint">ダウンロードは端末に保存され、2 回目からはオフラインでも動く。「日本語・ModernBERT」は 8,192 トークンを一括で読める。「多言語」は海外で広く使われるモデルで 512 トークンまで（長文は分割）。</p></div>
+ <div class="card"><h2 style="margin-top:0">同じ指標での比較 <span class="muted small">— JSTS（文類似）・JNLI（含意）・CPU 遅延</span></h2><div id="md-table"></div><p class="small muted"><code>python -m mbo.bench</code> の結果（docs/data/models.json）。ブラウザ側の速度は「設定」の統計に出る。</p></div>
+ <div class="card"><h2 style="margin-top:0">ファインチューニングの土台（選定のみ、学習はまだ行わない）</h2><div id="md-base"></div></div>
+</section>
+
+<section id="t-how" class="hidden">
+ <div class="card"><h2 style="margin-top:0">流れ</h2><div class="flow"><span>トピック／URL</span>→<span>Dorks で検索エンジン巡回</span>→<span>本文抽出</span>→<span>信頼性採点（出所・内容・裏取り・時間）</span>→<span>コーパスとして履歴に保存</span>→<span>検証／ギャップ／構造化（埋め込み・含意・リランカー）</span></div></div>
+ <div class="card"><h2 style="margin-top:0">各機能で何をしているか</h2><div class="kv">
+  <span>矛盾・整合</span><span>各記事の要旨（冒頭の命題）を他記事の段落と突き合わせ、含意モデルで 一致／矛盾／無関係 を判定して行列にする</span>
+  <span>偏り・客観性</span><span>埋め込みゼロショット（客観／主観／感情／宣伝）＋ 含意ゼロショット（「この文章は客観的な事実を報告している」など）＋ 語彙（煽り語・推量表現・宣伝語の密度）を合成し 0〜100</span>
+  <span>一次情報</span><span>出所の種別（公的・報道・ブログ…）＋ 引用・伝聞表現と発表元表現の数 ＋ 含意ゼロショット（一次／二次）</span>
+  <span>時間的矛盾</span><span>年月・和暦・数値＋単位を抽出。本文中の最新年が古いのに「現在」と書く／公開日より新しい年／同じ項目で記事間の数値が食い違う、を警告</span>
+  <span>ナレッジギャップ</span><span>12 種類の問いテンプレートをトピックに当て、埋め込みで候補段落を絞り、リランカーの関連度がしきい値未満なら「未回答」。未回答の問いには検索式を提案</span>
+  <span>対立視点</span><span>段落を 賛成／反対／中立 にゼロショット分類し、反対・課題の段落を列挙。加えて記事間の命題ペアで含意モデルが「矛盾」としたものを列挙</span>
+  <span>意味差分</span><span>文を埋め込みで対応づけ、変わった対を含意モデルで双方向に判定：両方向含意＝言い換え、片方向＝情報の増減、矛盾＝意味の反転</span>
+  <span>比較表</span><span>軸ごとに「軸は何か」を問いとして各記事の文をリランカーで採点し、最良の文をセルに入れる</span>
+  <span>要約</span><span>段落の埋め込みの重心との類似（出所の重みつき）を関連度とし、MMR で冗長を避けて選ぶ。抽出型なので出典が必ずつく</span>
+  <span>Q&amp;A</span><span>埋め込みで候補 → リランカーで関連度 → 上位段落を根拠として提示。質問が命題なら含意も判定</span>
+ </div></div>
+ <div class="card"><h2 style="margin-top:0">信頼性スコア R（0–100）</h2>
+  <p class="formula">R = 100 × ( w<sub>src</sub>·s<sub>src</sub> + w<sub>con</sub>·s<sub>con</sub> + w<sub>cor</sub>·s<sub>cor</sub> + w<sub>time</sub>·s<sub>time</sub> )</p>
+  <div class="kv"><span>s<sub>src</sub> 出所</span><span>ドメイン種別の基礎点（公的 1.0 … SNS 0.3）＋ HTTPS ＋ ドメイン年齢（Wayback 最古）＋ Wikipedia 出典回数 ＋ 著者・日付</span><span>s<sub>con</sub> 内容</span><span>0.35·長さ ＋ 0.40·具体性（数値・日付・引用・固有名詞）＋ 0.25 ＋ 文体（煽り −0.3、報告 +0.2、意見 −0.1、宣伝 −0.2）</span><span>s<sub>cor</sub> 裏取り</span><span>要旨を他ドメインの段落が含意する重み付き件数 S（同趣旨の中立は部分点）、矛盾 C：0.15 + 0.85·(1−e<sup>−S/2</sup>) − 0.6·(1−e<sup>−C/2</sup>)</span><span>s<sub>time</sub> 時間</span><span>0.2 + 0.8·0.5<sup>経過日数/30</sup>（日付なし 0.4）</span></div></div>
+ <div class="card"><h2 style="margin-top:0">パラメータ <span class="muted small">— この端末の判定に即時反映</span></h2><div id="how-params"></div><div class="actbar"><button class="small" id="pr-save">この端末に保存</button><button class="small" id="pr-dl">params.json をダウンロード</button><button class="small" id="pr-reset">初期値に戻す</button><span id="pr-msg" class="small muted"></span></div></div>
+ <div class="card"><h2 style="margin-top:0">情報源</h2><div id="how-sources"></div></div>
+ <div class="card"><h2 style="margin-top:0">Dorks テンプレート</h2><div id="how-dorks"></div></div>
 </section>
 <section id="t-about" class="hidden"><div id="about-box"></div></section>
+
 <section id="t-settings" class="hidden">
- <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load-models">今ダウンロード</button><button class="small" id="st-del">端末から削除</button><span id="st-mmsg" class="small muted"></span></div>
-  <div class="grid3"><div><label>ブラウザ用 埋め込みモデル（models/ の名前）</label><input id="st-emb" placeholder="ruri-v3-30m"></div><div><label>ブラウザ用 含意モデル</label><input id="st-nli" placeholder="nli-ja-30m"></div><div><label>&nbsp;</label><button class="small" id="st-model-save">モデル名を保存</button></div></div>
-  <label>Hugging Face 配布リポジトリ（空なら GitHub Pages の ./models/）</label><div class="row"><input id="st-hf" placeholder="mie-edu/modernbert-lab-models"><button class="small" id="st-hf-save">保存</button></div></div>
+ <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load-models">既定の 3 モデルを今ダウンロード</button><button class="small" id="st-del">端末からすべて削除</button><span id="st-mmsg" class="small muted"></span></div>
+  <label>Hugging Face 配布リポジトリ（空なら GitHub Pages の ./models/）</label><div class="row"><input id="st-hf" placeholder="owner/repo"><button class="small" id="st-hf-save">保存</button></div></div>
  <div class="card"><h2 style="margin-top:0">履歴</h2><div id="st-hist" class="small"></div><div class="actbar"><button class="small" id="st-hist-export">すべて JSON で書き出す</button><button class="small" id="st-hist-clear">履歴をすべて削除</button></div></div>
  <div class="card"><h2 style="margin-top:0">アプリとして入れる</h2><p class="small">Android/PC Chrome：アドレスバーの「インストール」。iPhone：共有 → ホーム画面に追加。履歴とモデルは端末に保存され、オフラインでも閲覧・判定できる。</p></div>
 </section>

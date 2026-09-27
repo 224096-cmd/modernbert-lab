@@ -1,12 +1,25 @@
-# ModernBERT Lab — 公開情報のその場収集と信頼性判定
+# ModernBERT Lab — 長文をそのまま読む ModernBERT で公開情報を検証・構造化する
 
-トピック・URL・主張・ドメインをサイトに入れると、**ブラウザが** DuckDuckGo・Bing・Google ニュース・はてな・Wikipedia などを **Dorks（検索演算子）で巡回**し、本文を読み、**端末内の日本語 ModernBERT**（Ruri-v3-30m 埋め込み＋JNLI 微調整の含意判定）で**他の情報源と突き合わせて信頼性を採点**する。サーバ・API キー・課金なし。結果はその端末の履歴に保存され、同じトピックを再調査すると差分が分かる。
+トピックを入れるとブラウザが検索エンジン（DuckDuckGo・Bing・Google ニュース・はてな・Wikipedia）を **Dorks で巡回**して記事を集め、**端末内の日本語 ModernBERT**（8,192 トークンを分割せずに読む）で
 
-- **調べる**：トピックか URL → 収集 → 採点 → 履歴
-- **主張を検証**：文を入れると関連ページを集め、段落ごとに含意／矛盾を判定して「支持／否定／食い違い／根拠不足」と根拠を出す
-- **ドメイン調査**：DNS・whois(RDAP/JPRS)・証明書ログ・Wayback・Wikipedia 出典回数・セキュリティヘッダ・公開スキャン履歴（動画で紹介される whois / theHarvester / Shodan / Wayback の無料代替）
+- **検証**：記事同士の矛盾・整合の行列、偏り・客観性、一次情報か二次情報か、時間的な古さ・数値の食い違い、主張の真偽（根拠つき）
+- **ギャップ・対立**：12 種類の問い（誰が・いつ・根拠・反対意見…）が答えられているかを判定し、未回答の問いに検索式を提案。反対意見・矛盾する記述を列挙
+- **構造化**：軸ごとの比較表（CSV）、根拠つき抽出要約、Q&A、2 テキストの意味的な差分
+- **長文 vs 分割**：同じ文書・同じ問いを 8,192 一括と 512 分割で処理し、判定と時間を比較（研究の仮説 1）
 
-サイト: `https://224096-cmd.github.io/modernbert-lab/`（Pages を有効にしたあと）。すべての処理はブラウザ内で行い、入力も結果もどこにも送られない。
+を行う。生成 LLM は使わない。サーバ・API キー・課金なし。結果はその端末の履歴（IndexedDB）に保存される。
+
+サイト: `https://224096-cmd.github.io/modernbert-lab/`
+
+## ブラウザで動く 7 モデル（役割ごとに切り替え）
+
+| 役割 | 日本語・ModernBERT（8,192） | 海外・多言語（512） |
+| --- | --- | --- |
+| 埋め込み | cl-nagoya/ruri-v3-30m（36 MB・既定）、ruri-v3-70m（68 MB） | intfloat/multilingual-e5-small（32 MB、語彙間引き） |
+| 含意 | nli-ja-30m（36 MB・既定、本リポジトリで JNLI 学習） | MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli（53 MB） |
+| 関連度 | hotchpotch/japanese-reranker-xsmall-v2（36 MB・既定） | hotchpotch/japanese-reranker-cross-encoder-xsmall-v1（22 MB） |
+
+ONNX 化・量子化・語彙間引きは `mbo/export_onnx.py`（`--prune` で 250k 語彙を日英 25.7k に、`--quant none|mlp|all`）。ファインチューニングの土台候補（modernbert-ja-30m/70m/130m/310m、ruri-v3-pt、東北大 BERT、DeBERTa-v2、mDeBERTa）は `models/registry.json` の `base`。**この版では学習は行わない**（比較と選定まで）。
 
 ## 信頼性スコア
 
@@ -44,7 +57,7 @@ python -m mbo recon www.nhk.or.jp
 
 PC 版は研究用の集計向け（多くの情報源・trafilatura・強い含意モデル `MBO_NLI=hf:MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` が使える）。結果は `docs/data/` の JSON。サイトの表示はこれとは独立で、端末内の履歴を使う。
 
-## 研究の流れ：既存モデルの比較 → 微調整 → 独自モデル
+## 研究の流れ：既存モデルの比較 → （次の段階で）微調整 → 独自モデル
 
 1. **比較**（`models/registry.json` の候補、サイトの「モデル比較」タブ）
    ```powershell

@@ -19,7 +19,7 @@ def ece(probs, labels, bins=10):
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--model", default="models/nli-ja-30m"); ap.add_argument("--n", type=int, default=800); a = ap.parse_args()
-    os.environ["MBO_MODELS"] = os.path.dirname(os.path.abspath(a.model))
+    models.ROOT = os.path.dirname(os.path.abspath(a.model))
     m = models.NLI(os.path.basename(a.model)); m.T = 1.0
     ds = load_dataset("zenless-lab/jnli")["test"].shuffle(seed=1).select(range(a.n))
     encs = m.tok.encode_batch(list(zip(ds["premise"], ds["hypothesis"])))

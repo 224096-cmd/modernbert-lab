@@ -1,0 +1,34 @@
+name: models
+# ブラウザ用 ONNX モデルを Hugging Face から変換して models/ に push する（初回セットアップ用。約 15 分）。
+# nli-ja-30m と ruri-v3-30m はリポジトリに同梱済みなので、残り 5 つを作る。
+on:
+  workflow_dispatch:
+    inputs:
+      which:
+        description: "作るモデル（カンマ区切り。all で 5 つ全部）"
+        default: "all"
+permissions:
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11", cache: pip }
+      - run: pip install -r requirements.txt -r requirements-train.txt
+      - name: 変換
+        run: |
+          W="${{ github.event.inputs.which }}"
+          has() { [ "$W" = "all" ] || echo ",$W," | grep -q ",$1,"; }
+          has ruri-v3-70m && python -m mbo.export_onnx --embed cl-nagoya/ruri-v3-70m --out models/ruri-v3-70m
+          has reranker-ja-xsmall-v2 && python -m mbo.export_onnx --rerank hotchpotch/japanese-reranker-xsmall-v2 --out models/reranker-ja-xsmall-v2
+          has multilingual-e5-small && python -m mbo.export_onnx --embed intfloat/multilingual-e5-small --out models/multilingual-e5-small --prune
+          has minilm-l6-xnli && python -m mbo.export_onnx --nli MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli --out models/minilm-l6-xnli --prune --quant none
+          has reranker-xsmall-v1 && python -m mbo.export_onnx --rerank hotchpotch/japanese-reranker-cross-encoder-xsmall-v1 --out models/reranker-xsmall-v1 --prune
+          python scripts/fix_meta.py
+      - run: |
+          git config user.name mbo-bot; git config user.email actions@users.noreply.github.com
+          git add models; git diff --cached --quiet && exit 0
+          git commit -m "models: ONNX 変換"; git pull --rebase -X theirs || true; git push

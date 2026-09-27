@@ -2,7 +2,7 @@ import * as NET from "./net.js";
 import * as ML from "./ml.js";
 import * as J from "./judge.js";
 
-const VERSION = "v1.0";
+const VERSION = "v2.1";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -139,7 +139,7 @@ async function models(onStep) {
 
 /* ---------- いま調べる ---------- */
 function chips(root, obj, on, sel) { root.innerHTML = Object.entries(obj).map(([k, [label]]) => `<span class="chip ${sel.has(k) ? "on" : ""}" data-k="${k}" title="${esc(obj[k][1] || "")}">${label}</span>`).join(""); root.querySelectorAll(".chip").forEach(c => c.onclick = () => { c.classList.toggle("on"); on(); }); }
-const lvSel = { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck"]), engines: new Set(["ddg", "gnews", "wiki"]) };
+const lvSel = { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck"]), engines: new Set(["ddg", "gnews", "hatena", "wiki"]) };
 chips($("#lv-dorks"), DORKS, () => { lvSel.dorks = new Set($$("#lv-dorks .chip.on").map(c => c.dataset.k)); }, lvSel.dorks);
 chips($("#lv-engines"), Object.fromEntries(Object.entries(NET.ENGINES).map(([k, v]) => [k, [v.label, v.note]])), () => { lvSel.engines = new Set($$("#lv-engines .chip.on").map(c => c.dataset.k)); }, lvSel.engines);
 $("#lv-read").oninput = () => $("#lv-read-v").textContent = $("#lv-read").value;
@@ -166,11 +166,11 @@ async function collectLive(topic, { dorks, engines, nread, status }) {
   for (let i = 0; i < Math.min(nread, items.length); i++) { status(`本文を読む ${i + 1}/${Math.min(nread, items.length)}：${NET.hostOf(items[i].url)}`); const r = await NET.readPage(items[i].url); if (r) { items[i].text = r.text.slice(0, 6000); items[i].title = items[i].title || r.title; if (r.finalUrl && /^https?:/.test(r.finalUrl) && NET.hostOf(r.finalUrl) !== "news.google.com" && NET.hostOf(r.finalUrl) !== NET.hostOf(items[i].url)) { items[i].orig_url = items[i].url; items[i].url = NET.normUrl(r.finalUrl); } } }
   return { items, queries };
 }
-async function domInfosFor(items, status, max = 12) {
+async function domInfosFor(items, status, max = 8) {
   const hosts = [...new Set(items.map(it => NET.hostOf(it.url).replace(/^www\./, "")))].slice(0, max); const out = {}; let cache = {}; try { cache = JSON.parse(localStorage.getItem("mbo.domcache") || "{}"); } catch { }
   const todo = hosts.filter(h => { if (cache[h] && Date.now() - cache[h].t < 30 * 864e5) { out[h] = cache[h]; return false; } return true; });
   status(`ドメイン情報：${todo.length} 件`);
-  for (let i = 0; i < todo.length; i += 3) await Promise.all(todo.slice(i, i + 3).map(async h => { const [wb, wc] = await Promise.all([NET.wayback(h), NET.wikiCites(NET.registrable(h))]); out[h] = cache[h] = { wayback: wb, wiki_cites: wc, t: Date.now() }; }));
+  for (const h of todo) { status(`ドメイン情報：${h}（${todo.indexOf(h) + 1}/${todo.length}）`); const [wb, wc] = await Promise.all([NET.wayback(h), NET.wikiCites(NET.registrable(h))]); out[h] = cache[h] = { wayback: wb, wiki_cites: wc, t: Date.now() }; }
   try { localStorage.setItem("mbo.domcache", JSON.stringify(cache)); } catch { }
   const full = {}; for (const it of items) { const h = NET.hostOf(it.url); full[h] = out[h.replace(/^www\./, "")]; } return full;
 }
@@ -182,12 +182,12 @@ async function runLive() {
     const nread = +$("#lv-read").value; const { items, queries } = await collectLive(q, { dorks: lvSel.dorks, engines: lvSel.engines, nread, status: st });
     if (!items.length) { st("何も見つかりませんでした（r.jina.ai の制限に当たった可能性。1 分ほど待って再試行）"); return; }
     const dom = await domInfosFor(items, st); await J.scoreItems(items, dom, state.emb, state.nli, st); const clusters = await J.cluster(items, state.emb);
-    items.sort((a, b) => b.reliability - a.reliability); st(`${items.length} 件・${new Set(items.map(i => NET.hostOf(i.url))).size} ドメイン`);
+    items.sort((a, b) => b.reliability - a.reliability); st(`${items.length} 件・${new Set(items.map(i => NET.hostOf(i.url))).size} ドメイン${NET.proxyState.jina429 ? "（r.jina.ai の無料枠上限のため一部は代替経路 allorigins で取得）" : ""}`);
     const rec = await saveRun({ kind: "topic", key: q, n: items.length, items, clusters, queries, urls: items.map(i => i.url), summary: summarize(items, clusters), engines: [...lvSel.engines], dorks: [...lvSel.dorks] });
     const prev = INDEX.filter(r => r.kind === "topic" && r.key === q && r.id !== rec.id); const prevUrls = new Set(); for (const p of prev) for (const u of (p.urls || [])) prevUrls.add(u);
     $("#lv-out").innerHTML = `<div class="card"><div class="stats"><div class="stat">平均信頼性<b>${rec.summary.mean}</b></div><div class="stat">A/B/C/D<b>${["A", "B", "C", "D"].map(g => rec.summary.grades[g] || 0).join("/")}</b></div><div class="stat">ドメイン<b>${rec.summary.domains}</b></div><div class="stat">複数ページの話題<b>${rec.summary.clusters}</b></div></div><p class="small muted">履歴に保存しました${prev.length ? `（${prev.length} 回目の再調査）` : ""}</p></div>` + resultHtml(rec, prev.length ? prevUrls : null);
-    wireItemActions($("#lv-out"));
-  } catch (e) { st("エラー: " + (e.message || e)); console.error(e); } finally { $("#lv-run").disabled = false; }
+    wireItemActions($("#lv-out")); $("#lv-out").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { st("エラー: " + (e.message || e) + (navigator.onLine ? "" : "（オフラインです）")); console.error(e); } finally { $("#lv-run").disabled = false; }
 }
 async function liveUrl(url, st) {
   await models(st); st("ページを読み込み中"); const r = await NET.readPage(url); if (!r) { st("読めませんでした"); return; }
@@ -213,7 +213,7 @@ async function runVerify() {
     const dom = await domInfosFor(items, st); for (const it of items) { const { s, cls } = J.sourceScore(it, dom[NET.hostOf(it.url)]); it.s_source = s; it.source_class = cls; }
     const v = await J.verify(c, items, state.emb, state.nli, st); st(`${items.length} ページ・${v.n_passages} 段落を照合（履歴に保存）`);
     await saveRun({ kind: "verify", key: c, ...v, n_items: items.length, items: items.map(it => ({ url: it.url, title: it.title, published: it.published, reliability: it.reliability, grade: it.grade, source_class: it.source_class })) });
-    $("#vf-out").innerHTML = verdictCard(v);
+    $("#vf-out").innerHTML = verdictCard(v); $("#vf-out").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { st("エラー: " + (e.message || e)); } finally { $("#vf-run").disabled = false; }
 }
 function renderVerifyList() { const l = INDEX.filter(r => r.kind === "verify"); $("#vf-list").innerHTML = l.length ? `<div class="tw"><table><thead><tr><th>判定</th><th>主張</th><th>支持/反証</th><th>日時</th><th></th></tr></thead><tbody>${l.map(v => `<tr><td><span class="${J.VERDICT[v.verdict]?.[1] || ""}"><b>${J.VERDICT[v.verdict]?.[0] || v.verdict}</b></span></td><td><a href="#" data-id="${esc(v.id)}">${esc(v.key)}</a></td><td>${v.support} / ${v.refute}</td><td class="small">${esc((v.run_at || "").slice(0, 16).replace("T", " "))}</td><td><button class="small" data-del="${esc(v.id)}">削除</button></td></tr>`).join("")}</tbody></table></div><div id="vf-detail"></div>` : "<p class='muted small'>まだありません</p>"; $$("#vf-list a[data-id]").forEach(a => a.onclick = e => { e.preventDefault(); showVerifyDetail(a.dataset.id); }); $$("#vf-list button[data-del]").forEach(b => b.onclick = async () => { await HDB.del(b.dataset.del); loadData(); }); }

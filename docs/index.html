@@ -40,8 +40,8 @@
 <section id="t-live" class="hidden">
  <div class="card"><h2 style="margin-top:0">調べる <span class="muted small">— 検索エンジンを引き、本文を読み、端末内の ModernBERT で採点。結果は履歴に保存</span></h2>
   <div class="row"><input id="lv-q" placeholder="トピック（例：生成AI 著作権 ガイドライン）、または検証したい URL"><button class="primary" id="lv-run">調べる</button></div>
-  <div class="chips" id="lv-examples"></div><div class="chips" id="lv-dorks"></div><div class="chips" id="lv-engines"></div>
-  <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="20" value="8"><b id="lv-read-v">8</b> <span class="muted">（r.jina.ai 経由、1 件 2〜5 秒）</span></div>
+  <div class="chips" id="lv-examples"></div><details class="small"><summary>検索式と情報源を選ぶ</summary><label>検索式（Dorks）— トピックに組み合わせる演算子</label><div class="chips" id="lv-dorks"></div><label>情報源</label><div class="chips" id="lv-engines"></div></details>
+  <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="20" value="8"><b id="lv-read-v">8</b> <span class="muted">（1 件 2〜5 秒）</span></div>
   <div id="lv-status" class="small muted"></div></div>
  <div id="lv-out"></div>
 </section>

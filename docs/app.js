@@ -4,7 +4,7 @@ import * as J from "./judge.js";
 import * as A from "./analysis.js";
 import * as FC from "./factcheck.js";
 
-const VERSION = "v4.0";
+const VERSION = "v4.2";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -26,17 +26,23 @@ function show(t) { $$("nav button").forEach(b => b.classList.toggle("on", b.data
 $$("nav button").forEach(b => b.onclick = () => show(b.dataset.t));
 
 /* ---------- 履歴（IndexedDB） ---------- */
+/* プライベートモード：ON の間は結果を IndexedDB に書かず、メモリ（MEM）にだけ置く。タブを閉じると消える */
+export const PRIV = { get on() { try { return localStorage.getItem("mbo.private") === "1"; } catch { return false; } }, set(v) { try { v ? localStorage.setItem("mbo.private", "1") : localStorage.removeItem("mbo.private"); } catch { } renderPrivBadge(); } };
+const MEM = new Map();
 const HDB = {
   db: null,
   async open() { if (this.db) return this.db; return this.db = await new Promise((ok, ng) => { const r = indexedDB.open("mbo-history", 1); r.onupgradeneeded = () => { const st = r.result.createObjectStore("runs", { keyPath: "id" }); st.createIndex("kind", "kind"); }; r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error); }); },
-  async put(rec) { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").put(rec); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
-  async get(id) { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs").objectStore("runs").get(id); r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error); }); },
-  async all() { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs").objectStore("runs").getAll(); r.onsuccess = () => ok((r.result || []).sort((a, b) => b.run_at.localeCompare(a.run_at))); r.onerror = () => ng(r.error); }); },
-  async del(id) { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").delete(id); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
-  async clear() { const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").clear(); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
+  async put(rec) { if (PRIV.on) { rec.ephemeral = true; MEM.set(rec.id, rec); return; } return this.putPersist(rec); },
+  async putPersist(rec) { delete rec.ephemeral; const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").put(rec); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
+  async get(id) { if (MEM.has(id)) return MEM.get(id); const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs").objectStore("runs").get(id); r.onsuccess = () => ok(r.result); r.onerror = () => ng(r.error); }); },
+  async all() { const db = await this.open(); const saved = await new Promise((ok, ng) => { const r = db.transaction("runs").objectStore("runs").getAll(); r.onsuccess = () => ok(r.result || []); r.onerror = () => ng(r.error); }); return [...MEM.values(), ...saved].sort((a, b) => b.run_at.localeCompare(a.run_at)); },
+  async del(id) { if (MEM.delete(id)) return; const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").delete(id); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
+  async clear() { MEM.clear(); const db = await this.open(); return new Promise((ok, ng) => { const r = db.transaction("runs", "readwrite").objectStore("runs").clear(); r.onsuccess = () => ok(); r.onerror = () => ng(r.error); }); },
+  sessionCount() { return MEM.size; },
 };
+function renderPrivBadge() { const b = $("#priv"); if (!b) return; b.textContent = PRIV.on ? "🔒 プライベート（履歴を保存しない）" : "🔓 履歴を保存"; b.classList.toggle("on", PRIV.on); b.title = PRIV.on ? "この端末に結果を残さない。タブを閉じると消える。クリックで切替" : "結果をこの端末の履歴に保存する。クリックでプライベートに切替"; }
 const nowJst = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 19);
-async function saveRun(rec) { rec.id = rec.id || (rec.kind + ":" + rec.key + ":" + Date.now().toString(36)); rec.run_at = rec.run_at || nowJst(); await HDB.put(rec); INDEX = await HDB.all(); renderHome(); renderTopicSelect(); renderCorpusSelects(); return rec; }
+async function saveRun(rec) { rec.id = rec.id || (rec.kind + ":" + rec.key + ":" + Date.now().toString(36)); rec.run_at = rec.run_at || nowJst(); await HDB.put(rec); INDEX = await HDB.all(); renderHome(); renderTopicSelect(); renderCorpusSelects();  return rec; }
 async function getJSON(p) { try { const r = await fetch(new URL(p, import.meta.url), { cache: "no-cache" }); if (!r.ok) return null; return await r.json(); } catch { return null; } }
 async function loadData() { INDEX = await HDB.all(); renderHome(); renderTopicSelect(); renderCorpusSelects(); }
 
@@ -83,7 +89,7 @@ function renderHome() {
   $("#home-tiles").innerHTML = [["ファクトチェック", "主張 → 検証対象の確認 → 収集・照合 → 5 段階判定の下書きと検証記事", "fc"], ["集める", "トピックか URL → 記事を集めて信頼性を採点・情報の空白を警告", "live"], ["検証", "矛盾・偏り・一次情報・時間的ずれ・主張の真偽", "check"], ["ギャップ・対立", "足りない情報（データボイド）と反対意見を洗い出す", "gap"], ["構造化", "比較表・要約・Q&A・意味差分", "struct"], ["ツール", "高度な検索・逆画像検索・動画キーフレーム・公開データ・地図", "tools"], ["長文 vs 分割", "8,192 一括と 512 分割の比較実験", "exp"], ["モデル", "ブラウザ用モデルと FactCheck-BERT の土台候補", "models"], ["学ぶ", "講座の動画・検証の原則・判定ラベル", "learn"], ["履歴", "この端末に保存した結果", "history"]].map(([a, b, t]) => `<div class="tile" data-t="${t}"><b>${a}</b><span>${b}</span></div>`).join("");
   $$("#home-tiles .tile").forEach(x => x.onclick = () => show(x.dataset.t));
   const rows = INDEX.slice(0, 15);
-  $("#home-latest").innerHTML = rows.length ? `<div class="tw"><table><thead><tr><th>種類</th><th>内容</th><th>結果</th><th>日時</th></tr></thead><tbody>${rows.map(r => `<tr><td>${r.kind === "topic" ? "コーパス" : esc(r.label || "分析")}</td><td><a href="#" data-id="${esc(r.id)}">${esc(r.key)}</a></td><td class="small">${r.kind === "topic" ? `${r.n} 件・平均 ${r.summary?.mean}` : esc(r.result_label || "")}</td><td class="small">${esc(r.run_at.slice(5, 16).replace("T", " "))}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted small">まだありません。「集める」にトピックを入れてください（初回はモデル 3 つ、合計約 110 MB をダウンロード）。</p>`;
+  $("#home-latest").innerHTML = rows.length ? `<div class="tw"><table><thead><tr><th>種類</th><th>内容</th><th>結果</th><th>日時</th></tr></thead><tbody>${rows.map(r => `<tr><td>${r.ephemeral ? "🔒 " : ""}${r.kind === "topic" ? "コーパス" : esc(r.label || "分析")}</td><td><a href="#" data-id="${esc(r.id)}">${esc(r.key)}</a></td><td class="small">${r.kind === "topic" ? `${r.n} 件・平均 ${r.summary?.mean}` : esc(r.result_label || "")}</td><td class="small">${esc(r.run_at.slice(5, 16).replace("T", " "))}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted small">まだありません。「集める」にトピックを入れてください（初回はモデル 3 つ、合計約 110 MB をダウンロード）。</p>`;
   $$("#home-latest a[data-id]").forEach(a => a.onclick = e => { e.preventDefault(); openRun(a.dataset.id); });
 }
 function openRun(id) { const r = INDEX.find(x => x.id === id); if (!r) return; if (r.kind === "topic") { show("history"); $("#tp-sel").value = id; loadTopic(id); } else { show("history"); $("#tp-sel").value = id; loadTopic(id); } }
@@ -91,7 +97,7 @@ function openRun(id) { const r = INDEX.find(x => x.id === id); if (!r) return; i
 /* ---------- 履歴 ---------- */
 function renderTopicSelect() {
   const sel = $("#tp-sel");
-  sel.innerHTML = INDEX.map(t => `<option value="${esc(t.id)}">${t.kind === "topic" ? "コーパス" : esc(t.label || "分析")}：${esc(t.key)}（${(t.run_at || "").slice(5, 16).replace("T", " ")}）</option>`).join("") || "<option value=''>（まだありません）</option>";
+  sel.innerHTML = INDEX.map(t => `<option value="${esc(t.id)}">${t.ephemeral ? "🔒 " : ""}${t.kind === "topic" ? "コーパス" : esc(t.label || "分析")}：${esc(t.key)}（${(t.run_at || "").slice(5, 16).replace("T", " ")}）</option>`).join("") || "<option value=''>（まだありません）</option>";
   sel.onchange = () => loadTopic(sel.value); if (INDEX[0] && !TOPIC) loadTopic(INDEX[0].id);
 }
 async function loadTopic(id) {
@@ -122,7 +128,7 @@ function resultHtml(res, prevUrls) {
 }
 $("#tp-csv").onclick = () => { if (!TOPIC || TOPIC.kind !== "topic") return; const rows = [["grade", "reliability", "s_source", "s_content", "s_corr", "s_time", "source_class", "published", "title", "url", "engines", "dorks"]].concat(TOPIC.items.map(it => [it.grade, it.reliability, it.s_source, it.s_content, it.s_corr, it.s_time, it.source_class, it.published || "", it.title, it.url, (it.engines || []).join("|"), (it.dorks || []).join("|")])); dl(TOPIC.key + ".csv", "\ufeff" + rows.map(r => r.map(x => `"${String(x ?? "").replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv"); };
 $("#tp-json").onclick = () => TOPIC && dl(TOPIC.key.slice(0, 40) + ".json", JSON.stringify(TOPIC, null, 1), "application/json");
-$("#tp-del").onclick = async () => { if (!TOPIC) return; await HDB.del(TOPIC.id); TOPIC = null; await loadData(); };
+$("#tp-del").onclick = async () => { if (!TOPIC) return; const id = TOPIC.id; await HDB.del(id); TOPIC = null; await loadData(); };
 function dl(name, text, type = "text/plain") { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
 function summarize(items, clusters) { const g = {}, cls = {}; for (const it of items) { g[it.grade] = (g[it.grade] || 0) + 1; cls[it.source_class] = (cls[it.source_class] || 0) + 1; } return { mean: items.length ? Math.round(items.reduce((s, x) => s + x.reliability, 0) / items.length) : 0, grades: g, classes: cls, clusters: clusters.filter(c => c.size > 1).length, domains: new Set(items.map(i => NET.hostOf(i.url))).size, dated: items.filter(i => i.published).length }; }
 
@@ -146,41 +152,60 @@ $("#lv-read").oninput = () => $("#lv-read-v").textContent = $("#lv-read").value;
 const EXAMPLES = ["生成AI 著作権 ガイドライン", "熱中症 対策 効果 エビデンス", "電気自動車 補助金 2026", "マイナ保険証 トラブル", "ふるさと納税 制度変更", "https://ja.wikipedia.org/wiki/オープンソースインテリジェンス"];
 $("#lv-examples").innerHTML = `<span class="tiny muted" style="align-self:center">例：</span>` + EXAMPLES.map(x => `<span class="chip" data-x="${esc(x)}">${esc(x.length > 30 ? x.slice(0, 30) + "…" : x)}</span>`).join(""); $$("#lv-examples .chip").forEach(c => c.onclick = () => { $("#lv-q").value = c.dataset.x; runLive(); });
 $("#lv-run").onclick = runLive; $("#lv-q").onkeydown = e => { if (e.key === "Enter") runLive(); };
-async function collectLive(topic, { dorks, engines, nread, status }) {
+/* 収集：検索は（検索式 × 情報源）を並列 3 本、本文取得は並列 3 本。途中経過は onItems（候補一覧が増えるたび）／onText（本文が 1 件読めるたび）で通知し、画面はそれに合わせて描き直す */
+const PAR = { search: 3, read: 3 };
+async function collectLive(topic, { dorks, engines, nread, status, onItems, onText }) {
   const queries = [{ name: "topic", label: "そのまま", query: topic }, ...[...dorks].map(k => ({ name: k, label: DORKS[k][0], query: DORKS[k][1].replace("{q}", topic) }))];
-  const seen = new Map();
-  for (const q of queries) for (const e of engines) {
-    if (e === "wiki" && q.name !== "topic") continue;
-    status(`${NET.ENGINES[e].label}：${q.label}`);
-    const rs = await NET.search(e === "ddg" ? q.query.replace(/[()]/g, "") : q.query, [e], 10);
-    for (const r of rs) { if (seen.has(r.url)) { const x = seen.get(r.url); x.engines = [...new Set([...x.engines, e])]; x.dorks = [...new Set([...x.dorks, q.name])]; if (!x.published && r.published) x.published = r.published; } else seen.set(r.url, { ...r, id: Math.random().toString(36).slice(2, 10), dorks: [q.name], text: "", topic }); }
-  }
-  let items = [...seen.values()];
+  const seen = new Map(); const jobs = [];
+  for (const q of queries) for (const e of engines) { if (e === "wiki" && q.name !== "topic") continue; jobs.push({ q, e }); }
+  let done = 0;
   const prio = it => it.engines.length * 2 + it.dorks.length + ({ gov: 3, news: 3, edu: 2, academic: 2, wiki: 1 }[J.domainClass(NET.hostOf(it.url))] || 0);
-  items.sort((a, b) => prio(b) - prio(a)); items = items.slice(0, 60);
-  for (let i = 0; i < Math.min(nread, items.length); i++) { status(`本文を読む ${i + 1}/${Math.min(nread, items.length)}：${NET.hostOf(items[i].url)}`); const r = await NET.readPage(items[i].url); if (r) { items[i].text = r.text.slice(0, 6000); items[i].title = items[i].title || r.title; if (r.finalUrl && /^https?:/.test(r.finalUrl) && NET.hostOf(r.finalUrl) !== "news.google.com" && NET.hostOf(r.finalUrl) !== NET.hostOf(items[i].url)) { items[i].orig_url = items[i].url; items[i].url = NET.normUrl(r.finalUrl); } } }
+  const snapshot = () => [...seen.values()].sort((a, b) => prio(b) - prio(a)).slice(0, 60);
+  await NET.pool(jobs, PAR.search, async ({ q, e }) => NET.search(e === "ddg" ? q.query.replace(/[()]/g, "") : q.query, [e], 10), (rs, { q, e }) => {
+    for (const r of rs || []) { if (seen.has(r.url)) { const x = seen.get(r.url); x.engines = [...new Set([...x.engines, e])]; x.dorks = [...new Set([...x.dorks, q.name])]; if (!x.published && r.published) x.published = r.published; } else seen.set(r.url, { ...r, id: Math.random().toString(36).slice(2, 10), dorks: [q.name], text: "", topic }); }
+    done++; status(`検索 ${done}/${jobs.length}（${NET.ENGINES[e].label}：${q.label}）— 候補 ${seen.size} 件`); onItems?.(snapshot());
+  });
+  const items = snapshot(); onItems?.(items);
+  const toRead = items.slice(0, Math.min(nread, items.length)); let nr = 0;
+  await NET.pool(toRead, PAR.read, it => NET.readPage(it.url), (r, it) => {
+    if (r) { it.text = r.text.slice(0, 6000); it.title = it.title || r.title; if (r.finalUrl && /^https?:/.test(r.finalUrl) && NET.hostOf(r.finalUrl) !== "news.google.com" && NET.hostOf(r.finalUrl) !== NET.hostOf(it.url)) { it.orig_url = it.url; it.url = NET.normUrl(r.finalUrl); } }
+    nr++; status(`本文を読む ${nr}/${toRead.length}：${NET.hostOf(it.url)}${r ? "" : "（読めず）"}`); onText?.(it, items);
+  });
   return { items, queries };
+}
+/* 途中経過の描画：候補カードを id ごとに置き、本文が届いたらそのカードだけ差し替える */
+function liveBoard(root) {
+  root.innerHTML = `<div class="card" id="lb-prog"><div class="row"><b>集めています</b><span class="small muted" id="lb-msg"></span></div><div class="bar" style="margin-top:6px"><i id="lb-bar" style="width:0%"></i></div></div><div class="card"><h3 style="margin-top:0">候補 <span class="muted small" id="lb-n">0 件</span> <span class="tiny muted">— 検索結果が届いた順。本文が読めたものから「本文 ○ 字」が付き、最後に採点して並べ替える</span></h3><div id="lb-list"></div></div>`;
+  const list = root.querySelector("#lb-list"), msg = root.querySelector("#lb-msg"), bar = root.querySelector("#lb-bar"), n = root.querySelector("#lb-n");
+  const card = it => `<div class="item lb" data-id="${esc(it.id)}"><div class="row" style="gap:6px"><span class="g" style="background:var(--muted)">…</span><a class="t" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title || it.url)}</a></div><div class="m"><span>${esc(NET.hostOf(it.url))}</span><span>${esc(J.CLASS_LABEL[J.domainClass(NET.hostOf(it.url))] || "")}</span>${it.published ? `<span>${esc(it.published)}</span>` : ""}<span>${(it.engines || []).join("・")}</span>${it.text ? `<span class="ok">本文 ${it.text.length} 字</span>` : `<span class="muted">本文 未取得</span>`}</div>${it.snippet ? `<div class="sn">${esc(it.snippet.slice(0, 160))}</div>` : ""}</div>`;
+  return {
+    status(m) { msg.textContent = m; const x = /(\d+)\/(\d+)/.exec(m); const base = /^検索/.test(m) ? 0 : /^本文/.test(m) ? 0.4 : /^ドメイン/.test(m) ? 0.75 : /評価|埋め込み|含意/.test(m) ? 0.9 : null; if (x && base != null) bar.style.width = Math.round((base + (+x[1] / +x[2]) * (base === 0 ? 0.4 : base === 0.4 ? 0.35 : 0.15)) * 100) + "%"; else if (base != null) bar.style.width = Math.round(base * 100) + "%"; },
+    items(items) { n.textContent = `${items.length} 件`; const have = new Set([...list.children].map(c => c.dataset.id)); for (const it of items) if (!have.has(it.id)) list.insertAdjacentHTML("beforeend", card(it)); },
+    text(it) { const c = list.querySelector(`[data-id="${CSS.escape(it.id)}"]`); if (c) c.outerHTML = card(it); },
+    done() { root.querySelector("#lb-prog")?.remove(); },
+  };
 }
 async function domInfosFor(items, status, max = 8) {
   const hosts = [...new Set(items.map(it => NET.hostOf(it.url).replace(/^www\./, "")))].slice(0, max); const out = {}; let cache = {}; try { cache = JSON.parse(localStorage.getItem("mbo.domcache") || "{}"); } catch { }
   const todo = hosts.filter(h => { if (cache[h] && Date.now() - cache[h].t < 30 * 864e5) { out[h] = cache[h]; return false; } return true; });
   status(`ドメイン情報：${todo.length} 件`);
-  for (const h of todo) { status(`ドメイン情報：${h}（${todo.indexOf(h) + 1}/${todo.length}）`); const [wb, wc] = await Promise.all([NET.wayback(h), NET.wikiCites(NET.registrable(h))]); out[h] = cache[h] = { wayback: wb, wiki_cites: wc, t: Date.now() }; }
-  try { localStorage.setItem("mbo.domcache", JSON.stringify(cache)); } catch { }
+  let k = 0; await NET.pool(todo, 3, async h => { const [wb, wc] = await Promise.all([NET.wayback(h), NET.wikiCites(NET.registrable(h))]); out[h] = cache[h] = { wayback: wb, wiki_cites: wc, t: Date.now() }; }, (_, h) => status(`ドメイン情報：${h}（${++k}/${todo.length}）`));
+  if (!PRIV.on) try { localStorage.setItem("mbo.domcache", JSON.stringify(cache)); } catch { }
   const full = {}; for (const it of items) { const h = NET.hostOf(it.url); full[h] = out[h.replace(/^www\./, "")]; } return full;
 }
 async function runLive() {
   const q = $("#lv-q").value.trim(); if (!q) return; const st = m => $("#lv-status").textContent = m; $("#lv-run").disabled = true; $("#lv-out").innerHTML = "";
   try {
     if (/^https?:\/\//.test(q)) { await liveUrl(q, st); return; }
-    await models(st);
-    const nread = +$("#lv-read").value; const { items, queries } = await collectLive(q, { dorks: lvSel.dorks, engines: lvSel.engines, nread, status: st });
-    if (!items.length) { st("何も見つかりませんでした（検索経路の制限に当たった可能性。1 分ほど待って再試行）"); return; }
-    const dom = await domInfosFor(items, st); await J.scoreItems(items, dom, state.embed, state.nli, st); const clusters = await J.cluster(items, state.embed);
-    items.sort((a, b) => b.reliability - a.reliability); st(`${items.length} 件・${new Set(items.map(i => NET.hostOf(i.url))).size} ドメイン${NET.proxyState.jina429 ? "（一部は代替経路で取得）" : ""}`);
+    const board = liveBoard($("#lv-out")); const st2 = m => { st(m); board.status(m); };
+    const nread = +$("#lv-read").value;
+    const [, { items, queries }] = await Promise.all([models(st2), collectLive(q, { dorks: lvSel.dorks, engines: lvSel.engines, nread, status: st2, onItems: xs => board.items(xs), onText: it => board.text(it) })]);
+    if (!items.length) { st("何も見つかりませんでした（検索経路の制限に当たった可能性。1 分ほど待って再試行）"); board.done(); return; }
+    const dom = await domInfosFor(items, st2); await J.scoreItems(items, dom, state.embed, state.nli, st2); const clusters = await J.cluster(items, state.embed);
+    items.sort((a, b) => b.reliability - a.reliability); st(`${items.length} 件・${new Set(items.map(i => NET.hostOf(i.url))).size} ドメイン${NET.proxyState.jina429 ? "（一部は代替経路で取得）" : ""}${PRIV.on ? "・🔒 保存していません" : ""}`);
     const rec = await saveRun({ kind: "topic", key: q, n: items.length, items, clusters, queries, urls: items.map(i => i.url), summary: summarize(items, clusters) });
     const prev = INDEX.filter(r => r.kind === "topic" && r.key === q && r.id !== rec.id); const prevUrls = new Set(); for (const p of prev) for (const u of (p.urls || [])) prevUrls.add(u);
-    $("#lv-out").innerHTML = `<div class="card"><div class="stats"><div class="stat">平均信頼性<b>${rec.summary.mean}</b></div><div class="stat">A/B/C/D<b>${["A", "B", "C", "D"].map(g => rec.summary.grades[g] || 0).join("/")}</b></div><div class="stat">ドメイン<b>${rec.summary.domains}</b></div><div class="stat">本文あり<b>${items.filter(i => i.text).length}</b></div></div><p class="small muted">履歴に保存しました${prev.length ? `（${prev.length} 回目の再調査）` : ""}。次は <a href="#" data-go="check">検証</a>・<a href="#" data-go="gap">ギャップ・対立</a>・<a href="#" data-go="struct">構造化</a> でこのコーパスを分析できます。</p></div>` + resultHtml(rec, prev.length ? prevUrls : null);
+    $("#lv-out").innerHTML = `<div class="card"><div class="stats"><div class="stat">平均信頼性<b>${rec.summary.mean}</b></div><div class="stat">A/B/C/D<b>${["A", "B", "C", "D"].map(g => rec.summary.grades[g] || 0).join("/")}</b></div><div class="stat">ドメイン<b>${rec.summary.domains}</b></div><div class="stat">本文あり<b>${items.filter(i => i.text).length}</b></div></div><p class="small muted">${PRIV.on ? "🔒 プライベートモード：このタブを閉じると消えます（必要なら「履歴」タブの JSON で端末に保存）" : `履歴に保存しました${prev.length ? `（${prev.length} 回目の再調査）` : ""}`}。次は <a href="#" data-go="check">検証</a>・<a href="#" data-go="gap">ギャップ・対立</a>・<a href="#" data-go="struct">構造化</a> でこのコーパスを分析できます。</p></div>` + resultHtml(rec, prev.length ? prevUrls : null);
     wireItemActions($("#lv-out")); $$("#lv-out a[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); show(a.dataset.go); selectCorpus(rec.id); }); $("#lv-out").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { st("エラー: " + (e.message || e) + (navigator.onLine ? "" : "（オフラインです）")); console.error(e); } finally { $("#lv-run").disabled = false; }
 }
@@ -219,7 +244,7 @@ async function runCheck() {
     else if (ckTab === "primary") { await models(st, ["nli"]); const r = await A.primaryScore(C.docs, state.nli, st); html = primaryHtml(r); label = `一次 ${r.filter(x => x.label === "一次情報").length}/${r.length}`; await saveAnalysis("一次情報", C.key, html, label); }
     else if (ckTab === "temporal") { const r = A.temporalCheck(C.docs); html = temporalHtml(r); label = `警告 ${r.perDoc.reduce((s, d) => s + d.warns.length, 0)}・数値の食い違い ${r.conflicts.length}`; await saveAnalysis("時間的矛盾", C.key, html, label); }
     else { const claim = $("#ck-claim").value.trim(); if (!claim) { st("主張を入れてください"); return; } await models(st); let docs = C?.docs || []; if (docs.length < 3) { st("関連ページを集めています"); const { items } = await collectLive(claim, { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck", "deny"]), engines: new Set(["ddg", "gnews", "wiki"]), nread: 10, status: st }); const dom = await domInfosFor(items, st); for (const it of items) { const { s, cls } = J.sourceScore(it, dom[NET.hostOf(it.url)]); it.s_source = s; it.source_class = cls; } docs = docs.concat(items); } const v = await J.verify(claim, docs, state.embed, state.nli, st); html = `<div class="card"><h3 style="margin-top:0">${esc(claim)}</h3>${verdictCard(v)}</div>`; label = J.VERDICT[v.verdict]?.[0] || v.verdict; await saveAnalysis("主張を検証", claim, html, label); }
-    out.innerHTML = html; st("完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
+    out.innerHTML = html; st(PRIV.on ? "完了（🔒 保存していません）" : "完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { st("エラー: " + (e.message || e)); console.error(e); } finally { $("#ck-run").disabled = false; }
 }
 function consistencyHtml(docs, r) {
@@ -242,7 +267,7 @@ async function runGap() {
   try { const C = await currentCorpus("gp-corpus"); if (!C) { st("先に「集める」で記事を集めてください"); return; } const topic = $("#gp-topic").value.trim() || C.key; let html, label;
     if (gpTab === "gaps") { await models(st, ["embed", "rerank"]); const r = await A.knowledgeGaps(topic, C.docs, state.rerank, state.embed, st); html = gapsHtml(topic, r); label = `回答済み ${r.covered}/${r.questions.length}`; await saveAnalysis("ナレッジギャップ", topic, html, label); }
     else { await models(st); const r = await A.opposingViews(topic, C.docs, state.embed, state.nli, st); html = opposingHtml(topic, r); label = `反対 ${r.stance.counts.反対}・矛盾 ${r.contradictions.length}`; await saveAnalysis("対立視点", topic, html, label); }
-    out.innerHTML = html; wireGapActions(out); st("完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
+    out.innerHTML = html; wireGapActions(out); st(PRIV.on ? "完了（🔒 保存していません）" : "完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { st("エラー: " + (e.message || e)); console.error(e); } finally { $("#gp-run").disabled = false; }
 }
 function gapsHtml(topic, r) { return `<div class="card"><h3 style="margin-top:0">「${esc(topic)}」で分かっていること・分かっていないこと <span class="muted small">${r.covered}/${r.questions.length} の問いに答えあり</span></h3><div class="tw"><table><thead><tr><th>問い</th><th>状態</th><th>最も近い記述（関連度）</th><th></th></tr></thead><tbody>${r.questions.map(q => `<tr><td><b>${esc(q.label)}</b><div class="tiny muted">${esc(q.question)}</div></td><td>${q.answered ? '<span class="ok">回答あり</span>' : '<span class="bad">未回答</span>'}<div class="tiny">関連 ${q.score}・類似 ${q.sim}</div></td><td class="small">${q.evidence ? `${esc(q.evidence.text.slice(0, 160))} <a href="${esc(q.evidence.url)}" target="_blank" rel="noopener">${esc(NET.hostOf(q.evidence.url))}</a>` : "—"}</td><td>${q.answered ? "" : `<button class="small act-search" data-q="${esc(q.dork)}">この式で集める</button>`}</td></tr>`).join("")}</tbody></table></div><p class="small muted">未回答＝リランカーの関連度 0.25 未満かつ埋め込み類似 0.91 未満。「この式で集める」を押すと、その問いに向いた検索式で「集める」を実行する。</p></div>`; }
@@ -261,7 +286,7 @@ async function runStruct() {
     else if (stTab === "summary") { await models(st, ["embed"]); const r = await A.summarize(C.docs, state.embed, 7, st); html = `<div class="card"><h3 style="margin-top:0">要約（抽出型・根拠つき）</h3>${r.map((s, i) => `<div class="ev"><b>${i + 1}.</b> ${esc(s.text)} <span class="tiny"><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(NET.hostOf(s.url))}</a>${s.published ? " " + esc(s.published) : ""}</span></div>`).join("")}<p class="small muted">埋め込みの重心に近く（出所の重みつき）、互いに重複しない段落を選んだもの。生成はしないので、書かれていないことは出ない。</p></div>`; label = `${r.length} 文`; key = C.key; }
     else if (stTab === "qa") { const q = $("#st-question").value.trim(); if (!q) { st("質問を入れてください"); return; } await models(st, ["embed", "rerank", "nli"]); const r = await A.answer(q, C.docs, state.rerank, state.embed, state.nli, st); html = `<div class="card"><h3 style="margin-top:0">Q：${esc(q)}</h3>${r.hits.map((h, i) => `<div class="ev ${h.nli ? (h.nli[0] >= 0.5 ? "sup" : h.nli[2] >= 0.5 ? "con" : "") : ""}"><span class="tag">関連度 ${pct(h.score)}</span>${h.nli ? ` <span class="tag ${h.nli[0] >= 0.5 ? "sup" : h.nli[2] >= 0.5 ? "con" : ""}">${h.nli[0] >= 0.5 ? "支持" : h.nli[2] >= 0.5 ? "矛盾" : "中立"}</span>` : ""} ${docLink(h.doc)}<br>${esc(h.text)}</div>`).join("") || "<p class='small muted'>関連する段落なし</p>"}<p class="small muted">答えは生成せず、根拠の段落をそのまま示す。</p></div>`; label = `根拠 ${r.hits.length}`; key = q; }
     else { const a = $("#st-diff-a").value.trim(), b = $("#st-diff-b").value.trim(); if (!a || !b) { st("旧・新のテキストを入れてください"); return; } await models(st); const r = await A.semanticDiff(a, b, state.embed, state.nli, st); html = diffHtml(r); label = `意味の変化 ${r.changed.length}・追加 ${r.added.length}・削除 ${r.removed.length}`; key = "差分：" + a.slice(0, 30); }
-    out.innerHTML = html; wireMatrix(out); await saveAnalysis({ matrix: "比較表", summary: "要約", qa: "Q&A", diff: "意味差分" }[stTab], key, html, label); st("完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
+    out.innerHTML = html; wireMatrix(out); await saveAnalysis({ matrix: "比較表", summary: "要約", qa: "Q&A", diff: "意味差分" }[stTab], key, html, label); st(PRIV.on ? "完了（🔒 保存していません）" : "完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { st("エラー: " + (e.message || e)); console.error(e); } finally { $("#st-run").disabled = false; }
 }
 function matrixHtml(r) { return `<div class="card"><h3 style="margin-top:0">比較表 <button class="small" id="mx-csv" style="float:right">CSV</button></h3><div class="tw"><table id="mx-table"><thead><tr><th>記事</th>${r.axes.map(a => `<th>${esc(a)}</th>`).join("")}</tr></thead><tbody>${r.rows.map(row => `<tr><td>${docLink(row.doc)}<div class="tiny muted">${esc(row.doc.published || "")}</div></td>${row.cells.map(c => c ? `<td class="small">${esc(c.text.slice(0, 220))}<div class="tiny muted">関連度 ${c.score}</div></td>` : '<td class="muted tiny">—</td>').join("")}</tr>`).join("")}</tbody></table></div><p class="small muted">各セルは「トピックの＜軸＞は何ですか？」に最も近い文（埋め込み）。確信はリランカーの関連度（高 ≥0.2・中 ≥0.05・低）。</p></div>`; }
@@ -281,7 +306,7 @@ async function runExpBatch() {
   const st = m => $("#ex-status").textContent = m; const out = $("#ex-out"); const C = CORPUS || await currentCorpus("st-corpus"); const q = $("#ex-q").value.trim(); if (!C || !q) { st("コーパスと問いを指定してください"); return; } $("#ex-batch").disabled = true;
   try { await models(st, ["rerank", "nli"]); const rows = []; for (const [i, d] of C.docs.slice(0, 15).entries()) { st(`${i + 1}/${Math.min(15, C.docs.length)} ${(d.title || "").slice(0, 20)}`); const r = await A.longVsChunk(q, d, state.rerank, state.nli, +$("#ex-chunk").value, () => { }); rows.push({ d, r }); }
     const agree = rows.filter(x => (x.r.whole.score >= 0.35) === (x.r.chunk.score >= 0.35)).length; const html = `<div class="card"><h3 style="margin-top:0">コーパス全体：${esc(q)} <span class="muted small">${rows.length} 文書・判定一致 ${agree}/${rows.length}</span></h3><div class="tw"><table><thead><tr><th>文書</th><th>トークン</th><th>一括</th><th>分割（最大）</th><th>差</th><th>時間 一括/分割 ms</th></tr></thead><tbody>${rows.map(({ d, r }) => `<tr><td>${docLink(d)}</td><td>${r.whole.tokens}</td><td>${r.whole.score.toFixed(3)}</td><td>${r.chunk.score.toFixed(3)}</td><td class="${Math.abs(r.whole.score - r.chunk.score) > 0.2 ? "warn" : ""}">${(r.whole.score - r.chunk.score).toFixed(3)}</td><td>${r.whole.ms} / ${r.chunk.ms}</td></tr>`).join("")}</tbody></table></div><div class="actbar"><button class="small" id="ex-csv">CSV</button></div></div>`;
-    out.innerHTML = html + out.innerHTML; out.querySelector("#ex-csv").onclick = () => dl("long_vs_chunk.csv", "\ufeff" + [["title", "url", "tokens", "whole", "chunk_max", "whole_ms", "chunk_ms", "n_chunks"]].concat(rows.map(({ d, r }) => [d.title, d.url, r.whole.tokens, r.whole.score, r.chunk.score, r.whole.ms, r.chunk.ms, r.chunk.n])).map(r => r.map(x => `"${String(x ?? "").replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv"); await saveAnalysis("長文 vs 分割", q, html, `一致 ${agree}/${rows.length}`); st("完了（履歴に保存）"); }
+    out.innerHTML = html + out.innerHTML; out.querySelector("#ex-csv").onclick = () => dl("long_vs_chunk.csv", "\ufeff" + [["title", "url", "tokens", "whole", "chunk_max", "whole_ms", "chunk_ms", "n_chunks"]].concat(rows.map(({ d, r }) => [d.title, d.url, r.whole.tokens, r.whole.score, r.chunk.score, r.whole.ms, r.chunk.ms, r.chunk.n])).map(r => r.map(x => `"${String(x ?? "").replace(/"/g, '""')}"`).join(",")).join("\n"), "text/csv"); await saveAnalysis("長文 vs 分割", q, html, `一致 ${agree}/${rows.length}`); st(PRIV.on ? "完了（🔒 保存していません）" : "完了（履歴に保存）"); }
   catch (e) { st("エラー: " + (e.message || e)); } finally { $("#ex-batch").disabled = false; }
 }
 
@@ -334,6 +359,9 @@ async function renderSettings() {
   $("#st-load-models").onclick = async () => { try { await models(m => $("#st-mmsg").textContent = m, ["embed", "nli", "rerank"]); $("#st-mmsg").textContent = "完了"; renderSettings(); } catch (e) { $("#st-mmsg").textContent = "失敗: " + e.message; } };
   $("#st-del").onclick = async () => { for (const m of reg.browser) await ML.removeStored(m.name); for (const k in state) state[k] = null; renderSettings(); };
   $("#st-hist").textContent = `保存件数 ${INDEX.length}（コーパス ${INDEX.filter(r => r.kind === "topic").length}・分析 ${INDEX.filter(r => r.kind === "analysis").length}）`;
+  $("#st-priv").checked = PRIV.on; $("#st-priv").onchange = () => { PRIV.set($("#st-priv").checked); renderSettings(); };
+  $("#st-priv-note").textContent = PRIV.on ? `有効：結果はこのタブの中だけ（現在 ${HDB.sessionCount()} 件）。タブを閉じると消える` : "無効：結果はこの端末の履歴に保存される";
+  $("#st-hist-import").onchange = async () => { const f = $("#st-hist-import").files[0]; if (!f) return; try { const arr = JSON.parse(await f.text()); const recs = Array.isArray(arr) ? arr : [arr]; let n = 0; for (const r of recs) if (r && r.id && r.kind && r.run_at) { await HDB.putPersist(r); n++; } await loadData(); renderSettings(); $("#st-hist-msg").textContent = `${n} 件を読み込んで保存しました`; } catch (e) { $("#st-hist-msg").textContent = "読み込めません: " + e.message; } $("#st-hist-import").value = ""; };
   $("#st-hist-export").onclick = async () => dl("history.json", JSON.stringify(await HDB.all(), null, 1), "application/json");
   $("#st-hist-clear").onclick = async () => { if (confirm("履歴をすべて削除しますか？")) { await HDB.clear(); CORPUS = null; loadData(); renderSettings(); } };
 }
@@ -343,7 +371,7 @@ const fcSel = new Set();
 $("#fc-sel").innerHTML = `<span class="tiny muted" style="align-self:center">選定基準（該当をクリック）：</span>` + FC.SELECTION.map(([k, d]) => `<span class="chip" data-k="${k}" title="${esc(d)}">${k}</span>`).join("");
 $$("#fc-sel .chip").forEach(c => c.onclick = () => { c.classList.toggle("on"); c.classList.contains("on") ? fcSel.add(c.dataset.k) : fcSel.delete(c.dataset.k); });
 function fcCheckable() { const q = $("#fc-claim").value.trim(); if (!q) { $("#fc-checkable").innerHTML = ""; return null; } const ck = FC.checkable(q); $("#fc-checkable").innerHTML = `<span class="${ck.ok ? "ok" : "warn"}">${ck.ok ? "検証対象にできる" : "そのままでは検証しにくい"}</span>：${ck.why.map(esc).join("／")}`; return ck; }
-$("#fc-claim").oninput = fcCheckable; $("#fc-claim").onkeydown = e => { if (e.key === "Enter") runFactCheck(); };
+$("#fc-claim").oninput = fcCheckable; $("#fc-read").oninput = () => $("#fc-read-v").textContent = $("#fc-read").value; $("#fc-claim").onkeydown = e => { if (e.key === "Enter") runFactCheck(); };
 $("#fc-run").onclick = () => runFactCheck(false); $("#fc-plan").onclick = () => runFactCheck(true);
 const fcQueries = claim => ["exact", "official_jp", "news_pr", "factcheck", "deny", "primary"].map(k => ({ name: k, label: DORKS[k][0], query: DORKS[k][1].replace("{q}", claim) }));
 function toolLinks(q, url) {
@@ -362,8 +390,8 @@ async function runFactCheck(planOnly = false) {
   if (planOnly) { out.innerHTML = planHtml; wireFcLinks(out); st(""); return; }
   $("#fc-run").disabled = true; out.innerHTML = "";
   try {
-    await models(st);
-    st("公開情報を集めています"); const { items } = await collectLive(claim, { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck", "deny"]), engines: new Set(["ddg", "gnews", "wiki"]), nread: 10, status: st });
+    const board = liveBoard(out); const st2 = m => { st(m); board.status(m); };
+    const [, { items }] = await Promise.all([models(st2), collectLive(claim, { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck", "deny"]), engines: new Set(["ddg", "gnews", "wiki"]), nread: +$("#fc-read").value, status: st2, onItems: xs => board.items(xs), onText: it => board.text(it) })]);
     let docs = items; if (src && /^https?:/.test(src)) { st("出どころのページを読む"); const r = await NET.readPage(src); if (r) docs = [{ id: "src", url: src, title: r.title, text: r.text.slice(0, 20000), snippet: r.text.slice(0, 200), engines: [], dorks: [], published: null, is_source: true }, ...docs]; }
     const dom = await domInfosFor(docs, st); for (const it of docs) { const { s, cls } = J.sourceScore(it, dom[NET.hostOf(it.url)]); it.s_source = s; it.source_class = cls; }
     st("主張と各段落を照合（含意モデル）"); const v = await J.verify(claim, docs.filter(d => !d.is_source), state.embed, state.nli, st);
@@ -379,7 +407,7 @@ async function runFactCheck(planOnly = false) {
     $("#fc-copy").onclick = async () => { try { await navigator.clipboard.writeText($("#fc-md").value); $("#fc-status").textContent = "コピーしました"; } catch { $("#fc-md").select(); } };
     $("#fc-dl").onclick = () => dl("factcheck_" + claim.slice(0, 20).replace(/[\\/:*?"<>|\s]/g, "_") + ".md", $("#fc-md").value, "text/markdown");
     await saveRun({ kind: "analysis", label: "ファクトチェック", key: claim, html, result_label: R[0] });
-    st("完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
+    st(PRIV.on ? "完了（🔒 保存していません）" : "完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { st("エラー: " + (e.message || e)); console.error(e); } finally { $("#fc-run").disabled = false; }
 }
 function wireFcLinks(root) { root.querySelectorAll("a[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); show(a.dataset.go); if (a.dataset.url) { $("#tl-url").value = a.dataset.url; renderTools(); } }); }
@@ -428,7 +456,7 @@ function renderLearn() {
 
 /* ---------- 起動 ---------- */
 (async () => {
-  $("#ver").textContent = VERSION; await J.loadParams(); await loadData(); await renderModelBars();
+  $("#ver").textContent = VERSION; await J.loadParams(); await loadData(); await renderModelBars(); renderPrivBadge(); $("#priv").onclick = () => { PRIV.set(!PRIV.on); if ($("#st-priv")) $("#st-priv").checked = PRIV.on; }; addEventListener("beforeunload", e => { if (HDB.sessionCount()) { e.preventDefault(); e.returnValue = ""; } });
   const t = location.hash.slice(1); if (t && $(`nav button[data-t="${t}"]`)) show(t);
   const u = new URLSearchParams(location.search); if (u.get("q") || u.get("url") || u.get("text")) { $("#lv-q").value = u.get("q") || u.get("url") || u.get("text"); show("live"); runLive(); }
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });

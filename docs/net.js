@@ -3,8 +3,16 @@
 const JINA = "https://r.jina.ai/";
 const RSS2JSON = "https://api.rss2json.com/v1/api.json?rss_url=";
 export const LOG = [];
-let last = 0;
-async function gap(ms = 900) { const d = last + ms - Date.now(); if (d > 0) await new Promise(r => setTimeout(r, d)); last = Date.now(); }
+/* 経路ごとの間隔制御（並列実行しても同じ経路への発射間隔は守る） */
+const lastAt = {};
+async function gapFor(ch, ms) { for (;;) { const d = (lastAt[ch] || 0) + ms - Date.now(); if (d <= 0) break; await new Promise(r => setTimeout(r, d)); } lastAt[ch] = Date.now(); }
+const gap = (ms = 900) => gapFor("jina", ms);
+/* 並列プール：items を最大 n 本同時に fn で処理し、1 件終わるごとに onEach(result, item, index) を呼ぶ */
+export async function pool(items, n, fn, onEach) {
+  const out = new Array(items.length); let i = 0;
+  const worker = async () => { for (;;) { const k = i++; if (k >= items.length) return; try { out[k] = await fn(items[k], k); } catch (e) { out[k] = null; } try { onEach?.(out[k], items[k], k); } catch { } } };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(n, items.length)) }, worker)); return out;
+}
 async function jget(url, { timeout = 30000, text = false, headers = {} } = {}) {
   const c = new AbortController(); const t = setTimeout(() => c.abort(), timeout); const t0 = Date.now();
   try { const r = await fetch(url, { signal: c.signal, headers }); LOG.push({ url: url.slice(0, 120), status: r.status, ms: Date.now() - t0 }); if (!r.ok) return null; return text ? await r.text() : await r.json(); }
@@ -25,11 +33,11 @@ export async function jina(url, timeout = 40000) {
 }
 /* allorigins で生 HTML を取り、jina 風の Markdown（Title / URL Source / Markdown Content）に整形して返す */
 export async function rawViaProxy(url, timeout = 40000) {
-  await gap(600); proxyState.allorigins++;
+  await gapFor("ao", 250); proxyState.allorigins++;
   const html = await jget(ALLORIGINS + encodeURIComponent(url), { timeout, text: true }); if (!html) return null;
   return `Title: ${htmlTitle(html)}\n\nURL Source: ${url}\n\nMarkdown Content:\n${htmlToMd(html)}`;
 }
-export async function rawHtml(url, timeout = 40000) { await gap(600); proxyState.allorigins++; return jget(ALLORIGINS + encodeURIComponent(url), { timeout, text: true }); }
+export async function rawHtml(url, timeout = 40000) { await gapFor("ao", 250); proxyState.allorigins++; return jget(ALLORIGINS + encodeURIComponent(url), { timeout, text: true }); }
 const htmlTitle = h => clean((/<title[^>]*>([\s\S]*?)<\/title>/i.exec(h) || [])[1] || "");
 function htmlToMd(h) {
   let x = h.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<noscript[\s\S]*?<\/noscript>|<!--[\s\S]*?-->/gi, " ");
@@ -78,7 +86,8 @@ export const ENGINES = {
 };
 export async function search(q, engines, n = 10) {
   const seen = new Map();
-  for (const e of engines) { if (!ENGINES[e]) continue; let rs = []; try { rs = await ENGINES[e].search(q, n); } catch { } for (const r of rs) { if (!/^https?:/.test(r.url)) continue; const k = r.url; if (seen.has(k)) { const x = seen.get(k); x.engines.push(e); if (!x.snippet && r.snippet) x.snippet = r.snippet; if (!x.published && r.published) x.published = r.published; } else seen.set(k, { ...r, engines: [e] }); } }
+  const all = await Promise.all(engines.filter(e => ENGINES[e]).map(async e => { try { return [e, await ENGINES[e].search(q, n)]; } catch { return [e, []]; } }));
+  for (const [e, rs] of all) { for (const r of rs) { if (!/^https?:/.test(r.url)) continue; const k = r.url; if (seen.has(k)) { const x = seen.get(k); x.engines.push(e); if (!x.snippet && r.snippet) x.snippet = r.snippet; if (!x.published && r.published) x.published = r.published; } else seen.set(k, { ...r, engines: [e] }); } }
   return [...seen.values()];
 }
 

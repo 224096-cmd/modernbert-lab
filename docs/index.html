@@ -10,12 +10,19 @@
 <body>
 <header class="top"><a class="brand" href="./">🧭 ModernBERT Lab <small id="ver"></small></a>
 <nav id="nav"><button data-t="home" class="on">概要</button><button data-t="fc">ファクトチェック</button><button data-t="live">集める</button><button data-t="check">検証</button><button data-t="gap">ギャップ・対立</button><button data-t="struct">構造化</button><button data-t="exp">長文 vs 分割</button><button data-t="history">履歴</button><button data-t="tools">ツール</button><button data-t="models">モデル</button><button data-t="learn">学ぶ</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
-<span id="net" class="tiny muted"></span></header>
+<button id="priv" class="small" style="margin-left:auto;white-space:nowrap"></button><span id="net" class="tiny muted"></span></header>
 <main>
 <section id="t-home">
  <div class="hero"><h1>ファクトチェックの手順を、端末内の ModernBERT で支援する</h1><p><b>検証対象を明示 → 検証過程を公開 → 判定</b>というファクトチェックの基本手順（日本ファクトチェックセンターの講座に準拠）に沿って、主張を入れるとブラウザが<b>高度な検索</b>で公開情報を集め、<b>端末内の日本語 ModernBERT</b>（最大 8,192 トークンを分割せずに読む）で主張と各記事の<b>含意・矛盾</b>を照合し、<b>5 段階の判定の下書き</b>と<b>根拠リンクつきの検証記事</b>を作る。画像・動画の逆検索、公開データ、ジオロケーションなどの外部ツールもここから開ける。LLM を使わず、サーバも API キーも不要。</p></div>
  <div class="stats" id="home-stats"></div>
  <div class="tiles" id="home-tiles"></div>
+ <div class="card"><h2 style="margin-top:0">初めて使う方へ</h2><ul class="small" style="margin:4px 0 0">
+  <li>アカウント登録・ログインは不要。入力した内容と結果は<b>あなたの端末（ブラウザ）だけ</b>に保存され、作者を含め誰にも送られない</li>
+  <li>初回はモデル（約 110 MB）を端末にダウンロードする。2 回目からはオフラインでも判定できる。Wi-Fi での初回利用を推奨</li>
+  <li>検索・本文取得は無料の公開経路を使うため、混雑時は遅くなることがある。結果は届いた順に表示される</li>
+  <li>機械の判定は<b>下書き</b>。必ず根拠リンクを開いて一次情報を確かめる。人物の特定や非公開情報の取得には使えない</li>
+  <li>履歴を残したくないときは右上の「🔒」でプライベートモードに。結果はタブを閉じると消える</li>
+  <li>別の端末に履歴を移すには「設定」→ JSON で書き出し → もう一方で読み込む</li></ul></div>
  <div class="card"><h2 style="margin-top:0">最近の作業</h2><div id="home-latest"></div></div>
  <div class="card"><h2 style="margin-top:0">この研究で確かめること</h2><ol class="small">
   <li><b>長文を一括処理すると精度が上がるか</b> — 同じ記事・同じ問いを「8,192 トークン一括」と「512 トークンに分割して最大値」で処理し、判定と時間を比べる（「長文 vs 分割」タブ）</li>
@@ -30,8 +37,9 @@
   <div class="row"><input id="fc-src" placeholder="出どころの URL（投稿・記事・動画。任意）" style="flex:2 1 260px"><input id="fc-spread" placeholder="拡散の状況（例：X で 1 万件以上の表示。任意）" style="flex:1 1 200px"></div>
   <div class="chips" id="fc-sel"></div>
   <div id="fc-checkable" class="small"></div>
+  <div class="gate small">本文を読む件数 <input type="range" id="fc-read" min="3" max="40" value="10"><b id="fc-read-v">10</b> <span class="muted">（多いほど根拠が増えるが時間もかかる。3 件ずつ並列）</span></div>
   <div class="actbar"><button class="primary" id="fc-run">② 検証を実行（収集 → 照合 → 判定の下書き）</button><button class="small" id="fc-plan">検索式だけ作る</button><span id="fc-status" class="small muted"></span></div>
-  <p class="hint">実行すると「集める」と同じ経路で公開情報を集め、端末内の含意モデルで主張と段落を照合する。所要 1〜3 分。結果は履歴に保存。</p></div>
+  <p class="hint">実行すると「集める」と同じ経路で公開情報を集め（結果は届いた順に表示）、端末内の含意モデルで主張と段落を照合する。結果は履歴に保存。</p></div>
  <div id="fc-out"></div>
 </section>
 
@@ -40,7 +48,7 @@
   <div class="modelbar"></div><div class="row"><input id="lv-q" placeholder="トピック（例：生成AI 著作権 ガイドライン）、または URL"><button class="primary" id="lv-run">集める</button></div>
   <div class="chips" id="lv-examples"></div>
   <details class="small"><summary>検索式と情報源を選ぶ</summary><label>検索式（Dorks）</label><div class="chips" id="lv-dorks"></div><label>情報源</label><div class="chips" id="lv-engines"></div></details>
-  <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="24" value="10"><b id="lv-read-v">10</b> <span class="muted">（1 件 2〜5 秒。検証・構造化は本文があるページに対して行う）</span></div>
+  <div class="gate small">本文を読む件数 <input type="range" id="lv-read" min="0" max="40" value="10"><b id="lv-read-v">10</b> <span class="muted">（3 件ずつ並列に取得。検証・構造化は本文があるページに対して行う）</span></div>
   <div id="lv-status" class="small muted"></div></div>
  <div id="lv-out"></div>
 </section>
@@ -136,7 +144,11 @@
 <section id="t-settings" class="hidden">
  <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load-models">既定の 3 モデルを今ダウンロード</button><button class="small" id="st-del">端末からすべて削除</button><span id="st-mmsg" class="small muted"></span></div>
   <label>Hugging Face 配布リポジトリ（空なら GitHub Pages の ./models/）</label><div class="row"><input id="st-hf" placeholder="owner/repo"><button class="small" id="st-hf-save">保存</button></div></div>
- <div class="card"><h2 style="margin-top:0">履歴</h2><div id="st-hist" class="small"></div><div class="actbar"><button class="small" id="st-hist-export">すべて JSON で書き出す</button><button class="small" id="st-hist-clear">履歴をすべて削除</button></div></div>
+ <div class="card"><h2 style="margin-top:0">プライベートモード</h2>
+  <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--fg)"><input type="checkbox" id="st-priv" style="width:auto">履歴を残さない（結果はこのタブの中だけ。閉じると消える）</label>
+  <p class="small muted" id="st-priv-note"></p>
+  <p class="small">残らないもの：集めた記事・採点・検証結果・検証記事の下書き・ドメイン情報のキャッシュ。残るもの：ダウンロードしたモデル（誰の情報でもない）と設定値。外部ツールへのリンクを開いた先（Google など）の記録はこのアプリの範囲外。再調査の差分や推移グラフは履歴が前提なので、このモードでは使えない。</p></div>
+ <div class="card"><h2 style="margin-top:0">履歴</h2><div id="st-hist" class="small"></div><div class="actbar"><button class="small" id="st-hist-export">すべて JSON で書き出す</button><label class="small" style="margin:0"><span class="chip" style="cursor:pointer">JSON を読み込む（別端末から移す）</span><input type="file" id="st-hist-import" accept="application/json,.json" style="display:none"></label><button class="small" id="st-hist-clear">履歴をすべて削除</button><span id="st-hist-msg" class="small muted"></span></div><p class="hint">別の端末で同じ履歴を見たいときは、書き出した JSON を（クラウドドライブなどで）移して読み込む。サーバやアカウントは使わない。</p></div>
  <div class="card"><h2 style="margin-top:0">アプリとして入れる</h2><p class="small">Android/PC Chrome：アドレスバーの「インストール」。iPhone：共有 → ホーム画面に追加。履歴とモデルは端末に保存され、オフラインでも閲覧・判定できる。</p></div>
 </section>
 </main>

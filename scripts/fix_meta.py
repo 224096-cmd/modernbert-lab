@@ -9,6 +9,9 @@ FIX = {
  "minilm-l6-xnli": {"max_position": 512, "max_seq_browser": 512, "lang": "multi", "label_order": [0, 1, 2]},
  "reranker-ja-xsmall-v2": {"max_position": 8192, "max_seq_browser": 2048, "lang": "ja"},
  "reranker-xsmall-v1": {"max_position": 512, "max_seq_browser": 512, "lang": "multi"},
+ "ruri-v3-pt-30m": {"max_position": 8192, "prefixes": {"query": "検索クエリ: ", "doc": "検索文書: ", "topic": "トピック: ", "": ""}, "max_seq_browser": 2048, "lang": "ja"},
+ "modernbert-ja-30m-embed": {"max_position": 8192, "prefixes": {"query": "", "doc": "", "topic": "", "": ""}, "max_seq_browser": 2048, "lang": "ja"},
+ "nli-ja-70m": {"max_position": 8192, "max_seq_browser": 1024, "lang": "ja", "label_order": [0, 1, 2]},
 }
 for name, fix in FIX.items():
     p = os.path.join(ROOT, name, "meta.json")

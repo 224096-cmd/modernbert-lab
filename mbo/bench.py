@@ -15,7 +15,8 @@ from transformers import AutoTokenizer, AutoModel, AutoModelForSequenceClassific
 from datasets import load_dataset
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-REG = json.load(open(os.path.join(ROOT, "models", "registry.json"), encoding="utf-8"))["models"]
+_reg = json.load(open(os.path.join(ROOT, "models", "registry.json"), encoding="utf-8"))
+REG = _reg.get("models") or (_reg.get("compare", []) + [m for m in _reg.get("browser", []) if m.get("hf")])
 OUT = os.path.join(ROOT, "docs", "data", "models.json")
 
 

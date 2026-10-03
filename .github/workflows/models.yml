@@ -1,11 +1,12 @@
 name: models
 # ブラウザ用 ONNX モデルを Hugging Face から変換して models/ に push する（初回セットアップ用。約 15 分）。
-# nli-ja-30m と ruri-v3-30m はリポジトリに同梱済みなので、残り 5 つを作る。
+# nli-ja-30m・ruri-v3-30m はリポジトリに同梱済み。残りのブラウザ用モデルと、FactCheck-BERT の土台候補（学習前）を作る。
+# 独自モデル（JNLI 微調整）は train.yml、対照学習は notebooks/（Colab）で。
 on:
   workflow_dispatch:
     inputs:
       which:
-        description: "作るモデル（カンマ区切り。all で 5 つ全部）"
+        description: "作るモデル（カンマ区切り。all で全部）"
         default: "all"
 permissions:
   contents: write
@@ -27,6 +28,8 @@ jobs:
           has multilingual-e5-small && python -m mbo.export_onnx --embed intfloat/multilingual-e5-small --out models/multilingual-e5-small --prune
           has minilm-l6-xnli && python -m mbo.export_onnx --nli MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli --out models/minilm-l6-xnli --prune --quant none
           has reranker-xsmall-v1 && python -m mbo.export_onnx --rerank hotchpotch/japanese-reranker-cross-encoder-xsmall-v1 --out models/reranker-xsmall-v1 --prune
+          has ruri-v3-pt-30m && python -m mbo.export_onnx --embed cl-nagoya/ruri-v3-pt-30m --out models/ruri-v3-pt-30m
+          has modernbert-ja-30m-embed && python -m mbo.export_onnx --embed sbintuitions/modernbert-ja-30m --out models/modernbert-ja-30m-embed
           python scripts/fix_meta.py
       - run: |
           git config user.name mbo-bot; git config user.email actions@users.noreply.github.com

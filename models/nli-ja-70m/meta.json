@@ -1,0 +1,33 @@
+{
+ "kind": "nli",
+ "source": "models/nli-ja-70m-torch",
+ "output": "logits",
+ "pooling": "cls",
+ "pruned_vocab": false,
+ "quant": "all",
+ "pad_id": 3,
+ "n_labels": 3,
+ "labels": {
+  "0": "entailment",
+  "1": "neutral",
+  "2": "contradiction"
+ },
+ "max_seq": 256,
+ "prefixes": null,
+ "temperature": 1.4,
+ "eval": {
+  "n": 800,
+  "acc": 0.84625,
+  "ece_T1": 0.052397348172962654,
+  "ece_T": 0.02326246634647527
+ },
+ "max_position": 8192,
+ "max_seq_browser": 1024,
+ "lang": "ja",
+ "label_order": [
+  0,
+  1,
+  2
+ ],
+ "size_mb": 68.7
+}

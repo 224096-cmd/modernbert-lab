@@ -1,25 +1,35 @@
-# ModernBERT Lab — 長文をそのまま読む ModernBERT で公開情報を検証・構造化する
+# ModernBERT Lab — ファクトチェックの手順を、端末内の ModernBERT で支援する PWA
 
-トピックを入れるとブラウザが検索エンジン（DuckDuckGo・Bing・Google ニュース・はてな・Wikipedia）を **Dorks で巡回**して記事を集め、**端末内の日本語 ModernBERT**（8,192 トークンを分割せずに読む）で
+**検証対象を明示 → 検証過程を公開 → 判定** というファクトチェックの基本手順（日本ファクトチェックセンターの講座「実践編 1〜10」に準拠）に沿って、主張を入れるとブラウザが **高度な検索**で公開情報を集め、**端末内の日本語 ModernBERT**（8,192 トークンを分割せずに読む）で主張と各記事の **含意・矛盾** を照合し、**5 段階の判定（正確／ほぼ正確／根拠不明／不正確／誤り）の下書き** と **根拠リンクつきの検証記事（Markdown）** を作る。生成 LLM は使わない。サーバ・API キー・課金なし。結果はその端末の履歴（IndexedDB）に保存される。
 
-- **検証**：記事同士の矛盾・整合の行列、偏り・客観性、一次情報か二次情報か、時間的な古さ・数値の食い違い、主張の真偽（根拠つき）
-- **ギャップ・対立**：12 種類の問い（誰が・いつ・根拠・反対意見…）が答えられているかを判定し、未回答の問いに検索式を提案。反対意見・矛盾する記述を列挙
-- **構造化**：軸ごとの比較表（CSV）、根拠つき抽出要約、Q&A、2 テキストの意味的な差分
-- **長文 vs 分割**：同じ文書・同じ問いを 8,192 一括と 512 分割で処理し、判定と時間を比較（研究の仮説 1）
+サイト（スマホは「ホーム画面に追加」でアプリ化）: `https://224096-cmd.github.io/modernbert-lab/`
 
-を行う。生成 LLM は使わない。サーバ・API キー・課金なし。結果はその端末の履歴（IndexedDB）に保存される。
+## 画面と手順の対応（v4）
 
-サイト: `https://224096-cmd.github.io/modernbert-lab/`
+| 講座の内容 | タブ | 何をするか |
+| --- | --- | --- |
+| 1 検証対象・過程・結果を明示 | **ファクトチェック** | 主張・出どころ URL・拡散状況を入力 → 検証可能性を自動判定 → 6 種類の検索式で収集 → 含意モデルで照合 → 判定の下書き → 検証記事（Markdown）を出力 |
+| 2 高度な検索 | **ツール** | site:go.jp / lg.jp / 報道 / filetype:pdf / after: / intitle: / 除外 の演算子ビルダー。Google・Bing・DuckDuckGo・Yahoo・YouTube へ |
+| 3 偽画像 | **ツール** | 画像 URL を Google レンズ・TinEye・Yandex・Bing で逆検索 |
+| 4 偽動画 | **ツール** | YouTube URL から 4 枚のキーフレームを取り出して逆検索（InVID の簡易版） |
+| 5 生成 AI | **ツール** | 8 項目チェックリスト、Content Credentials（C2PA）検証 |
+| 6 OSINT・ジオロケーション | **ツール** | Google マップ・Earth・地理院地図・SunCalc・Wayback・archive.today・Bellingcat ツールキット |
+| 7 公開情報 | **ツール** | Fact Check Explorer・JFC・FIJ ナビ・e-Stat・e-Gov・国会会議録・法令検索を検索語で開く |
+| 9 プリバンキング（情報の空白） | **集める／ギャップ・対立** | 公的・報道の割合が低いトピックに「データボイド」警告。答えのない問いを列挙 |
+| 10 教育 | **学ぶ** | 講座リンク・原則・調査の数字 |
+| （研究用） | 検証／構造化／長文 vs 分割／モデル | 矛盾行列・偏り・一次情報・時間的矛盾、比較表・要約・Q&A・意味差分、8,192 一括 vs 512 分割、モデル切替 |
 
-## ブラウザで動く 7 モデル（役割ごとに切り替え）
+人物検索・アカウント特定・非公開情報の取得・ポートスキャンは実装しない。外部ツールはすべて利用者のブラウザで開くリンクであり、このアプリは中継しない。
+
+## ブラウザで動く 10 モデル（役割ごとに切り替え。土台候補は学習前のまま試せる）
 
 | 役割 | 日本語・ModernBERT（8,192） | 海外・多言語（512） |
 | --- | --- | --- |
-| 埋め込み | cl-nagoya/ruri-v3-30m（36 MB・既定）、ruri-v3-70m（68 MB） | intfloat/multilingual-e5-small（32 MB、語彙間引き） |
-| 含意 | nli-ja-30m（36 MB・既定、本リポジトリで JNLI 学習） | MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli（53 MB） |
-| 関連度 | hotchpotch/japanese-reranker-xsmall-v2（36 MB・既定） | hotchpotch/japanese-reranker-cross-encoder-xsmall-v1（22 MB） |
+| 埋め込み | ruri-v3-30m（36 MB・既定）、ruri-v3-70m（68 MB）、**ruri-v3-pt-30m**（土台候補 ◎・学習前）、**modernbert-ja-30m-embed**（素の土台 ○） | multilingual-e5-small（32 MB、語彙間引き） |
+| 含意 | nli-ja-30m（36 MB・既定、modernbert-ja-30m を JNLI で学習。84%）、**nli-ja-70m**（68 MB、modernbert-ja-70m を JNLI で学習。85%） | multilingual-MiniLMv2-L6-mnli-xnli（53 MB） |
+| 関連度 | japanese-reranker-xsmall-v2（36 MB・既定） | japanese-reranker-cross-encoder-xsmall-v1（22 MB） |
 
-ONNX 化・量子化・語彙間引きは `mbo/export_onnx.py`（`--prune` で 250k 語彙を日英 25.7k に、`--quant none|mlp|all`）。ファインチューニングの土台候補（modernbert-ja-30m/70m/130m/310m、ruri-v3-pt、東北大 BERT、DeBERTa-v2、mDeBERTa）は `models/registry.json` の `base`。**この版では学習は行わない**（比較と選定まで）。
+ONNX 化・量子化・語彙間引きは `mbo/export_onnx.py`。土台候補の一覧と判定（◎○△）は `models/registry.json` の `base`。**独自モデル FactCheck-BERT の作り方（データ・Colab の手順・評価）は研究計画書（`docs/plan.md`）の 5〜9 章**。学習は研究者が Colab で行い、できた `models/fcb-*` をリポジトリに置くと「モデル」タブに並ぶ。
 
 ## 信頼性スコア
 

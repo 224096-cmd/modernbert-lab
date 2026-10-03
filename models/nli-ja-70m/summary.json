@@ -1,0 +1,33 @@
+{
+ "base": "sbintuitions/modernbert-ja-70m",
+ "n_train": 8000,
+ "extra": null,
+ "epochs": 2,
+ "lr": 5e-05,
+ "seq": 128,
+ "eval_n": 600,
+ "eval_acc": 0.855,
+ "confusion": [
+  [
+   64,
+   18,
+   5
+  ],
+  [
+   24,
+   290,
+   13
+  ],
+  [
+   17,
+   10,
+   159
+  ]
+ ],
+ "labels": [
+  "entailment",
+  "neutral",
+  "contradiction"
+ ],
+ "sec": 1425
+}

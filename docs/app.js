@@ -2,8 +2,9 @@ import * as NET from "./net.js";
 import * as ML from "./ml.js";
 import * as J from "./judge.js";
 import * as A from "./analysis.js";
+import * as FC from "./factcheck.js";
 
-const VERSION = "v3.1";
+const VERSION = "v4.0";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -21,7 +22,7 @@ let INDEX = [], TOPIC = null, REG = null;
 const pct = x => `${Math.round((x || 0) * 100)}%`;
 
 /* ---------- ナビ ---------- */
-function show(t) { $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t)); $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "t-" + t)); location.hash = t; window.scrollTo(0, 0); if (t === "how") renderHow(); if (t === "settings") renderSettings(); if (t === "models") renderModels(); if (t === "about") renderAbout(); if (t === "history") renderTopicSelect(); if (["check", "gap", "struct", "exp"].includes(t)) renderCorpusSelects(); }
+function show(t) { $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t)); $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "t-" + t)); location.hash = t; window.scrollTo(0, 0); if (t === "how") renderHow(); if (t === "settings") renderSettings(); if (t === "models") renderModels(); if (t === "about") renderAbout(); if (t === "history") renderTopicSelect(); if (t === "tools") renderTools(); if (t === "learn") renderLearn(); if (["check", "gap", "struct", "exp"].includes(t)) renderCorpusSelects(); }
 $$("nav button").forEach(b => b.onclick = () => show(b.dataset.t));
 
 /* ---------- 履歴（IndexedDB） ---------- */
@@ -65,7 +66,7 @@ function itemCard(it, opts = {}) {
 }
 function wireItemActions(root) {
   root.querySelectorAll(".act-read").forEach(b => b.onclick = () => openReader(b.dataset.url));
-  root.querySelectorAll(".act-verify").forEach(b => b.onclick = () => { show("check"); setCheckTab("claim"); $("#ck-claim").value = b.dataset.claim; runCheck(); });
+  root.querySelectorAll(".act-verify").forEach(b => b.onclick = () => { show("fc"); $("#fc-claim").value = b.dataset.claim; const it = b.closest(".item"); const a = it?.querySelector("a.t"); if (a) $("#fc-src").value = a.href; fcCheckable(); window.scrollTo(0, 0); });
   root.querySelectorAll(".act-exp").forEach(b => b.onclick = () => { show("exp"); if ($(`#ex-doc option[value="${b.dataset.id}"]`)) $("#ex-doc").value = b.dataset.id; });
 }
 async function openReader(url) {
@@ -79,7 +80,7 @@ async function openReader(url) {
 function renderHome() {
   const topics = INDEX.filter(r => r.kind === "topic"), n = topics.reduce((s, x) => s + (x.n || 0), 0);
   $("#home-stats").innerHTML = [["コーパス", topics.length], ["採点したページ", n], ["検証・分析", INDEX.filter(r => r.kind === "analysis").length], ["最終", (INDEX[0]?.run_at || "—").slice(5, 16).replace("T", " ")]].map(([k, v]) => `<div class="stat">${k}<b>${esc(v)}</b></div>`).join("");
-  $("#home-tiles").innerHTML = [["集める", "トピックか URL → 記事を集めて信頼性を採点", "live"], ["検証", "矛盾・偏り・一次情報・時間的ずれ・主張の真偽", "check"], ["ギャップ・対立", "足りない情報と反対意見を洗い出す", "gap"], ["構造化", "比較表・要約・Q&A・意味差分", "struct"], ["長文 vs 分割", "8,192 一括と 512 分割の比較実験", "exp"], ["履歴", "この端末に保存した結果", "history"], ["モデル", "7 つのブラウザ用モデルと土台候補", "models"], ["解説", "何をどのデータで学習したか・仕組み・限界", "about"]].map(([a, b, t]) => `<div class="tile" data-t="${t}"><b>${a}</b><span>${b}</span></div>`).join("");
+  $("#home-tiles").innerHTML = [["ファクトチェック", "主張 → 検証対象の確認 → 収集・照合 → 5 段階判定の下書きと検証記事", "fc"], ["集める", "トピックか URL → 記事を集めて信頼性を採点・情報の空白を警告", "live"], ["検証", "矛盾・偏り・一次情報・時間的ずれ・主張の真偽", "check"], ["ギャップ・対立", "足りない情報（データボイド）と反対意見を洗い出す", "gap"], ["構造化", "比較表・要約・Q&A・意味差分", "struct"], ["ツール", "高度な検索・逆画像検索・動画キーフレーム・公開データ・地図", "tools"], ["長文 vs 分割", "8,192 一括と 512 分割の比較実験", "exp"], ["モデル", "ブラウザ用モデルと FactCheck-BERT の土台候補", "models"], ["学ぶ", "講座の動画・検証の原則・判定ラベル", "learn"], ["履歴", "この端末に保存した結果", "history"]].map(([a, b, t]) => `<div class="tile" data-t="${t}"><b>${a}</b><span>${b}</span></div>`).join("");
   $$("#home-tiles .tile").forEach(x => x.onclick = () => show(x.dataset.t));
   const rows = INDEX.slice(0, 15);
   $("#home-latest").innerHTML = rows.length ? `<div class="tw"><table><thead><tr><th>種類</th><th>内容</th><th>結果</th><th>日時</th></tr></thead><tbody>${rows.map(r => `<tr><td>${r.kind === "topic" ? "コーパス" : esc(r.label || "分析")}</td><td><a href="#" data-id="${esc(r.id)}">${esc(r.key)}</a></td><td class="small">${r.kind === "topic" ? `${r.n} 件・平均 ${r.summary?.mean}` : esc(r.result_label || "")}</td><td class="small">${esc(r.run_at.slice(5, 16).replace("T", " "))}</td></tr>`).join("")}</tbody></table></div>` : `<p class="muted small">まだありません。「集める」にトピックを入れてください（初回はモデル 3 つ、合計約 110 MB をダウンロード）。</p>`;
@@ -103,9 +104,18 @@ async function loadTopic(id) {
   const prevUrls = new Set(); for (const p of prev) for (const u of (p.urls || [])) prevUrls.add(u);
   $("#tp-body").innerHTML = resultHtml(TOPIC, prev.length ? prevUrls : null); wireItemActions($("#tp-body"));
 }
+function dataVoid(items) {
+  const n = items.length, rel = items.filter(i => ["gov", "news", "edu", "academic"].includes(i.source_class)).length, withText = items.filter(i => i.text).length;
+  const ratio = n ? rel / n : 0; const level = n < 6 ? "high" : ratio < 0.2 ? "high" : ratio < 0.4 ? "mid" : "none";
+  return { n, rel, ratio, withText, level };
+}
+function dataVoidHtml(items) {
+  const v = dataVoid(items); if (v.level === "none") return "";
+  return `<div class="card" style="border-color:var(--warn)"><h3 style="margin-top:0" class="warn">情報の空白（データボイド）の可能性 — ${v.level === "high" ? "高" : "中"}</h3><p class="small">集まった ${v.n} 件のうち、公的機関・報道・大学・学術の発信は ${v.rel} 件（${Math.round(v.ratio * 100)}%）。信頼できる情報が検索結果に少ない話題は、不確かな情報が信じられやすい。<b>プリバンキング</b>（先回りして正確な解説を用意する）の候補。「ギャップ・対立」タブで、答えられていない問いを確かめる。</p></div>`;
+}
 function resultHtml(res, prevUrls) {
   const items = res.items; const newer = prevUrls ? items.filter(i => !prevUrls.has(i.url)) : [];
-  return `${prevUrls ? `<div class="card"><h2 style="margin-top:0">前回から新しく出たページ <span class="muted small">${newer.length} 件</span></h2>${newer.slice(0, 20).map(it => itemCard(it)).join("") || "<p class='muted small'>なし</p>"}</div>` : ""}
+  return `${dataVoidHtml(items)}${prevUrls ? `<div class="card"><h2 style="margin-top:0">前回から新しく出たページ <span class="muted small">${newer.length} 件</span></h2>${newer.slice(0, 20).map(it => itemCard(it)).join("") || "<p class='muted small'>なし</p>"}</div>` : ""}
    <div class="card"><h2 style="margin-top:0">話題のまとまり <span class="muted small">— 同じ話を何ドメインが伝えているか・最初に出たのはどこか</span></h2>${(res.clusters || []).filter(c => c.size > 1).slice(0, 12).map(c => `<div class="item"><div class="row"><span class="g g${J.grade(c.reliability)}">${c.reliability}</span><b>${esc(c.title)}</b></div><div class="m"><span>${c.size} 件</span><span>${c.domains.length} ドメイン：${c.domains.slice(0, 6).map(esc).join("・")}${c.domains.length > 6 ? "…" : ""}</span><span>初出 ${esc(c.first || "不明")} <a href="${esc(c.first_url)}" target="_blank" rel="noopener">${esc(NET.hostOf(c.first_url))}</a></span></div></div>`).join("") || "<p class='muted small'>複数ページにまたがる話題はなし</p>"}</div>
    <div class="card"><h2 style="margin-top:0">結果 <span class="muted small">${items.length} 件・信頼性順</span></h2>${items.map(it => itemCard(it)).join("")}</div>
    <div class="card"><h3 style="margin-top:0">使った検索式</h3><div class="tw"><table>${(res.queries || []).map(x => `<tr><td>${esc(x.label)}</td><td class="mono">${esc(x.query)}</td></tr>`).join("")}</table></div></div>`;
@@ -286,7 +296,7 @@ async function renderModels() {
   $$("#md-browser .md-dl").forEach(b => b.onclick = async () => { b.disabled = true; try { await ML.loadByName(b.dataset.n, m => $("#md-msg").textContent = m); $("#md-msg").textContent = "完了"; renderModels(); } catch (e) { $("#md-msg").textContent = "失敗: " + e.message; b.disabled = false; } });
   $$("#md-browser .md-rm").forEach(b => b.onclick = async () => { await ML.removeStored(b.dataset.n); renderModels(); });
   $("#md-table").innerHTML = `<div class="tw"><table><thead><tr><th>モデル</th><th>役割</th><th>指標</th><th>CPU 遅延</th><th>パラメータ / 配布</th></tr></thead><tbody>${reg.compare.filter(m => m.role !== "base").map(m => { const r = R[m.name] || {}; return `<tr><td><b>${esc(m.name)}</b><div class="tiny muted">${esc(m.arch || "")}</div></td><td>${roles[m.role] || m.role}</td><td class="small">${r.ok ? (m.role === "embed" ? `JSTS ${r.jsts_spearman}・cos差 ${r.nli_cos_gap}` : `JNLI ${(r.jnli_acc * 100).toFixed(1)}%・含意再現 ${(r.entail_recall * 100) | 0}%・ECE ${r.ece}`) : '<span class="muted">未測定</span>'}</td><td>${r.latency_ms != null ? r.latency_ms + " ms" : "—"}</td><td class="small">${m.params_m ?? r.params_m ?? "—"}M / ${m.size_mb ?? "—"} MB</td></tr>`; }).join("")}</tbody></table></div>`;
-  $("#md-base").innerHTML = `<div class="tw"><table><thead><tr><th>土台</th><th>構造</th><th>パラメータ</th><th>文脈長</th><th>ライセンス</th><th>用途</th></tr></thead><tbody>${reg.base.map(m => `<tr><td><b>${esc(m.name)}</b>${m.hf ? `<div class="tiny"><a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">${esc(m.hf)}</a></div>` : ""}</td><td>${esc(m.arch)}</td><td>${m.params_m ? m.params_m + "M" : "—"}</td><td>${m.ctx}</td><td class="small">${esc(m.license)}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div>`;
+  $("#md-base").innerHTML = `<div class="tw"><table><thead><tr><th>判定</th><th>土台</th><th>構造</th><th>パラメータ</th><th>文脈長</th><th>ライセンス</th><th>ブラウザで試す</th><th>用途</th></tr></thead><tbody>${reg.base.map(m => `<tr><td><b>${esc(m.rank || "")}</b></td><td><b>${esc(m.name)}</b>${m.hf ? `<div class="tiny"><a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">${esc(m.hf)}</a></div>` : ""}</td><td>${esc(m.arch)}</td><td>${m.params_m ? m.params_m + "M" : "—"}</td><td>${m.ctx}</td><td class="small">${esc(m.license)}</td><td class="small">${(m.browser || []).map(n => `<code>${esc(n)}</code>`).join(" ") || '<span class="muted">—（学習後に追加）</span>'}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div><p class="small muted">◎＝第一候補、○＝比較して選ぶ、△＝資源があれば、比較＝従来型の対照。「ブラウザで試す」のモデルを上の表で選ぶと、学習前の土台のままの性能（ゼロショット基準）を同じ指標で測れる。学習後は <code>models/fcb-*</code> として同じ表に並ぶ。</p>`;
 }
 
 /* ---------- 仕組み・解説 ---------- */
@@ -326,6 +336,94 @@ async function renderSettings() {
   $("#st-hist").textContent = `保存件数 ${INDEX.length}（コーパス ${INDEX.filter(r => r.kind === "topic").length}・分析 ${INDEX.filter(r => r.kind === "analysis").length}）`;
   $("#st-hist-export").onclick = async () => dl("history.json", JSON.stringify(await HDB.all(), null, 1), "application/json");
   $("#st-hist-clear").onclick = async () => { if (confirm("履歴をすべて削除しますか？")) { await HDB.clear(); CORPUS = null; loadData(); renderSettings(); } };
+}
+
+/* ---------- ファクトチェック（検証対象 → 検証過程 → 判定） ---------- */
+const fcSel = new Set();
+$("#fc-sel").innerHTML = `<span class="tiny muted" style="align-self:center">選定基準（該当をクリック）：</span>` + FC.SELECTION.map(([k, d]) => `<span class="chip" data-k="${k}" title="${esc(d)}">${k}</span>`).join("");
+$$("#fc-sel .chip").forEach(c => c.onclick = () => { c.classList.toggle("on"); c.classList.contains("on") ? fcSel.add(c.dataset.k) : fcSel.delete(c.dataset.k); });
+function fcCheckable() { const q = $("#fc-claim").value.trim(); if (!q) { $("#fc-checkable").innerHTML = ""; return null; } const ck = FC.checkable(q); $("#fc-checkable").innerHTML = `<span class="${ck.ok ? "ok" : "warn"}">${ck.ok ? "検証対象にできる" : "そのままでは検証しにくい"}</span>：${ck.why.map(esc).join("／")}`; return ck; }
+$("#fc-claim").oninput = fcCheckable; $("#fc-claim").onkeydown = e => { if (e.key === "Enter") runFactCheck(); };
+$("#fc-run").onclick = () => runFactCheck(false); $("#fc-plan").onclick = () => runFactCheck(true);
+const fcQueries = claim => ["exact", "official_jp", "news_pr", "factcheck", "deny", "primary"].map(k => ({ name: k, label: DORKS[k][0], query: DORKS[k][1].replace("{q}", claim) }));
+function toolLinks(q, url) {
+  const L = [];
+  for (const [k, [label, f]] of Object.entries(FC.ENGINES)) if (k !== "x") L.push([label, f(`"${q}"`)]);
+  L.push(["Google Fact Check Explorer", FC.TOOLS.find(t => t.key === "open").items[0].u(q)], ["JFC 検証記事", FC.ENGINES.google[1](`site:factcheckcenter.jp ${q}`)], ["FIJ ナビ", FC.ENGINES.google[1](`site:navi.fij.info ${q}`)], ["e-Stat", `https://www.e-stat.go.jp/stat-search?query=${encodeURIComponent(q)}`], ["国会会議録", `https://kokkai.ndl.go.jp/#/result?any=${encodeURIComponent(q)}`]);
+  if (url) L.push(["Wayback（この URL の過去）", `https://web.archive.org/web/*/${url}`], ["archive.today", `https://archive.ph/${url}`]);
+  const yt = url && FC.youtubeId(url); if (yt) L.push(["動画のキーフレームを逆検索（ツール）", "#tools"]);
+  return L;
+}
+async function runFactCheck(planOnly = false) {
+  const claim = $("#fc-claim").value.trim(); if (!claim) { $("#fc-status").textContent = "主張を入れてください"; return; }
+  const src = $("#fc-src").value.trim(), spread = $("#fc-spread").value.trim(); const ck = fcCheckable(); const st = m => $("#fc-status").textContent = m; const out = $("#fc-out");
+  const queries = fcQueries(claim); const links = toolLinks(claim, src);
+  const planHtml = `<div class="card"><h3 style="margin-top:0">② 検証過程 — 高度な検索の式 <span class="muted small">クリックで各検索エンジンに送れる（手動の裏取り用）</span></h3><div class="tw"><table>${queries.map(x => `<tr><td>${esc(x.label)}</td><td class="mono">${esc(x.query)}</td><td class="small">${["google", "bing", "ddg"].map(k => `<a href="${esc(FC.ENGINES[k][1](x.query))}" target="_blank" rel="noopener">${FC.ENGINES[k][0]}</a>`).join("・")}</td></tr>`).join("")}</table></div><h3>公開情報ツールで確かめる</h3><div class="chips">${links.map(([l, u]) => u === "#tools" ? `<a class="chip" href="#" data-go="tools" data-url="${esc(src)}">${esc(l)}</a>` : `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join("")}</div></div>`;
+  if (planOnly) { out.innerHTML = planHtml; wireFcLinks(out); st(""); return; }
+  $("#fc-run").disabled = true; out.innerHTML = "";
+  try {
+    await models(st);
+    st("公開情報を集めています"); const { items } = await collectLive(claim, { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck", "deny"]), engines: new Set(["ddg", "gnews", "wiki"]), nread: 10, status: st });
+    let docs = items; if (src && /^https?:/.test(src)) { st("出どころのページを読む"); const r = await NET.readPage(src); if (r) docs = [{ id: "src", url: src, title: r.title, text: r.text.slice(0, 20000), snippet: r.text.slice(0, 200), engines: [], dorks: [], published: null, is_source: true }, ...docs]; }
+    const dom = await domInfosFor(docs, st); for (const it of docs) { const { s, cls } = J.sourceScore(it, dom[NET.hostOf(it.url)]); it.s_source = s; it.source_class = cls; }
+    st("主張と各段落を照合（含意モデル）"); const v = await J.verify(claim, docs.filter(d => !d.is_source), state.embed, state.nli, st);
+    const rating = FC.suggestRating(v, ck?.ok !== false); const R = FC.RATINGS[rating]; const dv = dataVoid(docs);
+    const used = ["DuckDuckGo", "Google ニュース RSS", "Wikipedia", ...(dom ? ["Wayback Machine（ドメイン年齢）", "Wikipedia 出典回数"] : [])];
+    const md = FC.reportMarkdown({ claim, source_url: src, spread, checkable: ck || FC.checkable(claim), selection: [...fcSel], queries: queries.map(q => q.query), tools: used, evidence: v.evidence, rating, note: dv.level !== "none" ? `公的・報道の情報源が少ない（${dv.rel}/${dv.n} 件）ため、情報の空白の可能性がある。` : "", models: ["embed", "nli"].map(r => ML.modelName(r)).join("・") });
+    const html = `<div class="card"><h3 style="margin-top:0">① 検証対象</h3><div class="kv"><span>主張</span><span><b>${esc(claim)}</b></span>${src ? `<span>出どころ</span><span><a href="${esc(src)}" target="_blank" rel="noopener">${esc(src)}</a></span>` : ""}${spread ? `<span>拡散</span><span>${esc(spread)}</span>` : ""}<span>検証可能性</span><span class="${ck?.ok ? "ok" : "warn"}">${(ck || FC.checkable(claim)).why.map(esc).join("／")}</span>${fcSel.size ? `<span>選定基準</span><span>${[...fcSel].join("・")}</span>` : ""}</div></div>` + planHtml +
+      `<div class="card"><h3 style="margin-top:0">② 検証過程 — 集めた ${docs.length} 件との照合</h3>${verdictCard(v)}${dataVoidHtml(docs)}</div>` +
+      `<div class="card"><h3 style="margin-top:0">③ 判定（下書き）</h3><div class="verdict ${R[1]}">${R[0]}</div><p class="small">${esc(R[2])}。<b>機械の判定は下書き</b>。上の根拠リンクを開いて一次情報を確認し、必要なら判定を変えて記事にする。</p><div class="chips">${Object.entries(FC.RATINGS).map(([k, [l, c]]) => `<span class="chip ${k === rating ? "on" : ""}" data-r="${k}" title="${esc(FC.RATINGS[k][2])}">${l}</span>`).join("")}</div>
+       <h3>検証記事の下書き（Markdown）</h3><textarea id="fc-md" style="min-height:260px" class="mono">${esc(md)}</textarea><div class="actbar"><button class="small" id="fc-copy">コピー</button><button class="small" id="fc-dl">.md をダウンロード</button><span class="small muted">検証対象・過程・判定・出典の順。誰でも同じ手順で再現できるように、検索式と URL をすべて残す</span></div></div>`;
+    out.innerHTML = html; wireFcLinks(out);
+    out.querySelectorAll("[data-r]").forEach(c => c.onclick = () => { out.querySelectorAll("[data-r]").forEach(x => x.classList.toggle("on", x === c)); const R2 = FC.RATINGS[c.dataset.r]; out.querySelector(".verdict").textContent = R2[0]; out.querySelector(".verdict").className = "verdict " + R2[1]; $("#fc-md").value = $("#fc-md").value.replace(/判定：\*\*[^*]+\*\*/, `判定：**${R2[0]}**`).replace(/## 判定\n\*\*[^*]+\*\* — [^\n]*/, `## 判定\n**${R2[0]}** — ${R2[2]}`); });
+    $("#fc-copy").onclick = async () => { try { await navigator.clipboard.writeText($("#fc-md").value); $("#fc-status").textContent = "コピーしました"; } catch { $("#fc-md").select(); } };
+    $("#fc-dl").onclick = () => dl("factcheck_" + claim.slice(0, 20).replace(/[\\/:*?"<>|\s]/g, "_") + ".md", $("#fc-md").value, "text/markdown");
+    await saveRun({ kind: "analysis", label: "ファクトチェック", key: claim, html, result_label: R[0] });
+    st("完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { st("エラー: " + (e.message || e)); console.error(e); } finally { $("#fc-run").disabled = false; }
+}
+function wireFcLinks(root) { root.querySelectorAll("a[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); show(a.dataset.go); if (a.dataset.url) { $("#tl-url").value = a.dataset.url; renderTools(); } }); }
+
+/* ---------- ツール ---------- */
+let tlDone = false;
+function renderTools() {
+  const q = $("#tl-q").value.trim(), url = $("#tl-url").value.trim();
+  if (!tlDone) {
+    tlDone = true;
+    $("#tl-ops").innerHTML = FC.OPERATORS.map(([l, d], i) => `<span class="chip" data-i="${i}" title="${esc(d)}">${esc(l)}</span>`).join("");
+    $$("#tl-ops .chip").forEach(c => c.onclick = () => { const qq = $("#tl-q").value.trim() || "検索語"; const f = FC.OPERATORS[+c.dataset.i][2]; $("#tl-built").value = f(qq, { after: $("#tl-after").value, before: $("#tl-before").value }); renderTools(); });
+    $("#tl-engines").innerHTML = Object.entries(FC.ENGINES).map(([k, [l]]) => `<a class="chip" data-e="${k}" href="#" target="_blank" rel="noopener">${esc(l)} で検索</a>`).join("");
+    for (const id of ["tl-q", "tl-url", "tl-built"]) $("#" + id).oninput = renderTools;
+    $("#tl-q").onchange = () => { if (!$("#tl-built").value) $("#tl-built").value = $("#tl-q").value; renderTools(); };
+  }
+  const built = $("#tl-built").value.trim() || q;
+  $$("#tl-engines a").forEach(a => { a.href = built ? FC.ENGINES[a.dataset.e][1](built) : "#"; a.classList.toggle("muted", !built); });
+  const yt = FC.youtubeId(url);
+  $("#tl-yt").innerHTML = yt ? `<h3>動画のキーフレーム（YouTube ${esc(yt)}）— 各画像を逆検索して元の映像を探す</h3><div class="tiles">${FC.youtubeFrames(yt).map((f, i) => `<div class="tile" style="cursor:default"><img src="${esc(f)}" style="width:100%;border-radius:8px" alt="frame ${i}" onerror="this.style.display='none'"><div class="chips"><a class="chip" href="https://lens.google.com/uploadbyurl?url=${encodeURIComponent(f)}" target="_blank" rel="noopener">Google レンズ</a><a class="chip" href="https://tineye.com/search?url=${encodeURIComponent(f)}" target="_blank" rel="noopener">TinEye</a><a class="chip" href="https://yandex.com/images/search?rpt=imageview&url=${encodeURIComponent(f)}" target="_blank" rel="noopener">Yandex</a></div></div>`).join("")}</div><p class="hint">サムネイル（代表・25%・50%・75% 地点）。InVID-WeVerify のキーフレーム抽出と同じ考え方を、拡張機能なしで行う簡易版。</p>` : "";
+  const isImg = /\.(jpe?g|png|gif|webp|avif)(\?|$)/i.test(url) || /pbs\.twimg\.com|i\.imgur\.com|images\./.test(url);
+  $("#tl-out").innerHTML = FC.TOOLS.map(sec => `<div class="card"><h2 style="margin-top:0">${esc(sec.title)}</h2><p class="hint">${esc(sec.desc)}</p><div class="tw"><table>${sec.items.map(it => {
+    let link = "";
+    if (it.need === "q") link = q ? `<a href="${esc(it.u(q))}" target="_blank" rel="noopener">「${esc(q.slice(0, 30))}」で開く</a>` : `<span class="muted tiny">検索語を入力</span>`;
+    else if (it.need === "img") link = url ? `<a href="${esc(it.u(url))}" target="_blank" rel="noopener">この URL で開く</a>${isImg ? "" : ' <span class="tiny muted">（画像そのものの URL が必要。ページの URL では動かない）</span>'}` : `<span class="muted tiny">画像の URL を入力</span>`;
+    else if (it.need === "url") link = url ? `<a href="${esc(it.u(url))}" target="_blank" rel="noopener">この URL で開く</a>` : `<span class="muted tiny">URL を入力</span>`;
+    else if (it.need === "yt") link = yt ? `<a href="#tl-yt" onclick="document.getElementById('tl-yt').scrollIntoView();return false">上に表示中</a>` : `<span class="muted tiny">YouTube の URL を入力</span>`;
+    else if (it.need === "ai") link = `<details><summary>チェックリスト</summary>${FC.AI_CHECKS.map(c => `<label style="display:flex;gap:6px;align-items:flex-start;color:var(--fg)"><input type="checkbox" style="width:auto">${esc(c)}</label>`).join("")}</details>`;
+    else if (it.need?.startsWith("tab:")) link = `<a href="#" data-go="${it.need.slice(4)}">タブを開く</a>`;
+    else link = `<a href="${esc(it.u())}" target="_blank" rel="noopener">開く</a>`;
+    return `<tr><td><b>${esc(it.n)}</b></td><td class="small">${esc(it.note)}</td><td class="small">${link}</td></tr>`; }).join("")}</table></div></div>`).join("") + `<p class="small muted">リンクは利用者のブラウザで開く（このアプリは中継しない）。人物の特定・非公開情報の取得・不正アクセスにつながる使い方はしない。</p>`;
+  wireFcLinks($("#tl-out"));
+}
+
+/* ---------- 学ぶ ---------- */
+const COURSE = [["LwYYnh5MbYU", "1 ファクトチェックの基礎：検証対象・過程・結果を明示する", "fc"], ["kYx-a9sPq1U", "2 最大の武器「高度な検索」", "tools"], ["0JCIVpqrgeY", "3 偽画像：Google レンズや TinEye", "tools"], ["VJRMmWyjC5M", "4 偽動画：InVID や YouTube 検索のコツ", "tools"], ["nsOw4MMH1sg", "5 生成 AI をファクトチェック", "tools"], ["_C0Xt8gIO2g", "6 OSINT：公開データで真偽を判別", "tools"], ["hMq__uUuLow", "7 使えるサイトやツール：公開情報を使いこなす", "tools"], ["JTLVnY5kmxg", "8 ファクトチェックと調査報道", "fc"], ["7tHToVpV5o8", "9 プリバンキング：情報の空白を埋める", "gap"], ["aTFupf85akU", "10 ファクトチェックと教育", "learn"]];
+function renderLearn() {
+  const b = $("#ln-box"); if (b.dataset.done) return; b.dataset.done = 1;
+  b.innerHTML = `<h3>手順の原則（IFCN 綱領・JFC の運用）</h3><div class="kv"><span>検証対象</span><span>客観的に検証可能な事実だけ。意見・予測・価値判断は対象外。選定は「広さ・深さ・近さ」で判断</span><span>検証過程</span><span>検索式・ツール・出典 URL をすべて公開し、読者が同じ手順で再現できるようにする（情報源の透明性）</span><span>判定</span><span>正確／ほぼ正確／根拠不明／不正確／誤り の 5 段階（＋このアプリでは「判定留保」）</span><span>訂正</span><span>間違いは明確に、透明性をもって訂正する</span><span>非党派性</span><span>すべての主張を同じ基準で検証する</span></div>
+  <h3>このアプリとの対応</h3><div class="tw"><table><thead><tr><th>講座（日本ファクトチェックセンター・実践編）</th><th>このアプリの機能</th></tr></thead><tbody>${COURSE.map(([id, t, tab]) => `<tr><td><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">${esc(t)}</a></td><td><a href="#" data-go="${tab}">${{ fc: "ファクトチェック", tools: "ツール", gap: "ギャップ・対立（データボイド）", learn: "学ぶ" }[tab]}</a></td></tr>`).join("")}</tbody></table></div>
+  <p class="small">講座の記事版：<a href="https://www.factcheckcenter.jp/courses/" target="_blank" rel="noopener">JFC 講座</a>／<a href="https://www.factcheckcenter.jp/explainer/fact-check/jfc-fact-checking-101/" target="_blank" rel="noopener">ファクトチェックとは（定義・ルール・手法）</a>／<a href="https://www.factcheckcenter.jp/info/others/jfc-factchecker-certification/" target="_blank" rel="noopener">ファクトチェッカー認定試験</a></p>
+  <h3>なぜ道具が要るか（調査の数字）</h3><p class="small">JFC と国際大学 GLOCOM の 2 万人調査では、偽・誤情報を「正しい」と思った人が 51.5%、「誤り」と見抜いた人は 14.5%。画像検索を実際に行う人は 6.7% にとどまる一方、行った人は偽情報に気づきやすい。このアプリは「検索・逆検索・照合・記録」の手間を減らして、その 6.7% を増やすことを狙う。</p>
+  <h3>研究計画・モデルの作り方</h3><p class="small">独自モデル FactCheck-BERT（土台候補・学習データ・Google Colab での手順・評価）は <a href="#" data-go="about">解説</a> と、リポジトリの <code>README.md</code>・<code>docs/plan.md</code> を参照。</p>`;
+  wireFcLinks(b);
 }
 
 /* ---------- 起動 ---------- */

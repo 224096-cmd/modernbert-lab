@@ -1,5 +1,5 @@
 {
- "note": "browser: ブラウザで動く ONNX（models/<name>/）。role: embed=文埋め込み, nli=含意, rerank=関連度。base: 将来ファインチューニングする土台（まだ学習はしない）。size_mb は端末に置くサイズ。",
+ "note": "browser: ブラウザで動く ONNX（models/<name>/）。role: embed=文埋め込み, nli=含意, rerank=関連度。base: 独自 FactCheck-BERT の土台候補。rank ◎○△、browser=学習前の土台をそのまま試せるモデル名。",
  "browser": [
   {
    "name": "ruri-v3-30m",
@@ -45,7 +45,8 @@
    "lang": "ja",
    "license": "MIT（学習コード）",
    "default": true,
-   "note": "modernbert-ja-30m を JNLI で微調整（本リポジトリ）。JNLI 83%。長い前提も一括で入力できる"
+   "note": "modernbert-ja-30m を JNLI で微調整（本リポジトリ）。JNLI 83%。分類型 FactCheck-BERT の土台候補 ◎ の学習例。長い前提も一括で入力できる",
+   "base_candidate": "◎"
   },
   {
    "name": "minilm-l6-xnli",
@@ -80,6 +81,42 @@
    "lang": "multi",
    "license": "MIT",
    "note": "旧世代（BERT 系 512 トークン）のリランカー。長文一括との比較対象"
+  },
+  {
+   "name": "ruri-v3-pt-30m",
+   "role": "embed",
+   "hf": "cl-nagoya/ruri-v3-pt-30m",
+   "arch": "ModernBERT-Ja 30M",
+   "ctx": 8192,
+   "size_mb": 36,
+   "lang": "ja",
+   "license": "Apache-2.0",
+   "base_candidate": "◎",
+   "note": "FactCheck-BERT 埋め込み型の第一候補（土台）。弱教師の対照学習まで済み・仕上げ前。学習前の性能＝ゼロショット基準として使う"
+  },
+  {
+   "name": "modernbert-ja-30m-embed",
+   "role": "embed",
+   "hf": "sbintuitions/modernbert-ja-30m",
+   "arch": "ModernBERT-Ja 30M",
+   "ctx": 8192,
+   "size_mb": 36,
+   "lang": "ja",
+   "license": "MIT",
+   "base_candidate": "○",
+   "note": "素の ModernBERT-Ja（マスク穴埋めのみ・平均プーリング）。「ゼロから対照学習」の条件の土台。埋め込み精度は低いのが正常"
+  },
+  {
+   "name": "nli-ja-70m",
+   "role": "nli",
+   "hf": null,
+   "arch": "ModernBERT-Ja 70M",
+   "ctx": 8192,
+   "size_mb": 68,
+   "lang": "ja",
+   "license": "MIT（学習コード）",
+   "base_candidate": "○",
+   "note": "modernbert-ja-70m を JNLI で微調整（本リポジトリ）。分類型 FactCheck-BERT の土台候補 ○ をそのまま学習した参考モデル"
   }
  ],
  "base": [
@@ -90,7 +127,12 @@
    "params_m": 37,
    "ctx": 8192,
    "license": "MIT",
-   "note": "ファインチューニングの第一候補（スマホで動く）"
+   "note": "分類型の第一候補（スマホで動く）。JNLI 微調整例＝nli-ja-30m",
+   "rank": "◎",
+   "browser": [
+    "modernbert-ja-30m-embed",
+    "nli-ja-30m"
+   ]
   },
   {
    "name": "modernbert-ja-70m",
@@ -99,7 +141,11 @@
    "params_m": 70,
    "ctx": 8192,
    "license": "MIT",
-   "note": "精度と速度の中間"
+   "note": "精度と速度の中間。JNLI 微調整例＝nli-ja-70m",
+   "rank": "○",
+   "browser": [
+    "nli-ja-70m"
+   ]
   },
   {
    "name": "modernbert-ja-130m",
@@ -108,7 +154,9 @@
    "params_m": 132,
    "ctx": 8192,
    "license": "MIT",
-   "note": "PC 向け。JGLUE で BERT-base を上回る"
+   "note": "PC 向け（130 MB）。JGLUE で BERT-base を上回る",
+   "rank": "△",
+   "browser": []
   },
   {
    "name": "modernbert-ja-310m",
@@ -117,7 +165,9 @@
    "params_m": 315,
    "ctx": 8192,
    "license": "MIT",
-   "note": "最高精度（GPU 推奨）"
+   "note": "最高精度（GPU 推奨・スマホ不可）",
+   "rank": "△",
+   "browser": []
   },
   {
    "name": "ruri-v3-pt-30m",
@@ -126,7 +176,22 @@
    "params_m": 37,
    "ctx": 8192,
    "license": "Apache-2.0",
-   "note": "検索・類似タスクに微調整する土台"
+   "note": "埋め込み型の第一候補。対照学習の出発点として最も近い",
+   "rank": "◎",
+   "browser": [
+    "ruri-v3-pt-30m"
+   ]
+  },
+  {
+   "name": "ruri-v3-pt-70m",
+   "hf": "cl-nagoya/ruri-v3-pt-70m",
+   "arch": "ModernBERT-Ja（対照学習の途中）",
+   "params_m": 70,
+   "ctx": 8192,
+   "license": "Apache-2.0",
+   "rank": "△",
+   "browser": [],
+   "note": "埋め込み型・精度向け（68 MB）"
   },
   {
    "name": "bert-base-japanese-v3",
@@ -135,7 +200,9 @@
    "params_m": 111,
    "ctx": 512,
    "license": "Apache-2.0",
-   "note": "従来 BERT の代表（512 分割の比較対象）"
+   "note": "従来 BERT の代表（512 分割の対照）。MeCab 必須でブラウザ不可",
+   "rank": "比較",
+   "browser": []
   },
   {
    "name": "deberta-v2-base-ja",
@@ -144,7 +211,9 @@
    "params_m": 112,
    "ctx": 512,
    "license": "CC-BY-SA-4.0",
-   "note": "JGLUE で高性能な従来型"
+   "note": "JGLUE で高性能な従来型（512）",
+   "rank": "比較",
+   "browser": []
   },
   {
    "name": "mdeberta-v3-base",
@@ -153,16 +222,9 @@
    "params_m": 278,
    "ctx": 512,
    "license": "MIT",
-   "note": "多言語 NLI 微調整の土台"
-  },
-  {
-   "name": "modernbart",
-   "hf": null,
-   "arch": "ModernBART（要約・生成）",
-   "params_m": null,
-   "ctx": 8192,
-   "license": "—",
-   "note": "日本語の公開モデルは 2026 年 9 月時点で未確認。要約は当面「抽出型（埋め込み）」で行い、公開されたら差し替える"
+   "note": "多言語 NLI 微調整の土台（278M・PC 向け）",
+   "rank": "△",
+   "browser": []
   }
  ],
  "compare": [
@@ -377,6 +439,36 @@
    "size_mb": 1110,
    "license": "MIT",
    "note": "多言語 BERT の定番"
+  },
+  {
+   "name": "ruri-v3-pt-30m",
+   "hf": "cl-nagoya/ruri-v3-pt-30m",
+   "role": "embed",
+   "arch": "ModernBERT-Ja 30M",
+   "params_m": 37,
+   "size_mb": 36,
+   "note": "FactCheck-BERT 埋め込み型の第一候補（土台）。弱教師の対照学習まで済み・仕上げ前。学習前の性能＝ゼロショット基準として使う",
+   "skip_default": true
+  },
+  {
+   "name": "modernbert-ja-30m-embed",
+   "hf": "sbintuitions/modernbert-ja-30m",
+   "role": "embed",
+   "arch": "ModernBERT-Ja 30M",
+   "params_m": 37,
+   "size_mb": 36,
+   "note": "素の ModernBERT-Ja（マスク穴埋めのみ・平均プーリング）。「ゼロから対照学習」の条件の土台。埋め込み精度は低いのが正常",
+   "skip_default": true
+  },
+  {
+   "name": "nli-ja-70m",
+   "hf": null,
+   "role": "nli",
+   "arch": "ModernBERT-Ja 70M",
+   "params_m": 70,
+   "size_mb": 68,
+   "note": "modernbert-ja-70m を JNLI で微調整（本リポジトリ）。分類型 FactCheck-BERT の土台候補 ○ をそのまま学習した参考モデル",
+   "skip_default": true
   }
  ]
 }

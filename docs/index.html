@@ -9,11 +9,11 @@
 </head>
 <body>
 <header class="top"><a class="brand" href="./">🧭 ModernBERT Lab <small id="ver"></small></a>
-<nav id="nav"><button data-t="home" class="on">概要</button><button data-t="live">集める</button><button data-t="check">検証</button><button data-t="gap">ギャップ・対立</button><button data-t="struct">構造化</button><button data-t="exp">長文 vs 分割</button><button data-t="history">履歴</button><button data-t="models">モデル</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
+<nav id="nav"><button data-t="home" class="on">概要</button><button data-t="fc">ファクトチェック</button><button data-t="live">集める</button><button data-t="check">検証</button><button data-t="gap">ギャップ・対立</button><button data-t="struct">構造化</button><button data-t="exp">長文 vs 分割</button><button data-t="history">履歴</button><button data-t="tools">ツール</button><button data-t="models">モデル</button><button data-t="learn">学ぶ</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
 <span id="net" class="tiny muted"></span></header>
 <main>
 <section id="t-home">
- <div class="hero"><h1>長文をそのまま読む ModernBERT で、公開情報を見極める</h1><p>トピックを入れるとブラウザが検索エンジンを巡回して記事を集め、<b>端末内の日本語 ModernBERT</b>（最大 8,192 トークンを分割せずに読む）で、<b>矛盾・偏り・一次情報・時間的ずれ</b>を検証し、<b>足りない情報と反対意見</b>を洗い出し、<b>比較表・要約・Q&amp;A</b>に構造化する。LLM を使わず、サーバも API キーも不要。</p></div>
+ <div class="hero"><h1>ファクトチェックの手順を、端末内の ModernBERT で支援する</h1><p><b>検証対象を明示 → 検証過程を公開 → 判定</b>というファクトチェックの基本手順（日本ファクトチェックセンターの講座に準拠）に沿って、主張を入れるとブラウザが<b>高度な検索</b>で公開情報を集め、<b>端末内の日本語 ModernBERT</b>（最大 8,192 トークンを分割せずに読む）で主張と各記事の<b>含意・矛盾</b>を照合し、<b>5 段階の判定の下書き</b>と<b>根拠リンクつきの検証記事</b>を作る。画像・動画の逆検索、公開データ、ジオロケーションなどの外部ツールもここから開ける。LLM を使わず、サーバも API キーも不要。</p></div>
  <div class="stats" id="home-stats"></div>
  <div class="tiles" id="home-tiles"></div>
  <div class="card"><h2 style="margin-top:0">最近の作業</h2><div id="home-latest"></div></div>
@@ -21,6 +21,18 @@
   <li><b>長文を一括処理すると精度が上がるか</b> — 同じ記事・同じ問いを「8,192 トークン一括」と「512 トークンに分割して最大値」で処理し、判定と時間を比べる（「長文 vs 分割」タブ）</li>
   <li><b>不足している情報・反対視点を自律的に見つけられるか</b> — 12 種類の問い（誰が・いつ・根拠・反対意見…）が集めた記事で答えられているかをリランカーで判定し、答えのない問いに検索式を提案する（「ギャップ・対立」タブ）</li>
   <li><b>長文から人が見やすい構造化データに直接変換できるか</b> — 記事群を「メリット／デメリット／費用／時期／根拠」などの軸で表にし、根拠つきで要約する（「構造化」タブ）</li></ol></div>
+</section>
+
+<section id="t-fc" class="hidden">
+ <div class="card"><h2 style="margin-top:0">① 検証対象 <span class="muted small">— 何を検証するかを一文で明示する（客観的に検証できる事実だけ）</span></h2>
+  <div class="modelbar"></div>
+  <div class="row"><input id="fc-claim" placeholder="検証する主張（例：2024年の国内の出生数は70万人を下回った）"></div>
+  <div class="row"><input id="fc-src" placeholder="出どころの URL（投稿・記事・動画。任意）" style="flex:2 1 260px"><input id="fc-spread" placeholder="拡散の状況（例：X で 1 万件以上の表示。任意）" style="flex:1 1 200px"></div>
+  <div class="chips" id="fc-sel"></div>
+  <div id="fc-checkable" class="small"></div>
+  <div class="actbar"><button class="primary" id="fc-run">② 検証を実行（収集 → 照合 → 判定の下書き）</button><button class="small" id="fc-plan">検索式だけ作る</button><span id="fc-status" class="small muted"></span></div>
+  <p class="hint">実行すると「集める」と同じ経路で公開情報を集め、端末内の含意モデルで主張と段落を照合する。所要 1〜3 分。結果は履歴に保存。</p></div>
+ <div id="fc-out"></div>
 </section>
 
 <section id="t-live" class="hidden">
@@ -79,10 +91,23 @@
  <div id="tp-body"></div>
 </section>
 
+<section id="t-tools" class="hidden">
+ <div class="card"><h2 style="margin-top:0">公開情報ツール <span class="muted small">— 入力を入れると、各ツールをその内容で開くリンクになる。すべて無料・公開情報のみ</span></h2>
+  <div class="row"><input id="tl-q" placeholder="検索語・主張" style="flex:2 1 240px"><input id="tl-url" placeholder="ページ・画像・YouTube の URL" style="flex:2 1 240px"></div>
+  <details class="small" open><summary>高度な検索の演算子（実践編 2）— クリックで検索式を作る</summary><div class="chips" id="tl-ops"></div><div class="row"><input id="tl-built" placeholder="できあがった検索式" class="mono"><label style="margin:0" class="tiny">期間</label><input type="date" id="tl-after" style="max-width:150px"><input type="date" id="tl-before" style="max-width:150px"></div><div class="chips" id="tl-engines"></div></details>
+  <div id="tl-yt"></div>
+ </div>
+ <div id="tl-out"></div>
+</section>
+
+<section id="t-learn" class="hidden">
+ <div class="card"><h2 style="margin-top:0">学ぶ <span class="muted small">— このアプリの手順の元になった講座と、検証の原則</span></h2><div id="ln-box"></div></div>
+</section>
+
 <section id="t-models" class="hidden">
  <div class="card"><h2 style="margin-top:0">ブラウザで動くモデル <span class="muted small">— 役割ごとに選ぶ。スマホでも動くサイズ（22〜68 MB）</span></h2><div id="md-browser"></div><p class="hint">ダウンロードは端末に保存され、2 回目からはオフラインでも動く。「日本語・ModernBERT」は 8,192 トークンを一括で読める。「多言語」は海外で広く使われるモデルで 512 トークンまで（長文は分割）。</p></div>
  <div class="card"><h2 style="margin-top:0">同じ指標での比較 <span class="muted small">— JSTS（文類似）・JNLI（含意）・CPU 遅延</span></h2><div id="md-table"></div><p class="small muted"><code>python -m mbo.bench</code> の結果（docs/data/models.json）。ブラウザ側の速度は「設定」の統計に出る。</p></div>
- <div class="card"><h2 style="margin-top:0">ファインチューニングの土台（選定のみ、学習はまだ行わない）</h2><div id="md-base"></div></div>
+ <div class="card"><h2 style="margin-top:0">独自 FactCheck-BERT の土台候補 <span class="muted small">— 「ブラウザで試す」列に名前があるものは、学習前の状態で上の表から選んで動かせる（＝ゼロショット基準）。学習手順は「学ぶ」→ 研究計画書</span></h2><div id="md-base"></div></div>
 </section>
 
 <section id="t-how" class="hidden">

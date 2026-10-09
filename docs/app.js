@@ -4,7 +4,7 @@ import * as J from "./judge.js";
 import * as A from "./analysis.js";
 import * as FC from "./factcheck.js";
 
-const VERSION = "v4.2";
+const VERSION = "v5.0";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -22,8 +22,20 @@ let INDEX = [], TOPIC = null, REG = null;
 const pct = x => `${Math.round((x || 0) * 100)}%`;
 
 /* ---------- ナビ ---------- */
-function show(t) { $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t)); $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "t-" + t)); location.hash = t; window.scrollTo(0, 0); if (t === "how") renderHow(); if (t === "settings") renderSettings(); if (t === "models") renderModels(); if (t === "about") renderAbout(); if (t === "history") renderTopicSelect(); if (t === "tools") renderTools(); if (t === "learn") renderLearn(); if (["check", "gap", "struct", "exp"].includes(t)) renderCorpusSelects(); }
-$$("nav button").forEach(b => b.onclick = () => show(b.dataset.t));
+/* 画面モード：simple（一般・授業向け）／research（研究者向け。鍵つき） */
+const MODE = { get v() { try { return localStorage.getItem("mbo.mode") === "research" ? "research" : "simple"; } catch { return "simple"; } }, set(v) { try { v === "research" ? localStorage.setItem("mbo.mode", "research") : localStorage.removeItem("mbo.mode"); } catch { } renderNav(); } };
+const NAV = {
+  simple: [["s-home", "ホーム"], ["s-check", "しらべる"], ["s-media", "画像・動画"], ["s-learn", "まなぶ"], ["s-gate", "🔑"]],
+  research: [["home", "概要"], ["fc", "ファクトチェック"], ["live", "集める"], ["check", "検証"], ["gap", "ギャップ・対立"], ["struct", "構造化"], ["exp", "長文 vs 分割"], ["history", "履歴"], ["tools", "ツール"], ["models", "モデル"], ["learn", "学ぶ"], ["how", "仕組み"], ["about", "解説"], ["settings", "設定"], ["s-home", "一般画面"]],
+};
+const SIMPLE_TABS = new Set(["s-home", "s-check", "s-media", "s-learn", "s-gate"]);
+function renderNav() { const m = MODE.v; $("#nav").innerHTML = NAV[m].map(([t, l]) => `<button data-t="${t}">${l}</button>`).join(""); $$("nav button").forEach(b => b.onclick = () => show(b.dataset.t)); document.body.classList.toggle("mode-simple", m === "simple"); $("#brand-name").textContent = m === "simple" ? "情報たしかめラボ" : "ModernBERT Lab"; $("#ver").style.display = m === "simple" ? "none" : ""; }
+function show(t) {
+  if (!SIMPLE_TABS.has(t) && MODE.v !== "research") t = "s-gate";
+  $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t)); $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "t-" + t)); location.hash = t; window.scrollTo(0, 0);
+  if (t === "how") renderHow(); if (t === "settings") renderSettings(); if (t === "models") renderModels(); if (t === "about") renderAbout(); if (t === "history") renderTopicSelect(); if (t === "tools") renderTools(); if (t === "learn") renderLearn(); if (["check", "gap", "struct", "exp"].includes(t)) renderCorpusSelects();
+  if (t === "s-learn") renderSimpleLearn(); if (t === "s-media") renderSimpleMedia();
+}
 
 /* ---------- 履歴（IndexedDB） ---------- */
 /* プライベートモード：ON の間は結果を IndexedDB に書かず、メモリ（MEM）にだけ置く。タブを閉じると消える */
@@ -359,6 +371,7 @@ async function renderSettings() {
   $("#st-load-models").onclick = async () => { try { await models(m => $("#st-mmsg").textContent = m, ["embed", "nli", "rerank"]); $("#st-mmsg").textContent = "完了"; renderSettings(); } catch (e) { $("#st-mmsg").textContent = "失敗: " + e.message; } };
   $("#st-del").onclick = async () => { for (const m of reg.browser) await ML.removeStored(m.name); for (const k in state) state[k] = null; renderSettings(); };
   $("#st-hist").textContent = `保存件数 ${INDEX.length}（コーパス ${INDEX.filter(r => r.kind === "topic").length}・分析 ${INDEX.filter(r => r.kind === "analysis").length}）`;
+  $("#st-lock").onclick = () => { MODE.set("simple"); show("s-home"); };
   $("#st-priv").checked = PRIV.on; $("#st-priv").onchange = () => { PRIV.set($("#st-priv").checked); renderSettings(); };
   $("#st-priv-note").textContent = PRIV.on ? `有効：結果はこのタブの中だけ（現在 ${HDB.sessionCount()} 件）。タブを閉じると消える` : "無効：結果はこの端末の履歴に保存される";
   $("#st-hist-import").onchange = async () => { const f = $("#st-hist-import").files[0]; if (!f) return; try { const arr = JSON.parse(await f.text()); const recs = Array.isArray(arr) ? arr : [arr]; let n = 0; for (const r of recs) if (r && r.id && r.kind && r.run_at) { await HDB.putPersist(r); n++; } await loadData(); renderSettings(); $("#st-hist-msg").textContent = `${n} 件を読み込んで保存しました`; } catch (e) { $("#st-hist-msg").textContent = "読み込めません: " + e.message; } $("#st-hist-import").value = ""; };
@@ -454,11 +467,90 @@ function renderLearn() {
   wireFcLinks(b);
 }
 
+
+/* ---------- 一般画面：しらべる ---------- */
+const CLS_JA = { gov: "公的機関", news: "報道機関", edu: "学校・大学", academic: "学術", wiki: "百科事典", corp: "企業", blog: "ブログ", sns: "SNS", other: "その他" };
+const clsJa = c => CLS_JA[c] || J.CLASS_LABEL[c] || "その他";
+function friendly(m) {
+  if (/ダウンロード中|セッション作成|端末内から/.test(m)) return "判定用のプログラムを準備しています（はじめての時だけ時間がかかります）";
+  const x = /検索 (\d+)\/(\d+).*候補 (\d+)/.exec(m); if (x) return `インターネットで探しています… ${x[3]} 件見つかりました`;
+  const y = /本文を読む (\d+)\/(\d+)/.exec(m); if (y) return `記事を読んでいます ${y[1]} / ${y[2]}`;
+  if (/ドメイン情報/.test(m)) return "発信元を調べています";
+  if (/評価中|埋め込み|含意|照合/.test(m)) return "貼った文と記事をくらべています";
+  return m;
+}
+const RATING_JA = { accurate: ["たしからしい", "信頼できる発信元の複数の記事が、同じことを言っています"], mostly: ["だいたい合っている", "大筋は同じですが、数字や言い方が少しちがう記事があります"], unfounded: ["根拠が見つからない", "同じことを言っている記事も、否定する記事も見つかりませんでした。うのみにしないで"], inaccurate: ["一部ちがう", "同じ部分とちがう部分があります。どこがちがうか根拠を読んで"], false_: ["ちがうらしい", "信頼できる発信元の記事が、この情報を否定しています"], hold: ["確かめにくい", "意見や予想は、正しい・まちがいを決められません。「事実」の部分だけ取り出して貼ってみて"] };
+$("#sc-claim").oninput = () => { const q = $("#sc-claim").value.trim(); if (!q) { $("#sc-hint").innerHTML = ""; return; } const ck = FC.checkable(q); $("#sc-hint").innerHTML = ck.ok ? `<span class="ok">✔ 調べられる文です</span>` : `<span class="warn">△ ${esc(ck.why[0])}</span>`; };
+$("#sc-run").onclick = runSimpleCheck; $$("[data-go]").forEach(b => { if (!b.onclick) b.onclick = e => { e.preventDefault(); show(b.dataset.go); }; });
+async function runSimpleCheck() {
+  const claim = $("#sc-claim").value.trim(); if (!claim) { $("#sc-status").textContent = "文を貼ってください"; return; }
+  const src = $("#sc-src").value.trim(); const st = m => $("#sc-status").textContent = friendly(m); const out = $("#sc-out"); $("#sc-run").disabled = true;
+  out.innerHTML = `<div class="card" id="sc-prog"><div class="row"><b>しらべています</b><span class="small muted" id="sc-pm"></span></div><div class="bar" style="margin-top:6px"><i id="sc-bar" style="width:5%"></i></div><div id="sc-found" class="small muted" style="margin-top:6px"></div></div>`;
+  const pm = $("#sc-pm"), bar = $("#sc-bar"), found = $("#sc-found");
+  const st2 = m => { st(m); pm.textContent = friendly(m); const x = /(\d+)\/(\d+)/.exec(m); const base = /^検索/.test(m) ? 0.05 : /^本文/.test(m) ? 0.4 : /ドメイン/.test(m) ? 0.75 : /評価|埋め込み|含意|照合/.test(m) ? 0.9 : null; if (base != null) bar.style.width = Math.round((base + (x ? (+x[1] / +x[2]) * 0.3 : 0)) * 100) + "%"; };
+  try {
+    const ck = FC.checkable(claim);
+    const [, { items }] = await Promise.all([models(st2), collectLive(claim, { dorks: new Set(["exact", "official_jp", "news_pr", "factcheck", "deny"]), engines: new Set(["ddg", "gnews", "wiki"]), nread: 8, status: st2, onItems: xs => { found.innerHTML = `見つかったページ：${xs.slice(0, 12).map(it => `<span class="tag">${esc(NET.hostOf(it.url).replace(/^www\./, ""))}</span>`).join(" ")}${xs.length > 12 ? ` ほか ${xs.length - 12} 件` : ""}`; } })]);
+    if (!items.length) { out.innerHTML = `<div class="card"><b>見つかりませんでした</b><p class="small">インターネットの混み具合で失敗することがあります。1 分ほど待ってもう一度押すか、文を短くしてみてください。</p></div>`; return; }
+    const dom = await domInfosFor(items, st2); for (const it of items) { const { s, cls } = J.sourceScore(it, dom[NET.hostOf(it.url)]); it.s_source = s; it.source_class = cls; }
+    st2("照合"); const v = await J.verify(claim, items, state.embed, state.nli, st2);
+    const rating = FC.suggestRating(v, ck.ok); const [rl, rd] = RATING_JA[rating]; const R = FC.RATINGS[rating]; const dv = dataVoid(items);
+    const ev = (v.evidence || []).slice(0, 6);
+    const evHtml = ev.map(e => `<div class="ev ${e.kind === "support" ? "sup" : e.kind === "refute" ? "con" : ""}"><div class="row" style="gap:6px"><span class="tag ${e.kind === "support" ? "sup" : e.kind === "refute" ? "con" : ""}">${e.kind === "support" ? "同じことを言っている" : e.kind === "refute" ? "ちがうことを言っている" : "関係がある"}</span><span class="tag">${esc(clsJa(items.find(i => i.url === e.url)?.source_class))}</span><a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.domain)}</a>${e.published ? `<span class="tiny muted">${esc(e.published)}</span>` : ""}</div><div class="small" style="margin-top:4px">${esc(e.text.slice(0, 220))}</div></div>`).join("") || `<p class="small muted">くらべられる記事が見つかりませんでした。</p>`;
+    const srcs = items.filter(i => i.text).slice(0, 10);
+    out.innerHTML = `<div class="card s-result"><div class="s-badge ${R[1]}">${esc(rl)}</div><p class="s-why">${esc(rd)}</p><p class="small muted">コンピュータが出した<b>目安</b>です。下の根拠を読んで、自分で判定しましょう。${dv.level !== "none" ? "<br>⚠ 公的機関や報道機関のページが少ない話題です。確かな情報がまだ少ないのかもしれません。" : ""}</p></div>
+     <div class="card"><h2 style="margin-top:0">③ 根拠を読む <span class="muted small">— 貼った文と、集めた記事をくらべた結果</span></h2>${evHtml}
+      <details class="small" style="margin-top:8px"><summary>集めたページ一覧（${items.length} 件）</summary>${srcs.map(i => `<div class="small">・<span class="tag">${esc(clsJa(i.source_class))}</span> <a href="${esc(i.url)}" target="_blank" rel="noopener">${esc((i.title || i.url).slice(0, 60))}</a></div>`).join("")}</details></div>
+     <div class="card"><h2 style="margin-top:0">④ 自分で判定する</h2>
+      <div class="s-check">${["発信しているのは<b>だれ</b>？（公的機関・報道・会社・個人）", "<b>いつ</b>の情報？ 古い情報が今のことのように出ていない？", "<b>根拠</b>（数字・資料・一次情報）は示されている？", "<b>ほかの発信元</b>も同じことを言っている？", "画像・動画なら、<b>元の画像</b>はどこ？（「画像・動画」で調べる）"].map((q, i) => `<label><input type="checkbox"> ${q}</label>`).join("")}</div>
+      <label class="small" style="margin-top:8px">わたしの判定と理由</label><div class="chips">${Object.entries(RATING_JA).map(([k, [l]]) => `<span class="chip s-rate ${k === rating ? "on" : ""}" data-r="${k}">${l}</span>`).join("")}</div><textarea id="sc-mine" rows="3" placeholder="理由（根拠のどこを見て、そう考えたか）"></textarea>
+      <div class="actbar"><button class="small" id="sc-print">ワークシートを印刷・PDF 保存</button><button class="small" id="sc-md">記録をダウンロード</button><span class="small muted">授業の提出用に。印刷では判定と根拠と自分の判定が 1 枚にまとまります。</span></div></div>
+     ${src ? `<div class="card small"><b>見た場所の過去の姿を見る：</b> <a href="https://web.archive.org/web/*/${esc(src)}" target="_blank" rel="noopener">Wayback Machine</a>（消されたり書きかえられたりした前の内容が残っていることがあります）</div>` : ""}`;
+    out.querySelectorAll(".s-rate").forEach(c => c.onclick = () => out.querySelectorAll(".s-rate").forEach(x => x.classList.toggle("on", x === c)));
+    const mine = () => { const r = out.querySelector(".s-rate.on"); return { label: r ? r.textContent : "", why: $("#sc-mine").value }; };
+    $("#sc-print").onclick = () => { const m = mine(); const w = out.querySelector(".s-result"); let note = w.querySelector(".print-mine"); if (!note) { note = document.createElement("div"); note.className = "print-mine"; w.appendChild(note); } note.innerHTML = `<h3>わたしの判定：${esc(m.label || "（未選択）")}</h3><p>${esc(m.why || "")}</p><p class="tiny">調べた文：${esc(claim)}　日付：${new Date().toLocaleDateString("ja-JP")}</p>`; window.print(); };
+    $("#sc-md").onclick = () => { const m = mine(); dl("tashikame_" + claim.slice(0, 16).replace(/[\\/:*?"<>|\s]/g, "_") + ".md", FC.reportMarkdown({ claim, source_url: src, checkable: ck, queries: [], tools: ["このサイトの「しらべる」"], evidence: v.evidence, rating, note: m.label ? `わたしの判定：${m.label}\n理由：${m.why}` : "" }), "text/markdown"); };
+    await saveRun({ kind: "analysis", label: "しらべる", key: claim, html: out.innerHTML, result_label: rl });
+    st("できました"); out.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (e) { $("#sc-status").textContent = "うまくいきませんでした：" + (e.message || e); console.error(e); } finally { $("#sc-run").disabled = false; }
+}
+
+/* ---------- 一般画面：画像・動画 ---------- */
+function renderSimpleMedia() {
+  const u = $("#sm-url"); const draw = () => { const url = u.value.trim(); const yt = FC.youtubeId(url); const e = encodeURIComponent;
+    $("#sm-out").innerHTML = !url ? "" : yt ? `<p class="small">動画の代表的な場面を 4 枚取り出しました。それぞれ「この画像で探す」を押すと、同じ場面が他にどこで使われているかわかります。</p><div class="tiles">${FC.youtubeFrames(yt).map((f, i) => `<div class="tile" style="cursor:default"><img src="${esc(f)}" style="width:100%;border-radius:8px" alt="場面 ${i + 1}" onerror="this.parentNode.style.display='none'"><div class="chips"><a class="chip" href="https://lens.google.com/uploadbyurl?url=${e(f)}" target="_blank" rel="noopener">Google で探す</a><a class="chip" href="https://tineye.com/search?url=${e(f)}" target="_blank" rel="noopener">TinEye で探す</a></div></div>`).join("")}</div>` :
+      `<div class="s-cta"><a class="chip" href="https://lens.google.com/uploadbyurl?url=${e(url)}" target="_blank" rel="noopener">Google レンズで探す</a><a class="chip" href="https://tineye.com/search?url=${e(url)}" target="_blank" rel="noopener">TinEye で探す（古い順に並べられる）</a><a class="chip" href="https://yandex.com/images/search?rpt=imageview&url=${e(url)}" target="_blank" rel="noopener">Yandex で探す</a></div><p class="hint">結果の中で<b>一番古い日付</b>のものが「元」の候補。元と今の使われ方がちがえば、作りかえられた可能性があります。</p>`; };
+  u.oninput = draw; draw();
+  $("#sm-ai").innerHTML = `<div class="s-check">${FC.AI_CHECKS.map(c => `<label><input type="checkbox"> ${esc(c)}</label>`).join("")}</div><p class="hint">いくつも当てはまるなら、AI が作った可能性があります。決め手は「大手の報道機関も同じ出来事を伝えているか」。</p>`;
+}
+
+/* ---------- 一般画面：まなぶ ---------- */
+function renderSimpleLearn() {
+  const b = $("#sl-box"); if (b.dataset.done) return; b.dataset.done = 1;
+  b.innerHTML = `<div class="card"><h2 style="margin-top:0">情報を「たしかめる」4 つの手順</h2>
+   <div class="steps"><div class="step"><b>1</b><span>何をたしかめるか決める</span><small>「〇〇は△△だ」と言い切れる事実だけ。意見や予想は対象外</small></div><div class="step"><b>2</b><span>一次情報をさがす</span><small>言い出した本人・役所・統計・論文。検索は「言葉を組み合わせて何度も」</small></div><div class="step"><b>3</b><span>くらべる</span><small>ほかの発信元も同じ？ 画像は元と同じ？ いつの話？</small></div><div class="step"><b>4</b><span>判定して、理由を書く</span><small>「たしからしい／だいたい／根拠なし／一部ちがう／ちがう」の 5 段階</small></div></div>
+   <p class="small">プロのファクトチェック団体も、この順番で検証して、使った資料のリンクを全部公開しています。読んだ人が同じ手順でたどれるようにするためです。</p></div>
+  <div class="card"><h2 style="margin-top:0">うのみにしない 5 つの質問</h2><ol class="s-q"><li><b>だれが</b>言っている？（名前・肩書・所属がわかる？）</li><li><b>いつ</b>の情報？（日付がある？ 今でも同じ？）</li><li><b>根拠</b>は？（数字・資料・一次情報へのリンクがある？）</li><li><b>ほかの人</b>も言っている？（報道機関・役所・百科事典）</li><li>画像・動画は<b>本物</b>？（元の画像は？ AI の不自然さは？）</li></ol></div>
+  <div class="card"><h2 style="margin-top:0">検索をうまくする 3 つのコツ</h2><ul class="small"><li><b>言葉を組み合わせる</b>：「〇〇 発表 統計」のように 2〜3 語で</li><li><b>発信元をしぼる</b>：検索語の後ろに <code>site:go.jp</code>（国の機関）や <code>site:lg.jp</code>（市や県）を足す</li><li><b>言い回しそのものを探す</b>：<code>"〇〇は△△だ"</code> と引用符で囲むと、同じ文がどこから広まったかわかる</li></ul></div>
+  <div class="card"><h2 style="margin-top:0">クイズ：どっちが「たしかめられる文」？</h2><div id="sl-quiz"></div></div>
+  <div class="card"><h2 style="margin-top:0">コンピュータは何をしている？</h2><p class="small">このサイトの中では、小さな「ことばのプログラム」（AI の一種）が、あなたが貼った文と集めた記事の文を読みくらべて、「同じことを言っている」「ちがうことを言っている」「関係ない」を推定しています。人のように意味をわかっているわけではなく、たくさんの文の組み合わせから学んだ「言い方のパターン」で判断しているので、<b>まちがえることもあります</b>。だから最後は人が根拠を読んで決めます。プログラムはあなたの端末の中で動き、貼った文がどこかに送られることはありません。</p></div>
+  <details class="card small"><summary><b>先生向け：授業での使い方（例）</b></summary><ol><li>導入（5 分）：最近見た「本当かな？」と思った情報を 1 つ書き出す</li><li>手順の説明（10 分）：「4 つの手順」と「5 つの質問」</li><li>たしかめる（20 分）：「しらべる」に文を貼り、根拠を読み、④で自分の判定と理由を書く。班で判定を見せ合う</li><li>画像（5 分）：「画像・動画」で元の画像を探す体験</li><li>まとめ（5 分）：ワークシートを印刷または PDF で提出。「コンピュータの目安と自分の判定がちがった理由」を発表</li></ol><p>ねらい：情報の信頼性を手順で確かめる態度、検索の工夫、画像の出どころの確認、AI の判断の限界を知ること。端末にデータは残りません（右上の 🔒 で保存しない設定にすると提出後に何も残りません）。</p></details>`;
+  const QZ = [["「〇〇市の人口は 2025 年に 10 万人を下回った」", "「〇〇市は住みにくい町だ」", 0, "数字と年があるので、資料でたしかめられます。『住みにくい』は意見です。"], ["「この薬は最高にすごい」", "「この薬は 2024 年に国の承認を受けた」", 1, "承認は記録に残る事実です。『最高にすごい』は感想です。"], ["「来年は大地震が起きる」", "「気象庁は 2026 年 3 月に震度 5 弱を観測したと発表した」", 1, "未来の予想はたしかめられません。発表の記録はたしかめられます。"]];
+  let qi = 0; const qb = $("#sl-quiz"); const draw = () => { if (qi >= QZ.length) { qb.innerHTML = `<p class="small ok">全部できました！ 「しらべる」で実際にやってみましょう。</p>`; return; } const [a, b2, ans, why] = QZ[qi]; qb.innerHTML = `<p class="small">第 ${qi + 1} 問</p><div class="s-cta"><button class="qz" data-i="0">${esc(a)}</button><button class="qz" data-i="1">${esc(b2)}</button></div><div id="qz-r" class="small"></div>`; qb.querySelectorAll(".qz").forEach(x => x.onclick = () => { const ok = +x.dataset.i === ans; $("#qz-r").innerHTML = `<span class="${ok ? "ok" : "warn"}">${ok ? "正解！" : "ちがいます。"}</span> ${esc(why)} <button class="small" id="qz-n">次へ</button>`; $("#qz-n").onclick = () => { qi++; draw(); }; }); };
+  draw();
+}
+
+/* ---------- 研究者用の鍵 ---------- */
+async function sha256(t) { const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)); return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, "0")).join(""); }
+const GATE = "bc7bca63a14c7cc1bb2ecd7774fb2ef713ae25d046c9b63d90a169052a49b3ab";
+$("#gate-go").onclick = async () => { if ((await sha256($("#gate-pw").value)) === GATE) { MODE.set("research"); $("#gate-pw").value = ""; $("#gate-msg").textContent = ""; show("home"); } else $("#gate-msg").textContent = "ちがいます"; };
+$("#gate-pw").onkeydown = e => { if (e.key === "Enter") $("#gate-go").click(); };
+
 /* ---------- 起動 ---------- */
 (async () => {
   $("#ver").textContent = VERSION; await J.loadParams(); await loadData(); await renderModelBars(); renderPrivBadge(); $("#priv").onclick = () => { PRIV.set(!PRIV.on); if ($("#st-priv")) $("#st-priv").checked = PRIV.on; }; addEventListener("beforeunload", e => { if (HDB.sessionCount()) { e.preventDefault(); e.returnValue = ""; } });
-  const t = location.hash.slice(1); if (t && $(`nav button[data-t="${t}"]`)) show(t);
-  const u = new URLSearchParams(location.search); if (u.get("q") || u.get("url") || u.get("text")) { $("#lv-q").value = u.get("q") || u.get("url") || u.get("text"); show("live"); runLive(); }
+  renderNav(); const t = location.hash.slice(1); show(t && $(`main > section#t-${t}`) ? t : (MODE.v === "research" ? "home" : "s-home"));
+  const u = new URLSearchParams(location.search); if (u.get("q") || u.get("url") || u.get("text")) { const v = u.get("text") || u.get("q") || u.get("url"); if (MODE.v === "research") { $("#lv-q").value = v; show("live"); runLive(); } else { $("#sc-claim").value = /^https?:/.test(v) ? "" : v; if (/^https?:/.test(v)) $("#sc-src").value = v; show("s-check"); } }
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
   const net = () => $("#net").textContent = navigator.onLine ? "" : "オフライン（保存済みデータとモデルで動作）"; addEventListener("online", net); addEventListener("offline", net); net();
 })();

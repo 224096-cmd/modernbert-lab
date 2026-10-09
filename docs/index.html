@@ -2,17 +2,46 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>ModernBERT Lab</title>
+<title>情報たしかめラボ</title>
 <meta name="description" content="長文をそのまま読む日本語 ModernBERT で、公開情報を集めて検証・比較・構造化する。すべてブラウザの中で動く">
 <link rel="manifest" href="manifest.json"><meta name="theme-color" content="#1d4ed8"><link rel="icon" href="icon.svg">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
-<header class="top"><a class="brand" href="./">🧭 ModernBERT Lab <small id="ver"></small></a>
-<nav id="nav"><button data-t="home" class="on">概要</button><button data-t="fc">ファクトチェック</button><button data-t="live">集める</button><button data-t="check">検証</button><button data-t="gap">ギャップ・対立</button><button data-t="struct">構造化</button><button data-t="exp">長文 vs 分割</button><button data-t="history">履歴</button><button data-t="tools">ツール</button><button data-t="models">モデル</button><button data-t="learn">学ぶ</button><button data-t="how">仕組み</button><button data-t="about">解説</button><button data-t="settings">設定</button></nav>
+<header class="top"><a class="brand" href="./">🧭 <span id="brand-name">情報たしかめラボ</span> <small id="ver"></small></a>
+<nav id="nav"></nav>
 <button id="priv" class="small" style="margin-left:auto;white-space:nowrap"></button><span id="net" class="tiny muted"></span></header>
 <main>
-<section id="t-home">
+<section id="t-s-home">
+ <div class="s-hero"><h1>その情報、本当？<br>手順どおりに「たしかめる」練習をしよう</h1><p>ニュース・SNS・動画で見かけた情報を貼ると、インターネットの公開情報を集めて<b>くらべ</b>、「どのくらい確かか」の目安と、<b>自分で確かめる手順</b>を示します。答えを決めるのはあなたです。</p>
+  <div class="s-cta"><button class="primary big" data-go="s-check">しらべる</button><button class="big" data-go="s-learn">まなぶ</button></div></div>
+ <div class="steps"><div class="step"><b>1</b><span>気になる文を貼る</span><small>「〇〇は△△だ」という形に</small></div><div class="step"><b>2</b><span>集めてくらべる</span><small>公的機関・ニュース・百科事典から探す</small></div><div class="step"><b>3</b><span>根拠を読む</span><small>同じ？ちがう？どこが言っている？</small></div><div class="step"><b>4</b><span>自分で判定</span><small>5 段階の目安を見て、自分の言葉で</small></div></div>
+ <div class="card s-note"><b>このサイトについて</b><ul><li>登録・ログインなし。入力した内容はこの端末にだけ残り、だれにも送られません（右上の 🔒 で「残さない」にもできます）</li><li>はじめて使うとき、判定用のプログラム（約 110 MB）を 1 回だけダウンロードします。学校の Wi-Fi でどうぞ</li><li>コンピュータが出すのは「目安」です。必ず根拠のリンクを開いて、自分の目で確かめましょう</li></ul></div>
+</section>
+<section id="t-s-check" class="hidden">
+ <div class="card"><h2 style="margin-top:0">① たしかめたい情報を貼る</h2>
+  <textarea id="sc-claim" class="big-input" placeholder="例：日本の人口は毎年 100 万人ずつ減っている" rows="2"></textarea>
+  <div id="sc-hint" class="small"></div>
+  <details class="small"><summary>どこで見た？（書けるなら）</summary><input id="sc-src" placeholder="見た場所の URL（SNS の投稿・記事・動画）"></details>
+  <div class="s-cta"><button class="primary big" id="sc-run">② しらべる</button><span id="sc-status" class="small muted"></span></div>
+  <p class="hint">1〜3 分かかります。見つかった順に画面に出ます。</p></div>
+ <div id="sc-out"></div>
+</section>
+<section id="t-s-media" class="hidden">
+ <div class="card"><h2 style="margin-top:0">画像・動画は「元はどこ？」を探す</h2>
+  <p class="small">ウソの画像の多くは「昔の写真を今のことにする」「一部を作りかえる」。<b>同じ画像が一番古くどこに出たか</b>を探すのが基本です。</p>
+  <input id="sm-url" placeholder="画像の URL、または YouTube の URL を貼る">
+  <p class="hint">スマホ：画像を長押し →「画像アドレスをコピー」。パソコン：画像を右クリック →「画像アドレスをコピー」。</p>
+  <div id="sm-out"></div></div>
+ <div class="card"><h2 style="margin-top:0">AI が作った画像・動画かも？ チェック</h2><div id="sm-ai"></div></div>
+</section>
+<section id="t-s-learn" class="hidden"><div id="sl-box"></div></section>
+<section id="t-s-gate" class="hidden">
+ <div class="card" style="max-width:480px;margin:40px auto"><h2 style="margin-top:0">研究者用の画面</h2><p class="small muted">詳しい設定・モデルの切り替え・実験は、ここから入ります。</p>
+  <div class="row"><input id="gate-pw" type="password" placeholder="パスワード" autocomplete="off"><button class="primary" id="gate-go">入る</button></div><div id="gate-msg" class="small warn"></div></div>
+</section>
+
+<section id="t-home" class="hidden">
  <div class="hero"><h1>ファクトチェックの手順を、端末内の ModernBERT で支援する</h1><p><b>検証対象を明示 → 検証過程を公開 → 判定</b>というファクトチェックの基本手順（日本ファクトチェックセンターの講座に準拠）に沿って、主張を入れるとブラウザが<b>高度な検索</b>で公開情報を集め、<b>端末内の日本語 ModernBERT</b>（最大 8,192 トークンを分割せずに読む）で主張と各記事の<b>含意・矛盾</b>を照合し、<b>5 段階の判定の下書き</b>と<b>根拠リンクつきの検証記事</b>を作る。画像・動画の逆検索、公開データ、ジオロケーションなどの外部ツールもここから開ける。LLM を使わず、サーバも API キーも不要。</p></div>
  <div class="stats" id="home-stats"></div>
  <div class="tiles" id="home-tiles"></div>
@@ -144,6 +173,7 @@
 <section id="t-settings" class="hidden">
  <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load-models">既定の 3 モデルを今ダウンロード</button><button class="small" id="st-del">端末からすべて削除</button><span id="st-mmsg" class="small muted"></span></div>
   <label>Hugging Face 配布リポジトリ（空なら GitHub Pages の ./models/）</label><div class="row"><input id="st-hf" placeholder="owner/repo"><button class="small" id="st-hf-save">保存</button></div></div>
+ <div class="card"><h2 style="margin-top:0">画面モード</h2><p class="small">いまは研究者用の画面。授業・一般向けの画面に戻してロックする：</p><button class="small" id="st-lock">一般画面に戻してロック</button></div>
  <div class="card"><h2 style="margin-top:0">プライベートモード</h2>
   <label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--fg)"><input type="checkbox" id="st-priv" style="width:auto">履歴を残さない（結果はこのタブの中だけ。閉じると消える）</label>
   <p class="small muted" id="st-priv-note"></p>

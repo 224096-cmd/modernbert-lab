@@ -14,11 +14,13 @@
 <main>
 <section id="t-s-home">
  <div class="s-hero"><h1>Web 情報の信頼性を、手順で検証する</h1><p>SNS・ニュース・動画で見た情報について、<b>検証対象を明示し、公開情報を集めて照合し、根拠を示して判定する</b>というファクトチェックの手順を、ブラウザだけで実行できます。収集した記事と主張の照合は端末内の日本語言語モデルが行い、判定の下書きと根拠つきの検証記録を出力します。最終的な判定は利用者が根拠を読んで行います。</p>
-  <div class="s-cta"><button class="primary big" data-go="fc">検証を始める</button><button class="big" data-go="tools">公開情報ツール</button><button class="big" data-go="s-learn">手順と考え方</button></div></div>
+  <div class="s-cta"><button class="primary big" data-go="fc">検証を始める</button><button class="big" data-go="tools">公開情報ツール</button><button class="big" data-go="s-learn">基礎知識</button><button class="big" data-go="s-methods">検証の方法</button></div></div>
  <div class="steps"><div class="step"><b>1</b><span>検証対象を明示する</span><small>「誰が・何を・いつ」が入った、客観的に確かめられる一文にする。意見や予測は対象外</small></div><div class="step"><b>2</b><span>公開情報を集める</span><small>検索演算子（site:go.jp など）で一次情報・報道・検証記事を探す。画像は逆画像検索</small></div><div class="step"><b>3</b><span>照合する</span><small>集めた記事が主張と一致するか・矛盾するか、発信元の種類と日付とともに読む</small></div><div class="step"><b>4</b><span>判定し、過程を記録する</span><small>5 段階で判定し、検索式・出典 URL・理由を残す。誰でも同じ手順で再現できるように</small></div></div>
+ <div class="tiles"><div class="tile" data-go="fc"><b>検証</b><span>主張を入力 → 公開情報を収集 → 照合 → 判定の下書き・比較表・グラフ・検証記録</span></div><div class="tile" data-go="tools"><b>ツール</b><span>検索演算子ビルダー、逆画像検索、動画キーフレーム、公開データ、地図、アーカイブ</span></div><div class="tile" data-go="s-learn"><b>基礎知識</b><span>ファクトチェックとは、原則、判定、情報源の種類、誤情報が広まる理由、用語集</span></div><div class="tile" data-go="s-methods"><b>検証の方法</b><span>高度な検索・画像・動画・生成 AI・ジオロケーション・公開データ・アーカイブ、9 つの方法を手順で</span></div><div class="tile" data-go="history"><b>履歴</b><span>この端末に保存した検証結果の一覧・再表示・CSV／JSON 出力</span></div></div>
  <div class="card s-note"><b>利用にあたって</b><ul><li>登録・ログインは不要。入力内容と結果はこの端末（ブラウザ）にだけ保存され、外部には送られません。右上の 🔒 で「保存しない」にも切り替えられます</li><li>初回のみ判定用モデル（約 110 MB）をダウンロードします。2 回目以降はオフラインでも照合できます</li><li>コンピュータの判定は下書きです。根拠のリンクを開き、一次情報を確認してから判定してください。人物の特定や非公開情報の取得には使えません</li></ul></div>
 </section>
 <section id="t-s-learn" class="hidden"><div id="sl-box"></div></section>
+<section id="t-s-methods" class="hidden"><div id="sm-box"></div></section>
 <section id="t-s-gate" class="hidden">
  <div class="card" style="max-width:480px;margin:40px auto"><h2 style="margin-top:0">研究者用の画面</h2><p class="small muted">詳しい設定・モデルの切り替え・実験は、ここから入ります。</p>
   <div class="row"><input id="gate-pw" type="password" placeholder="パスワード" autocomplete="off"><button class="primary" id="gate-go">入る</button></div><div id="gate-msg" class="small warn"></div></div>

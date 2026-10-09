@@ -13,27 +13,10 @@
 <button id="priv" class="small" style="margin-left:auto;white-space:nowrap"></button><span id="net" class="tiny muted"></span></header>
 <main>
 <section id="t-s-home">
- <div class="s-hero"><h1>その情報、本当？<br>手順どおりに「たしかめる」練習をしよう</h1><p>ニュース・SNS・動画で見かけた情報を貼ると、インターネットの公開情報を集めて<b>くらべ</b>、「どのくらい確かか」の目安と、<b>自分で確かめる手順</b>を示します。答えを決めるのはあなたです。</p>
-  <div class="s-cta"><button class="primary big" data-go="s-check">しらべる</button><button class="big" data-go="s-learn">まなぶ</button></div></div>
- <div class="steps"><div class="step"><b>1</b><span>気になる文を貼る</span><small>「〇〇は△△だ」という形に</small></div><div class="step"><b>2</b><span>集めてくらべる</span><small>公的機関・ニュース・百科事典から探す</small></div><div class="step"><b>3</b><span>根拠を読む</span><small>同じ？ちがう？どこが言っている？</small></div><div class="step"><b>4</b><span>自分で判定</span><small>5 段階の目安を見て、自分の言葉で</small></div></div>
- <div class="card s-note"><b>このサイトについて</b><ul><li>登録・ログインなし。入力した内容はこの端末にだけ残り、だれにも送られません（右上の 🔒 で「残さない」にもできます）</li><li>はじめて使うとき、判定用のプログラム（約 110 MB）を 1 回だけダウンロードします。学校の Wi-Fi でどうぞ</li><li>コンピュータが出すのは「目安」です。必ず根拠のリンクを開いて、自分の目で確かめましょう</li></ul></div>
-</section>
-<section id="t-s-check" class="hidden">
- <div class="card"><h2 style="margin-top:0">① たしかめたい情報を貼る</h2>
-  <textarea id="sc-claim" class="big-input" placeholder="例：日本の人口は毎年 100 万人ずつ減っている" rows="2"></textarea>
-  <div id="sc-hint" class="small"></div>
-  <details class="small"><summary>どこで見た？（書けるなら）</summary><input id="sc-src" placeholder="見た場所の URL（SNS の投稿・記事・動画）"></details>
-  <div class="s-cta"><button class="primary big" id="sc-run">② しらべる</button><span id="sc-status" class="small muted"></span></div>
-  <p class="hint">1〜3 分かかります。見つかった順に画面に出ます。</p></div>
- <div id="sc-out"></div>
-</section>
-<section id="t-s-media" class="hidden">
- <div class="card"><h2 style="margin-top:0">画像・動画は「元はどこ？」を探す</h2>
-  <p class="small">ウソの画像の多くは「昔の写真を今のことにする」「一部を作りかえる」。<b>同じ画像が一番古くどこに出たか</b>を探すのが基本です。</p>
-  <input id="sm-url" placeholder="画像の URL、または YouTube の URL を貼る">
-  <p class="hint">スマホ：画像を長押し →「画像アドレスをコピー」。パソコン：画像を右クリック →「画像アドレスをコピー」。</p>
-  <div id="sm-out"></div></div>
- <div class="card"><h2 style="margin-top:0">AI が作った画像・動画かも？ チェック</h2><div id="sm-ai"></div></div>
+ <div class="s-hero"><h1>Web 情報の信頼性を、手順で検証する</h1><p>SNS・ニュース・動画で見た情報について、<b>検証対象を明示し、公開情報を集めて照合し、根拠を示して判定する</b>というファクトチェックの手順を、ブラウザだけで実行できます。収集した記事と主張の照合は端末内の日本語言語モデルが行い、判定の下書きと根拠つきの検証記録を出力します。最終的な判定は利用者が根拠を読んで行います。</p>
+  <div class="s-cta"><button class="primary big" data-go="fc">検証を始める</button><button class="big" data-go="tools">公開情報ツール</button><button class="big" data-go="s-learn">手順と考え方</button></div></div>
+ <div class="steps"><div class="step"><b>1</b><span>検証対象を明示する</span><small>「誰が・何を・いつ」が入った、客観的に確かめられる一文にする。意見や予測は対象外</small></div><div class="step"><b>2</b><span>公開情報を集める</span><small>検索演算子（site:go.jp など）で一次情報・報道・検証記事を探す。画像は逆画像検索</small></div><div class="step"><b>3</b><span>照合する</span><small>集めた記事が主張と一致するか・矛盾するか、発信元の種類と日付とともに読む</small></div><div class="step"><b>4</b><span>判定し、過程を記録する</span><small>5 段階で判定し、検索式・出典 URL・理由を残す。誰でも同じ手順で再現できるように</small></div></div>
+ <div class="card s-note"><b>利用にあたって</b><ul><li>登録・ログインは不要。入力内容と結果はこの端末（ブラウザ）にだけ保存され、外部には送られません。右上の 🔒 で「保存しない」にも切り替えられます</li><li>初回のみ判定用モデル（約 110 MB）をダウンロードします。2 回目以降はオフラインでも照合できます</li><li>コンピュータの判定は下書きです。根拠のリンクを開き、一次情報を確認してから判定してください。人物の特定や非公開情報の取得には使えません</li></ul></div>
 </section>
 <section id="t-s-learn" class="hidden"><div id="sl-box"></div></section>
 <section id="t-s-gate" class="hidden">
@@ -67,6 +50,7 @@
   <div class="chips" id="fc-sel"></div>
   <div id="fc-checkable" class="small"></div>
   <div class="gate small">本文を読む件数 <input type="range" id="fc-read" min="3" max="40" value="10"><b id="fc-read-v">10</b> <span class="muted">（多いほど根拠が増えるが時間もかかる。3 件ずつ並列）</span></div>
+  <details class="small"><summary>収集の設定（検索式・情報源）</summary><label>検索式（主張に当てはめる）</label><div class="chips" id="fc-dorks"></div><label>情報源</label><div class="chips" id="fc-engines"></div></details>
   <div class="actbar"><button class="primary" id="fc-run">② 検証を実行（収集 → 照合 → 判定の下書き）</button><button class="small" id="fc-plan">検索式だけ作る</button><span id="fc-status" class="small muted"></span></div>
   <p class="hint">実行すると「集める」と同じ経路で公開情報を集め（結果は届いた順に表示）、端末内の含意モデルで主張と段落を照合する。結果は履歴に保存。</p></div>
  <div id="fc-out"></div>

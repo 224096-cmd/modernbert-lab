@@ -89,7 +89,6 @@ export const TOOLS = [
     { n: "InVID-WeVerify（Video analysis）", u: () => "https://weverify.eu/verification-plugin/", note: "YouTube／Facebook の動画からキーフレームとメタデータ" },
   ] },
   { key: "ai", title: "生成 AI の見分け（実践編 5）", desc: "細部の不自然さ（手・指、背景の文字、水面の反射、瓦礫、口だけ動く表情）を見る。決定打は「大手報道が報じているか」「本人が普段そう発言するか」", items: [
-    { n: "チェックリスト", u: null, need: "ai", note: "下の 8 項目を確認して記録に残す" },
     { n: "Content Credentials 検証（C2PA）", u: () => "https://contentcredentials.org/verify", note: "対応カメラ・生成サービスの画像なら来歴（生成/編集履歴）を表示。無ければ判定不能" },
     { n: "Google レンズで出所確認", u: u => `https://lens.google.com/uploadbyurl?url=${enc(u)}`, need: "img", note: "実在する写真・報道写真と一致するか" },
   ] },

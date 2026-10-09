@@ -48,3 +48,4 @@ body.mode-simple{font-size:16.5px}body.mode-simple main{max-width:900px}
 button.qz{text-align:left;max-width:100%;white-space:normal;font-size:15px}
 .print-mine{display:none}
 @media print{header.top,.s-cta,#sc-prog,.actbar,nav,details summary,textarea,.chips{display:none!important}main{max-width:none;padding:0}.card{border:1px solid #999;break-inside:avoid}.print-mine{display:block;text-align:left;border-top:1px solid #999;margin-top:10px;padding-top:8px}.s-check label{font-size:13px}body{font-size:13px}}
+body.mode-simple .modelbar{display:none}body.mode-simple #t-fc .hint{font-size:13.5px}

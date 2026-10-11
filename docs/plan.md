@@ -1,6 +1,6 @@
-# 卒業論文 研究計画書（第 3 版）
+# 卒業論文 研究計画書（第 4 版）
 
-2026 年 10 月 3 日改訂（第 3 版：ファクトチェックの実務手順に沿った PWA として再構成）
+2026 年 10 月 11 日改訂（第 4 版：学習環境を自前の GPU（WSL2 ＋ RTX 3060）に、評価の主軸を JAD-AFC に、データセットを最小構成に。第 3 版までのシステム変更（2 画面・グラフ・比較表・並び順）を反映）
 
 ## 1. 研究題目
 
@@ -10,7 +10,7 @@
 
 固定するのは「テーマ」と「独自の ModernBERT（FactCheck-BERT）を開発する」の 2 点。第 3 版では、システムの骨格を日本ファクトチェックセンター（JFC）の講座「実践編 1〜10」で示される実務手順に合わせて組み直した。すなわち、本システムは「AI が真偽を言い当てる装置」ではなく、**人がファクトチェックの手順を正しく踏むのを、端末内の BERT が速く・漏れなく支援する道具**である。
 
-FactCheck-BERT とは、日本語 ModernBERT を土台に、(a) 文の客観性・一次情報性を測る**埋め込み型**と、(b) 主張と記事の含意（一致・矛盾・無関係）を判定する**分類型**の 2 つを、無料公開データのみで追加学習したモデルの総称である。学習はすべて研究者自身が Google Colab 等で手順書どおりに実行し、できたモデルは ONNX（int8）に変換してブラウザで動かす。
+FactCheck-BERT とは、日本語 ModernBERT を土台に、(a) 文の客観性・一次情報性を測る**埋め込み型**と、(b) 主張と証拠の含意（一致・矛盾・無関係）を判定する**分類型**の 2 つを、無料公開データのみで追加学習したモデルの総称である。学習は研究者自身が自前の GPU（Surface Pro 9 ＋ eGPU RTX 3060、WSL2 Ubuntu）でリポジトリの `research/` スクリプトを用いて実行し、できたモデルは ONNX（int8）に変換してブラウザで動かす。
 
 ## 2. 背景と目的
 
@@ -33,7 +33,7 @@ ModernBERT を選ぶ理由は、(1) 8,192 トークンまで分割せずに読�
 
 ### 2.4 現状（2026 年 10 月）
 
-システム（GitHub Pages で公開：modernbert-lab）は動作しており、既存の公開モデル 10 種（埋め込み 5・含意 3・関連度 2）を役割ごとに切り替えて使える。独自モデルはまだ無く、土台候補は「学習前の状態」で同じ画面から試せる（ゼロショット基準）。
+システム（GitHub Pages で公開：modernbert-lab v5.3）は動作しており、既存の公開モデル 10 種（埋め込み 5・含意 3・関連度 2）を役割ごとに切り替えて使える。学習・評価のスクリプト（`research/`）とデータ準備は完成し、CPU での予備実験で「汎用 NLI だけで学習したモデルはファクトチェックデータ（JAD-AFC）で偶然水準（35%）、AFC 訓練 434 件で微調整すると 81%」という結果を得ている。独自モデルの本学習はこれからで、土台候補は「学習前の状態」で同じ画面から試せる（ゼロショット基準）。
 
 ### 2.5 作業の分担
 
@@ -41,18 +41,19 @@ ModernBERT を選ぶ理由は、(1) 8,192 トークンまで分割せずに読�
 
 ## 3. 研究課題と仮説
 
-| RQ | 問い | 仮説 | 測り方 |
-| --- | --- | --- | --- |
-| RQ1 独自モデルの効果 | FactCheck-BERT は、既存モデルのゼロショットや語彙ルールより、客観性・一次情報・含意の判定精度が高いか | 公開データ＋自作ラベルで学習すると F1 が 10 ポイント以上上がる | 人手ラベル 300 記事での F1、既存 7 モデルと比較 |
-| RQ2 長文一括 | 8,192 トークン一括は、512 トークン分割の従来手法より矛盾検知・関連度判定の精度が高いか | 記事後半の訂正・条件・出典が効く判定で一括が優位 | 同じ記事・問いを両方式で処理し一致率・F1・時間を比較 |
-| RQ3 検索の改善 | 信頼性スコアで並べ替えると、検索エンジンの順位より上位に信頼できる記事が来るか | Precision@5 が +0.15、MRR が改善 | 30 トピック×上位 10 件で Precision@k、MRR |
-| RQ4 端末内実行 | スマートフォンのブラウザだけで実用的な速度で動くか | 30M 系なら 10 記事の採点が 30 秒以内 | スマホ 2 機種・PC での処理時間 |
+| 課題 | 問い | 仮説 |
+| --- | --- | --- |
+| RQ1 独自モデルの効果 | ファクトチェック由来のデータで微調整した FactCheck-BERT は、汎用 NLI だけで学習したモデルや海外の多言語 NLI より、主張と証拠の照合（一致・矛盾・無関係）と客観性の判定に強いか | 強い。予備実験では汎用 NLI だけが偶然水準（35%）、ファクトチェックデータ 434 件の微調整で 81% |
+| RQ2 検索の改善 | 信頼性スコアと関連度で並べ替えると、検索エンジンの元の順位より上位の質が上がるか | 上がる |
+| RQ3 端末内実行 | 30M クラスのモデルを int8 でスマートフォンのブラウザで動かして、実用的な時間で検証できるか | できる（モデル合計 100 MB 以下、1 記事 5 秒以内） |
 
-RQ1 が中心。RQ2 は ModernBERT を選んだ理由の検証、RQ3・RQ4 はシステムとしての有効性。
+RQ1 が中心。RQ2・RQ3 はシステムとしての有効性。ModernBERT（8,192 トークン）を土台に選ぶのは記事全体と主張を一度に照合するためで、それ自体の検証（長文一括 vs 分割）は本研究の範囲外とする。
 
 ## 4. システム構成（PWA）とファクトチェック手順の対応
 
 サーバは置かない。GitHub Pages から配られる静的な PWA（HTML＋JavaScript）が、モデル（ONNX int8）を端末の IndexedDB に保存し、検索・本文取得・推論・記録をすべてブラウザ内で行う。API キーも課金もない。スマートフォンでは「ホーム画面に追加」でアプリとして動き、共有メニューから URL を受け取れる。
+
+**2 つの画面（v5）**：利用者を「授業・一般」と「研究者」に分ける。既定の**一般画面**は「ホーム／検証／ツール／履歴／基礎知識／検証の方法」で構成し、「検証」は JFC 講座に沿った 3 段階のファクトチェック手順（検証対象の明示→検索式による収集と照合→判定と記事化）をそのまま踏む。読む記事数・検索式・検索エンジンは利用者が調整でき、結果はグラフ・比較表・ワークシート（自分の判定と理由、印刷）で示す。中学技術・高校情報の授業でそのまま使える。**研究者画面**は鍵つきで、従来の全タブ（検証・ギャップ・構造化・モデル切替・パラメータ）を持つ。判定の式・モデル・しきい値は両画面で同一。これにより、学校教育（技術・情報の授業での情報の信頼性・メディアリテラシー教材）としての利用と、研究としての実験を同じコードで両立する。
 
 ### 4.1 画面と手順の対応
 
@@ -60,7 +61,7 @@ RQ1 が中心。RQ2 は ModernBERT を選んだ理由の検証、RQ3・RQ4 は�
 | --- | --- | --- |
 | ① 検証対象を明示（検証可能な事実か、広さ・深さ・近さ） | 「ファクトチェック」①：主張・出どころ URL・拡散状況を入力し、検証可能性を自動判定 | （現状は語彙規則。将来は分類型 FactCheck-BERT に「事実／意見／予測」を学習） |
 | ② 高度な検索で一次情報まで辿る | 同②：6 種類の検索式（完全一致・site:go.jp・報道・ファクトチェック・否定・一次資料）を生成し、アプリ内で自動収集。「ツール」に演算子ビルダー | 収集記事の重複統合・クラスタ（埋め込み） |
-| ② 主張と根拠の突き合わせ | 同②：集めた全文と主張を照合し、支持・反証の段落を出典付きで列挙 | 埋め込みで候補段落を絞り、含意モデルで 一致／矛盾／無関係（8,192 トークン一括） |
+| ② 主張と根拠の突き合わせ | 同②：集めた全文と主張を照合し、支持・反証の段落を出典付きで列挙 | 埋め込みで候補段落を絞り、含意モデルで 一致／矛盾／無関係（記事全体を分割せずに照合） |
 | ② 画像・動画のオリジナルを探す | 「ツール」：Google レンズ・TinEye・Yandex・Bing を画像 URL で開く。YouTube は 4 枚のキーフレームを取り出して逆検索 | （画像は扱わない） |
 | ② 生成 AI の見分け | 「ツール」：8 項目のチェックリスト、Content Credentials 検証 | 「大手報道が同じ出来事を報じているか」を裏取り数で数値化 |
 | ② OSINT・ジオロケーション | 「ツール」：Google マップ・Earth・地理院地図・SunCalc・Wayback・archive.today | — |
@@ -68,7 +69,7 @@ RQ1 が中心。RQ2 は ModernBERT を選んだ理由の検証、RQ3・RQ4 は�
 | ③ 判定と記事化（過程の公開） | 同③：5 段階の判定の下書きと、検証対象・検索式・ツール・根拠 URL・方法と限界を並べた Markdown 記事。判定は人が変更できる | 根拠段落の抽出と判定の下書き |
 | プリバンキング（情報の空白） | 「集める」：公的・報道の割合が低いと警告。「ギャップ・対立」：答えのない問いと反対意見を列挙 | 問いの回答有無（リランカー）・立場分類（埋め込みゼロショット） |
 | 教育 | 「学ぶ」：講座リンク・原則・調査の数字 | — |
-| （研究用） | 「検証」矛盾・偏り・一次情報・時間的矛盾、「構造化」比較表・要約・Q＆A・意味差分、「長文 vs 分割」実験、「モデル」切り替え | すべて埋め込み・含意・関連度の 3 役割の組み合わせ |
+| （研究用） | 「検証」矛盾・偏り・一次情報・時間的矛盾、「構造化」比較表・要約・Q＆A・意味差分、「モデル」切り替えと速度計測 | すべて埋め込み・含意・関連度の 3 役割の組み合わせ |
 
 ### 4.2 処理の流れ
 
@@ -137,248 +138,125 @@ R = 100\,( w_{src}\, s_{src} + w_{con}\, s_{con} + w_{cor}\, s_{cor} + w_{time}\
 
 | ツール | 種類 | 用途 |
 | --- | --- | --- |
-| Google Colab（無料 T4）・Kaggle Notebooks | Web サービス | GPU 学習 |
-| Google Drive | Web サービス | 学習データと中間モデルの保存 |
-| Hugging Face Hub／Datasets | Web サービス | 土台モデルとデータセットの取得、完成モデルの配布ミラー |
-| transformers・datasets・sentence-transformers・onnx・onnxruntime | Python ライブラリ | 学習・変換（すべて pip） |
-| リポジトリの `mbo/`（train\_nli・distill・export\_onnx・calibrate・bench） | 自作スクリプト | 手順の自動化。引数を変えるだけで土台を入れ替えられる |
+| Surface Pro 9 ＋ eGPU（RTX 3060 12GB、Thunderbolt 4） | 自前ハードウェア | すべての学習・評価 |
+| WSL2（Ubuntu 24.04）＋ Windows 側 NVIDIA ドライバ | OS | Linux 環境。Ubuntu 側にドライバは入れない |
+| Python 3.12 ＋ venv、PyTorch（cu126）、transformers・datasets・sentence-transformers・onnx・onnxruntime | Python ライブラリ | 学習・評価・変換（すべて pip） |
+| VS Code ＋ WSL 拡張 | デスクトップ | 編集・実行 |
+| Hugging Face Hub | Web サービス | 土台モデルの取得（登録不要） |
+| リポジトリの `research/`（prepare\_data・eval\_nli・eval\_objectivity・finetune\_nli・finetune\_embed・run\_all）と `mbo/`（export\_onnx・calibrate・bench） | 自作スクリプト | 手順の自動化。引数を変えるだけで土台・データを入れ替えられる |
+| 外付け SSD | 自前ハードウェア | 完成モデルと結果のバックアップ |
+| Google Colab（無料 T4） | Web サービス | eGPU が使えないときの予備（同じスクリプトがそのまま動く） |
 
 使わないもの：有料 API（Google Custom Search・Bing Search API 等）、LLM API、常時サーバ（Vercel／Render のバックエンド）、人物検索・アカウント特定・非公開情報の取得に関わるツール。
 
 ## 5. FactCheck-BERT の作り方（Ⅰ）土台モデルの候補
 
-FactCheck-BERT は 2 つの部品からなる。**埋め込み型**（客観性・一次情報性をベクトルの距離で出す）と**分類型**（含意：一致・矛盾・無関係）。それぞれに土台の候補を 3〜4 つ挙げる。◎＝第一候補、○＝比較して選ぶ、△＝資源があれば。
+FactCheck-BERT は 2 つの部品からなる。**分類型**（主張と証拠の含意：一致・矛盾・無関係）と**埋め込み型**（客観性・一次情報性・類似度）。土台は次のように決める（いずれも ModernBERT-Ja 製、8,192 トークン対応）。
 
-**第 3 版での変更点**：土台候補のうちブラウザで動かせるものは、学習前の状態のまま ONNX に変換してサイトの「モデル」タブに並べた。これにより、独自モデルがまだ無い段階でもシステム全体が動き、「学習前（ゼロショット）→ 学習後」の伸びを同じ画面・同じ指標で測れる。
-
-| サイトで選べる名前 | 役割 | 中身 | 対応する土台候補 |
+| 部品 | 主の土台 | 比較に使う既存モデル（学習はしない） | サイトで学習前のまま試せる名前 |
 | --- | --- | --- | --- |
-| ruri-v3-pt-30m | 埋め込み | cl-nagoya/ruri-v3-pt-30m をそのまま変換（36 MB） | 埋め込み型 ◎ |
-| modernbert-ja-30m-embed | 埋め込み | 素の sbintuitions/modernbert-ja-30m（平均プーリング）。精度が低いのが正常 | 埋め込み型 ○（ゼロから対照学習する条件） |
-| ruri-v3-30m／ruri-v3-70m | 埋め込み | 学習済みの公開モデル（比較基準） | — |
-| nli-ja-30m | 含意 | modernbert-ja-30m を JNLI で微調整（本リポジトリで学習） | 分類型 ◎ の学習例 |
-| nli-ja-70m | 含意 | modernbert-ja-70m を JNLI で微調整（同上） | 分類型 ○ の学習例 |
-| minilm-l6-xnli | 含意 | 多言語の公開 NLI（比較基準） | — |
-| reranker-ja-xsmall-v2／reranker-xsmall-v1 | 関連度 | 公開リランカー | — |
+| 分類型 | `sbintuitions/modernbert-ja-30m`（37M、MIT。スマホで動く） | `MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli`（海外の定番多言語 NLI）と、素の `modernbert-ja-30m`（学習なし＝偶然水準） | nli-ja-30m（30m を汎用 NLI だけで学習した例） |
+| 埋め込み型 | `cl-nagoya/ruri-v3-pt-30m`（37M、Apache-2.0。弱教師の対照学習済み・仕上げ前） | `cl-nagoya/ruri-v3-pt-30m` の学習前（同じモデルを学習せずに測る） | ruri-v3-pt-30m、modernbert-ja-30m-embed |
 
-### 埋め込み型（対照学習の土台）
+### 土台の事前学習データとの重なり（確認済み）
 
-| 候補 | パラメータ | 文脈長 | すでに学習済みのこと | 判定 | 選ぶ理由／見送る理由 |
-| --- | --- | --- | --- | --- | --- |
-| [cl-nagoya/ruri-v3-pt-30m](https://huggingface.co/cl-nagoya/ruri-v3-pt-30m) | 37M | 8,192 | modernbert-ja-30m に弱教師の対照学習済み（仕上げ前） | ◎ | 対照学習の出発点として最も近い。少ないデータでも安定 |
-| [cl-nagoya/ruri-v3-30m](https://huggingface.co/cl-nagoya/ruri-v3-30m) | 37M | 8,192 | 上に教師あり対照学習まで済み（検索向け） | ○ | ゼロショットの基準。追加学習すると検索性能が崩れるおそれ |
-| [sbintuitions/modernbert-ja-30m](https://huggingface.co/sbintuitions/modernbert-ja-30m) | 37M | 8,192 | マスク穴埋めのみ | ○ | 「ゼロから対照学習」の条件。ruri-v3-pt との差で事前学習の効果が分かる |
-| [cl-nagoya/ruri-v3-pt-70m](https://huggingface.co/cl-nagoya/ruri-v3-pt-70m) / modernbert-ja-70m | 70M | 8,192 | 同上の 70M 版 | △ | 精度向け。スマホでは 68 MB で少し重い |
+「評価データを土台がすでに見ている」と結果が水増しされるので、使うデータごとに確認した。
 
-### 分類型（含意判定の土台）
-
-| 候補 | パラメータ | 文脈長 | 判定 | 理由 |
-| --- | --- | --- | --- | --- |
-| [sbintuitions/modernbert-ja-30m](https://huggingface.co/sbintuitions/modernbert-ja-30m) | 37M | 8,192 | ◎ | 予備実験済み（JNLI 83%）。CPU でも 1〜2 時間で学習できる |
-| [sbintuitions/modernbert-ja-70m](https://huggingface.co/sbintuitions/modernbert-ja-70m) | 70M | 8,192 | ○ | 精度とサイズの中間 |
-| [sbintuitions/modernbert-ja-130m](https://huggingface.co/sbintuitions/modernbert-ja-130m) | 132M | 8,192 | △ | JGLUE で BERT-base を上回る。PC 向け（130 MB） |
-| [tohoku-nlp/bert-base-japanese-v3](https://huggingface.co/tohoku-nlp/bert-base-japanese-v3) | 111M | 512 | ○（比較用） | 従来型の代表。RQ2 の対照。MeCab が必要でブラウザでは動かない |
-
-### 選び方
-
-1. すべての候補を、学習しないまま（ゼロショット）で正解データに当て、基準を取る（サイトの「モデル」タブと `python -m mbo.bench`）
-2. ◎ の候補で 1 回目の学習を行い、伸び幅を見る
-3. 伸びが小さければ ○ の候補で同じ手順を繰り返す。比較表にして指導教員と相談して決める
-
-## 6. FactCheck-BERT の作り方（Ⅱ）学習データの候補と作り方
-
-すべて無料で公開されており、Hugging Face Datasets か公式サイトから取得できるものに限る。◎＝必ず使う、○＝比較して選ぶ、△＝条件付き、×＝使わない。
-
-### 6.1 段階 1：ドメイン継続事前学習（MLM）用コーパス
-
-| 候補 | 規模 | 性質 | 判定 | 備考 |
-| --- | --- | --- | --- | --- |
-| [wikimedia/wikipedia](https://huggingface.co/datasets/wikimedia/wikipedia)（20231101.ja） | 約 140 万記事 | 客観・百科事典体 | ◎ | ストリーミングで 2〜5 万記事だけ使う。全量は不要 |
-| [livedoor ニュースコーパス](https://www.rondhuit.com/download.html) | 7,367 記事 | 報道文 | ◎ | CC BY-ND。カテゴリ付きで後段の評価にも使える |
-| 官公庁サイト本文（site:go.jp／lg.jp） | 自分で収集 | 公的文書 | ○ | 本システムの「集める」タブで収集したものを再利用。数千件で十分 |
-| [hpprc/jawiki](https://huggingface.co/datasets/hpprc/jawiki)・[llm-jp-corpus](https://huggingface.co/llm-jp) | 大規模 | 混合 | △ | 大きすぎる。Colab の無料枠では絞って使う |
-| CC-100・mC4（日本語） | 超大規模 | Web 全般（ノイズ多） | × | 無料 Colab では前処理だけで時間切れになる |
-
-### 6.2 段階 2：対照学習（客観性・一次情報性）用の正例・負例
-
-ラベルを人手で付けずに、**出典の種類をラベル代わりにする**（弱教師）。
-
-| 役割 | 候補 | 判定 | 作り方 |
+| データ | modernbert-ja（マスク穴埋めのみ。Web コーパス 3.5 兆トークン） | ruri-v3-30m（公開版の仕上げ学習データ） | 扱い |
 | --- | --- | --- | --- |
-| 正例（客観・一次情報） | 官公庁本文、livedoor の報道記事、Wikipedia 本文 | ◎ | 300〜600 字に切って `{text, label: "objective"}` |
-| 負例（主観・二次情報） | [MARC-ja](https://huggingface.co/datasets/shunk031/JGLUE)（商品レビュー）、[WRIME](https://huggingface.co/datasets/shunk031/wrime)（感情付き投稿）、まとめ・個人ブログ本文（自分で収集） | ◎ | 同じ長さに切って `label: "subjective"` |
-| 類似文ペア（意味の近さの土台） | [JSTS](https://huggingface.co/datasets/shunk031/JGLUE)、[JaNLI](https://huggingface.co/datasets/hpprc/janli)、[hpprc/jsick](https://huggingface.co/datasets/hpprc/jsick) | ○ | 類似度 ≥ 3.5 を正ペア、≤ 1.5 を負ペア |
-| 大規模ペア | [hpprc/emb](https://huggingface.co/datasets/hpprc/emb)（Ruri の学習データ集） | △ | 巨大。1〜2 サブセットだけ使う |
-| Yahoo!知恵袋コーパス | — | △ | NII への利用申請が必要（無料だが数週間）。間に合えば負例に追加 |
+| JAD-AFC（主評価） | 含まない（2025 年公開の小規模ラベル付きデータ） | 含まない | **問題なし**。主結果はこれで示す |
+| JNLI・JSICK・JaNLI（学習） | 含まない（ラベルなしの事前学習。公式の評価に使われているだけ） | JaNLI は ruri-v3 の仕上げ学習に含まれる | 分類型の土台は modernbert-ja なので問題なし。**JaNLI を評価には使わない**（ruri-v3 を比較するときに不公平） |
+| JSTS（対照学習の正例・検索性能の確認） | 含まない | 含まない（仕上げデータの内訳になし） | 学習に使うのは train 分割だけ。検索性能の確認は test 分割 |
+| livedoor・WRIME（客観性） | 含まない（公式の評価に使われているだけ） | 含まない | 問題なし |
+| Wikipedia 本文（客観文の正例） | Web コーパスに含まれている可能性が高い（本文のみ、「客観」ラベルはない） | 同左 | ラベルの漏れはないが、客観性評価は **Wikipedia を除いた livedoor＋WRIME だけの数値も併記**する（`eval_objectivity.py --no_wiki`） |
 
-### 6.3 段階 3：含意（一致・矛盾・無関係）分類用
+結論：主評価（JAD-AFC）はどの土台の事前学習にも含まれず、比較は公平。汎用 NLI や livedoor・WRIME は土台の「公式ベンチマーク」であって学習データではないので、微調整に使ってよい。Wikipedia だけは本文が事前学習に含まれうるので、除外した数値を併記して影響がないことを示す。
 
-| 候補 | 規模 | 判定 | 備考 |
-| --- | --- | --- | --- |
-| [JNLI](https://huggingface.co/datasets/shunk031/JGLUE) | 2.0 万 | ◎ | 標準。既存の nli-ja-30m もこれで学習 |
-| [JaNLI](https://huggingface.co/datasets/hpprc/janli) | 1.3 万 | ○ | 語順の入れ替えなど「ひっかけ」に強くなる |
-| [JSICK](https://huggingface.co/datasets/hpprc/jsick) | 1.0 万 | ○ | 含意・矛盾のバランスが良い |
-| [xnli](https://huggingface.co/datasets/facebook/xnli) 英語→機械翻訳版 | 39 万 | △ | 翻訳品質に注意。多言語の比較実験用 |
-| Web 記事ペア（蒸留） | 数千 | ○ | 本システムの「検証」で集めた記事ペアに、大きめの NLI（`mbo.distill`）で仮ラベルを付ける。Web の文体に慣らす |
+## 6. FactCheck-BERT の作り方（Ⅱ）使用するデータセット
 
-### 6.4 評価専用（学習には使わない）
+論文として成り立つ最小構成に絞る。すべて無料公開で、リポジトリの `research/prepare_data.py` が自動取得する。
 
-- **信頼性評価セット（自作・300 件）**：本システムで集めた記事を、2 名の評価者が「一次情報か」「客観的か」「主張と一致か」を 3 段階で採点。κ 係数を出す。7 章の RQ1・RQ3 に使う
-- **長文セット（自作・100 件）**：4,000 字超の記事で、要点が後半にあるもの。RQ2 に使う
-- livedoor のカテゴリ分類、JSTS、JNLI の検証用分割：汎用性能が落ちていないかの確認
-
-### 6.5 前処理の共通ルール
-
-1. 文字コードは UTF-8 に統一し、全角英数字は半角に、改行の連続は 1 つに
-2. 300〜600 字の段落に切る（ModernBERT は 8,192 トークンまで扱えるが、学習は短い段落を大量に見せる方が安定する。長文は評価側で使う）
-3. 学習・検証・評価を 8:1:1 に分け、同じ記事が 2 つの分割にまたがらないようにする（URL ごとに分ける）
-4. すべて `data/<段階>/train.jsonl` の形で保存し、GitHub には**置かない**（ライセンスと容量のため。Google Drive に置く）
-
-## 7. FactCheck-BERT の作り方（Ⅲ）Google Colab での 4 段階学習手順
-
-学習はすべて自分で実行する。AI（対話型支援）は手順の説明とコードのレビューにのみ使い、実行・記録・判断は研究者本人が行う。無料 Colab（T4 GPU、1 回最大約 4 時間、セッション切れあり）を前提に、**1 段階を 3 時間以内**に収めて設計する。各段階の成果物は Google Drive に保存し、次の段階はそこから読み直す。
-
-| 段階 | 目的 | 入力 | 主なツール | T4 での目安 | 成果物 |
-| --- | --- | --- | --- | --- | --- |
-| 0 準備 | ゼロショット基準とデータ整形 | 6 章のデータ | datasets, `mbo.bench` | 1 時間 | `data/*.jsonl`, 基準表 |
-| 1 DAPT | Web・公的文書の文体に慣らす | Wikipedia 抽出 + livedoor + 官公庁 | transformers `Trainer`（MLM） | 2〜3 時間 | `fcb-stage1/` |
-| 2 対照学習 | 客観↔主観、一次↔二次をベクトルで分ける | 6.2 の正例・負例・ペア | sentence-transformers | 1〜2 時間 | `fcb-embed/`（埋め込み型） |
-| 3 含意分類 | 一致・矛盾・無関係 | JNLI + JaNLI + Web 蒸留ペア | `mbo.train_nli` | 1〜2 時間 | `fcb-nli/`（分類型） |
-| 4 書き出し | スマホで動く形に変換 | 段階 2・3 の成果物 | `mbo.export_onnx`, `mbo.calibrate` | 30 分（CPU で可） | `models/fcb-*/model_int8.onnx` |
-
-### 段階 0：準備
-
-1. Colab で新規ノートブックを作り、「ランタイム → ランタイムのタイプを変更 → T4 GPU」を選ぶ
-2. Google Drive をマウントし、`MyDrive/factcheck-bert/` を作成。データ・モデル・ログはすべてこの下に置く
-3. `pip install transformers datasets sentence-transformers accelerate onnx onnxruntime` と、GitHub の modernbert-lab を `git clone`（学習スクリプト `mbo/` を使うため）
-4. 6 章のデータを jsonl に整形し、件数・文字数の分布を記録（論文のデータ表になる）
-5. 土台候補を学習せずに評価し、**ゼロショット基準**を表にする（JSTS のスピアマン相関、JNLI 正解率、信頼性評価セットでの客観性の AUC）
-
-### 段階 1：ドメイン継続事前学習（DAPT）
-
-- 手法：マスク穴埋め（MLM）。`AutoModelForMaskedLM` と `DataCollatorForLanguageModeling(mlm_probability=0.30)`。ModernBERT は 30% マスクで事前学習されているのでそれに合わせる
-- データ量：約 5 万段落（約 2,000 万トークン）。これで 1 エポックが T4 で約 1.5 時間
-- 設定値：系列長 1,024、バッチ 16（勾配累積 4 で実質 64）、学習率 5e-5、ウォームアップ 6%、エポック 1〜2、bf16、`save_steps=500` で Drive に途中保存（セッション切れ対策）
-- 合格基準：検証用データの MLM 損失が下がり、かつ JSTS・JNLI のゼロショットが大きく落ちない（落ちたら学習率を 2e-5 に下げてやり直す）
-- 省略してもよい：時間が無ければこの段階を飛ばし、「DAPT あり／なし」を比較実験の 1 つにする
-
-### 段階 2：対照学習（埋め込み型 FactCheck-BERT）
-
-- 手法：sentence-transformers の `MultipleNegativesRankingLoss`（バッチ内の他の文を負例にする）を主にし、`CoSENTLoss`（JSTS の連続値）を混ぜる。学習ペアは 3 種類：同じ記事の隣接段落同士（正）、客観文と主観文（負）、JSTS ペア
-- プレフィックス：Ruri と同じ「検索クエリ: 」「検索文書: 」「トピック: 」を維持する。既存システムがそのまま使える
-- 設定値：系列長 512（学習時）、バッチ 64（負例の数に直結するので大きめ）、学習率 2e-5、エポック 1〜3、ウォームアップ 10%、平均プーリング
-- 客観性スコアの出し方：学習後、「客観的な文」「主観的な文」のベクトル（それぞれの正例・負例の平均）を `meta.json` に埋め、入力とのコサイン類似度の差をスコアにする。分類ヘッドを足さないので、埋め込み 1 つで検索と客観性評価の両方に使える
-- 合格基準：信頼性評価セットでの客観性 AUC が ruri-v3-30m のゼロショットを上回り、JSTS が 2 ポイント以上落ちない
-
-### 段階 3：含意分類（分類型 FactCheck-BERT）
-
-- 手法：`AutoModelForSequenceClassification`（3 クラス）。リポジトリの `python -m mbo.train_nli --model <段階 1 の成果物> --balance --extra data/stage3/web_pairs.jsonl` をそのまま使う
-- Web 蒸留ペアの作り方：「検証」で集めた記事から主張・記事文のペアを作り、`python -m mbo.distill --teacher MoritzLaurer/mDeBERTa-v3-base-xnli-multilingual-nli-2mil7` で仮ラベルを付ける（教師モデルは Colab でのみ使い、スマホには入れない）。信頼度 0.8 未満の仮ラベルは捨てる
-- 設定値：系列長 512、バッチ 32、学習率 3e-5、エポック 3、ラベルスムージング 0.1、学習後に `mbo.calibrate` で温度パラメータを求めて `meta.json` に書く（確率の過信を防ぐ）
-- 合格基準：JNLI 検証セットで 83%（既存 nli-ja-30m）を超え、かつ信頼性評価セットの「主張と一致か」の F1 が改善する
-
-### 段階 4：スマホ向けの書き出し
-
-1. `python -m mbo.export_onnx --model fcb-embed --kind embed --quant all --prune` で ONNX 化、int8 量子化、語彙削減を一括実行（分類型は `--kind nli`）
-2. `python -m mbo.bench` で量子化前後の精度差を記録。差が 1 ポイントを超えたら `--quant mlp`（注意機構は量子化しない）に切り替える
-3. `models/fcb-embed/`、`models/fcb-nli/` として GitHub に push すると、サイトの「モデル」タブに並び、既存 7 モデルと同じ操作で切り替えて比較できる
-
-### 記録のしかた
-
-各実行で、日付・土台モデル・データの組み合わせ・設定値・所要時間・合格基準の数値を 1 行にして `runs.csv` に追記する。この表がそのまま論文の実験表になる。Colab のノートブックは段階ごとに 1 ファイルに分け、GitHub の `notebooks/` に置く（既存の `train_nli.ipynb` が雛形）。
-
-### Colab でそのまま実行するセル（段階ごと。「◎」の土台での例。土台を変えるときは ID を替えるだけ）
-
-セル 1（共通：準備）
-
-```bash
-from google.colab import drive; drive.mount('/content/drive')
-!mkdir -p /content/drive/MyDrive/factcheck-bert && cd /content && git clone https://github.com/224096-cmd/modernbert-lab.git
-%cd /content/modernbert-lab
-!pip install -q -r requirements.txt -r requirements-train.txt sentence-transformers
-```
-
-セル 2（段階 0：ゼロショット基準。土台候補を学習せずに JSTS・JNLI で測る）
-
-```bash
-!python -m mbo.bench --local cl-nagoya/ruri-v3-pt-30m --names ruri-v3-pt-30m --role embed --note "学習前"
-!python -m mbo.bench --local sbintuitions/modernbert-ja-30m --names modernbert-ja-30m-embed --role embed --note "素の土台"
-!cat docs/data/models.json
-```
-
-セル 3（段階 1：DAPT。時間がなければ飛ばす）
-
-```python
-from datasets import load_dataset
-from transformers import AutoTokenizer, AutoModelForMaskedLM, DataCollatorForLanguageModeling, Trainer, TrainingArguments
-base = "sbintuitions/modernbert-ja-30m"
-tok = AutoTokenizer.from_pretrained(base); model = AutoModelForMaskedLM.from_pretrained(base)
-ds = load_dataset("wikimedia/wikipedia", "20231101.ja", split="train", streaming=True).take(50000)
-ds = ds.map(lambda x: tok(x["text"], truncation=True, max_length=1024), remove_columns=["id","url","title","text"])
-args = TrainingArguments("/content/drive/MyDrive/factcheck-bert/fcb-stage1", per_device_train_batch_size=16, gradient_accumulation_steps=4, learning_rate=5e-5, warmup_ratio=0.06, num_train_epochs=1, bf16=True, save_steps=500, logging_steps=50, max_steps=1500, report_to=[])
-Trainer(model=model, args=args, train_dataset=ds, data_collator=DataCollatorForLanguageModeling(tok, mlm_probability=0.30)).train()
-model.save_pretrained(args.output_dir); tok.save_pretrained(args.output_dir)
-```
-
-セル 4（段階 2：対照学習。`data/stage2/pairs.jsonl` は 6.2 の手順で作った `{"anchor":..., "positive":..., "negative":...}`）
-
-```python
-from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer, SentenceTransformerTrainingArguments, losses
-from datasets import load_dataset
-m = SentenceTransformer("cl-nagoya/ruri-v3-pt-30m")   # 段階 1 をやった場合はそのパス
- train = load_dataset("json", data_files="/content/drive/MyDrive/factcheck-bert/data/stage2/pairs.jsonl", split="train")
-args = SentenceTransformerTrainingArguments("/content/drive/MyDrive/factcheck-bert/fcb-embed", per_device_train_batch_size=64, learning_rate=2e-5, warmup_ratio=0.1, num_train_epochs=1, bf16=True, save_steps=500, report_to=[])
-SentenceTransformerTrainer(model=m, args=args, train_dataset=train, loss=losses.MultipleNegativesRankingLoss(m)).train()
-m.save(args.output_dir)
-```
-
-セル 5（段階 3：含意分類。リポジトリのスクリプトをそのまま使う）
-
-```bash
-!python -m mbo.train_nli --base sbintuitions/modernbert-ja-30m --n 20000 --epochs 3 --bs 32 --seq 256 --balance --out /content/drive/MyDrive/factcheck-bert/fcb-nli-torch
-```
-
-セル 6（段階 4：スマホ向けに変換して Drive に保存 → PC でリポジトリの `models/` に置いて push）
-
-```bash
-!python -m mbo.export_onnx --embed /content/drive/MyDrive/factcheck-bert/fcb-embed --out models/fcb-embed
-!python -m mbo.export_onnx --nli /content/drive/MyDrive/factcheck-bert/fcb-nli-torch --out models/fcb-nli
-!python -m mbo.calibrate --model models/fcb-nli
-!python -m mbo.bench --local /content/drive/MyDrive/factcheck-bert/fcb-nli-torch --names fcb-nli --role nli --note "FactCheck-BERT"
-!cp -r models/fcb-embed models/fcb-nli /content/drive/MyDrive/factcheck-bert/
-```
-
-各セルの前後で `!nvidia-smi` と所要時間をメモし、`runs.csv` に追記する。セッションが切れたらセル 1 をやり直し、`resume_from_checkpoint=True` で続きから学習する。
-
-## 8. 学習・実行環境の候補
-
-すべて無料で、API キーやクレジットカードの登録を必要としないものに限る。
-
-### 学習（GPU が必要な作業）
-
-| 候補 | GPU | 連続利用 | 判定 | 向いている作業 |
+| 用途 | データ | 内容・規模 | ライセンス | 学習／評価 |
 | --- | --- | --- | --- | --- |
-| Google Colab（無料） | T4 16 GB | 最大約 4 時間／日、変動あり | ◎ | 7 章の段階 1〜3。Drive 連携が楽 |
-| Kaggle Notebooks | T4×2 または P100 | 週 30 時間、1 回 12 時間 | ○ | 段階 1（DAPT）のように長いもの。Colab で切れるときの代替 |
-| GitHub Actions（既存 `train.yml`） | なし（CPU 4 コア） | 6 時間／ジョブ | ○ | 段階 3（30M モデルの分類は CPU で 1〜2 時間）と段階 4。再現性の証拠になる |
-| 大学の PC（GPU ありの場合） | 環境次第 | 制限なし | △ | 指導教員に確認。あれば 130m クラスの実験も可能 |
-| 自分の PC（CPU） | なし | 制限なし | △ | データ整形、段階 4、評価。学習は非現実的 |
+| ファクトチェック（主） | **JAD-AFC**（Fujitsu Research） | 日本ファクトチェックセンターの検証記事 258 本由来の 612 件（主張・証拠説明・真偽 True/False/NEI・カテゴリ） | Apache-2.0 | 記事単位で 70/15/15 に分割。分類型の学習と**主評価**。5 分割交差検証 |
+| 含意（汎用） | JNLI・JaNLI・JSICK | 合計約 3.8 万対 | CC BY-SA 4.0 | 分類型の学習（AFC と混合） |
+| 客観文（正例） | livedoor ニュースコーパス・Wikipedia 日本語 | 7,367 記事＋抽出 5,000 記事 | CC BY-ND 2.1・CC BY-SA 4.0 | 埋め込み型の対照学習と客観性評価 |
+| 主観文（負例） | WRIME ver.2 | SNS 投稿 3.5 万件 | 研究利用可 | 同上 |
+| 類似ペア | JSTS | 類似度 4.0 以上を正例に | CC BY-SA 4.0 | 対照学習・検索性能の確認 |
 
-### 実行（システムを動かす場所）
+データの形：含意は `{premise: 証拠文, hypothesis: 主張, label: 0=含意 1=中立 2=矛盾}`、客観性は `{text, label: 1=客観 0=主観}`、対照学習は `{anchor, positive, negative}`。学習データはリポジトリに置かず、論文に出典とライセンスを明記する。
 
-| 候補 | 判定 | 理由 |
+自作の評価セット（9.3）はこれとは別に、実際の Web 記事の段落（長文）での評価のために作る。
+
+## 7. FactCheck-BERT の作り方（Ⅲ）自前 GPU での学習手順
+
+学習はすべて研究者が WSL2（Ubuntu）＋ RTX 3060 で実行する。環境構築の詳細（ダウンロード元 URL を含む）は別文書「FactCheck-BERT 学習環境の構築と実験手順書」。すべてのスクリプトはリポジトリの `research/` にあり、結果は `results/*.jsonl` に 1 行ずつ追記される（そのまま論文の表になる）。
+
+| 段階 | 目的 | スクリプト | RTX 3060 での目安 | 成果物 |
+| --- | --- | --- | --- | --- |
+| 0 準備 | 環境確認とデータ作成 | `env_check.py`、`prepare_data.py` | 15 分 | `data/*.jsonl` |
+| 1 基準 | 既存モデルと「汎用 NLI だけ」モデルの精度 | `eval_nli.py`、`eval_objectivity.py`、`finetune_nli.py`（nli\_train のみ） | 15 分 | `results/` の基準行 |
+| 2 分類型 | 汎用 NLI ＋ JAD-AFC で微調整 | `finetune_nli.py` | 1 本 12 分。アブレーション 2 本と 5 分割を含めて約 2 時間 | `~/fcb/fcb-nli-30m`, `fcb-nli-30m-afconly`, `fcb-nli-30m-nlionly`, `cv1`〜`cv4` |
+| 3 埋め込み型 | 対照学習（客観↔主観） | `finetune_embed.py` | 15 分 | `~/fcb/fcb-embed-30m` |
+| 4 評価 | 同じテスト・同じスクリプトで測り直し。5 分割交差検証 | `eval_nli.py`、`eval_objectivity.py`、`mbo.bench` | 1 時間 | `results/` |
+| 5 書き出し | ONNX int8 に変換してサイトへ | `mbo.export_onnx`、`mbo.calibrate`、`scripts/fix_meta.py` | 10 分 | `models/fcb-*` |
+
+### 学習の設定値
+
+- 分類型：系列長 256、バッチ 32、学習率 3e-5、エポック 3、ウォームアップ 6%、ラベルスムージング 0.1、bf16。訓練データは汎用 NLI（3.8 万対）＋ JAD-AFC 訓練（434 件を 3 倍に複製）。dev（AFC 90 件）の正解率が最良のエポックを保存
+- 埋め込み型：MultipleNegativesRankingLoss、系列長 256、バッチ 64、学習率 2e-5、エポック 1、ペア 4 万（livedoor 隣接段落＋JSTS 高類似を正例、WRIME を負例）、プレフィックスは Ruri と同じ
+- アブレーション：「汎用 NLI だけ」「AFC だけ」「両方」の 3 条件を同じ設定で。モデルの大きさは 30M クラスに統一し、より大きいモデルとの比較は行わない（スマホで動かすことが前提のため）
+
+### そのまま打つコマンド（WSL の端末、`~/modernbert-lab` で `source .venv/bin/activate` 後）
+
+```bash
+# 段階 0
+python research/env_check.py
+python research/prepare_data.py --out data
+# 段階 1：基準（既存モデル 2 つ＋埋め込みの学習前）
+python research/eval_nli.py --model MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli --name minilm-l6-xnli --data data/afc_test.jsonl --note baseline
+python research/eval_nli.py --model sbintuitions/modernbert-ja-30m --name modernbert-ja-30m-untrained --data data/afc_test.jsonl --note "学習前"
+python research/eval_objectivity.py --model cl-nagoya/ruri-v3-pt-30m --note baseline
+python research/eval_objectivity.py --model cl-nagoya/ruri-v3-pt-30m --note baseline --no_wiki
+# 段階 2：分類型（本体 1 本＋アブレーション 2 本）
+python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl data/afc_train.jsonl --dev data/afc_dev.jsonl --out ~/fcb/fcb-nli-30m --epochs 3 --bs 32 --seq 256
+python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/afc_train.jsonl --dev data/afc_dev.jsonl --out ~/fcb/fcb-nli-30m-afconly --epochs 5 --upweight 1
+python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl --dev data/afc_dev.jsonl --out ~/fcb/fcb-nli-30m-nlionly --epochs 2
+# 段階 2b：5 分割交差検証（記事分割の乱数 1〜4 で繰り返す。0 は上の本体）
+for s in 1 2 3 4; do
+  python research/prepare_data.py --out data_s$s --only afc --seed $s
+  python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl data_s$s/afc_train.jsonl --dev data_s$s/afc_dev.jsonl --out ~/fcb/cv$s --epochs 3 --seed $s
+  python research/eval_nli.py --model ~/fcb/cv$s --name fcb-nli-30m-cv$s --data data_s$s/afc_test.jsonl --note cv
+done
+# 段階 3：埋め込み型
+python research/finetune_embed.py --base cl-nagoya/ruri-v3-pt-30m --pairs data/pairs_stage2.jsonl --out ~/fcb/fcb-embed-30m
+# 段階 4：評価（同じテスト）
+for d in fcb-nli-30m-nlionly fcb-nli-30m-afconly fcb-nli-30m; do python research/eval_nli.py --model ~/fcb/$d --name $d --data data/afc_test.jsonl; done
+python research/eval_objectivity.py --model ~/fcb/fcb-embed-30m --name fcb-embed-30m
+python research/eval_objectivity.py --model ~/fcb/fcb-embed-30m --name fcb-embed-30m --no_wiki
+# 段階 5：サイトへ
+python -m mbo.export_onnx --nli ~/fcb/fcb-nli-30m --out models/fcb-nli-30m && python -m mbo.calibrate --model models/fcb-nli-30m
+python -m mbo.export_onnx --embed ~/fcb/fcb-embed-30m --out models/fcb-embed-30m && python scripts/fix_meta.py
+```
+
+一括実行は `OUT=~/fcb bash research/run_all.sh`。学習のログと設定値は各モデルの `summary.json`・`train_log.jsonl` に残る。
+
+### 完成モデルの配布
+
+ONNX 化したモデルは GitHub（`models/`）に置く。あわせて Hugging Face のアカウント `mie-edu` にも同じ内容を置き（`mie-edu/factcheck-bert`）、サイトの「設定 → Hugging Face 配布リポジトリ」にその名前を入れるとそちらから読める（GitHub の容量対策と、論文での公開先）。torch 形式のモデル（学習結果そのもの）も同じアカウントに置けば、他の研究者が再現できる。
+
+## 8. 学習・実行環境
+
+| 役割 | 環境 | 備考 |
 | --- | --- | --- |
-| GitHub Pages + ブラウザ内推論（onnxruntime-web） | ◎ | 現行システム。サーバー不要、モデルを端末に保存してオフラインでも判定できる |
-| Hugging Face Hub（モデル配布のミラー） | ○ | GitHub の容量を超えたら。サイトの設定にリポジトリ名を入れるだけで切り替えられる |
-| Hugging Face Spaces（サーバー側推論） | △ | 無料 CPU ではなくてもよい。「端末内で完結」という利点を失うので比較実験の対照にのみ使う |
-| Vercel・Cloudflare Pages + FastAPI | × | 常時サーバーが必要になり、無料枠を超えるおそれ |
+| 学習・評価（主） | Surface Pro 9 ＋ eGPU RTX 3060 12GB（Thunderbolt 4）、WSL2 Ubuntu 24.04、Python 3.12、PyTorch cu126 | 時間制限なし。bf16。30m はバッチ 32 で余裕（VRAM 3 GB 程度） |
+| 学習（予備） | Google Colab 無料 T4 | eGPU が使えないとき。同じスクリプトがそのまま動く |
+| システムの公開 | GitHub Pages（静的）＋ ブラウザ内推論（onnxruntime-web） | サーバなし。モデルは端末に保存 |
+| モデルの配布 | GitHub `models/` と Hugging Face `mie-edu` | サイトの設定で読み先を切り替え可能 |
+| コード・結果 | GitHub（`research/`、`results/`） | 学習データ（`data/`）は置かない |
+| バックアップ | 外付け SSD（`/mnt/d`） | 完成モデルと結果を実験の区切りごとにコピー |
 
-### データと成果物の置き場
-
-- 学習データ・中間モデル：Google Drive（15 GB。GitHub には置かない）
-- 完成モデル（ONNX、1 つ 30〜70 MB）：GitHub の `models/`。合計 1 GB を超えたら Hugging Face Hub へ
-- 実験記録（`runs.csv`、評価セットの採点表）：GitHub の `docs/data/`。サイトの「モデル」タブが読んで表にする
-- 論文本体・図：この計画書と同じ場所。図はサイトの履歴タブから JSON で保存したものを元に作る
+置き場の原則：リポジトリ・データ・学習中のチェックポイントは WSL 内（`~/modernbert-lab`、`~/fcb`）。Windows ドライブ（`/mnt/c`、`/mnt/d`）は遅いので完成物のコピー先にだけ使う。
 
 ### 公開サイトの更新手順（研究者が行う。Windows・PowerShell）
 
@@ -393,36 +271,45 @@ m.save(args.output_dir)
 
 ### 9.1 比較するモデル
 
+比較は必要最小限に絞る。
+
 | 区分 | モデル | 役割 |
 | --- | --- | --- |
-| 提案 | FactCheck-BERT（埋め込み型・分類型） | 本研究の成果 |
-| 提案の内訳確認 | DAPT なし版、対照学習なし版 | どの段階が効いたか（アブレーション） |
-| 既存・同規模 | ruri-v3-30m、nli-ja-30m、reranker-ja-xsmall-v2 | 同じサイズでの公平な比較 |
-| 既存・大きめ | ruri-v3-70m、multilingual-e5-small、minilm-l6-xnli、reranker-xsmall-v1 | サイズを増やす価値があるか |
-| 従来型 | tohoku bert-base-japanese-v3（512 トークン） | RQ2 の対照。PC 上で実行 |
-| 学習なしの基準 | BM25、検索エンジンの元の順位 | 「何もしない」との差 |
+| 提案 | **fcb-nli-30m**（汎用 NLI ＋ JAD-AFC）、**fcb-embed-30m**（対照学習） | 本研究の成果 |
+| アブレーション | fcb-nli-30m-nlionly（汎用 NLI だけ＝サイトの既存 nli-ja-30m と同条件）、fcb-nli-30m-afconly（AFC だけ） | どのデータが効いたか |
+| 既存（外部基準） | multilingual-MiniLMv2-L6 xnli（海外の定番 NLI）、ruri-v3-pt-30m（埋め込みの学習前） | 外部のモデルとの比較、学習前後の比較 |
+| 学習なし | 素の modernbert-ja-30m（分類ヘッドが乱数＝偶然水準） | 下限 |
 
 ### 9.2 研究課題ごとの指標と判定基準
 
 | 課題 | データ | 指標 | こうなれば支持される |
 | --- | --- | --- | --- |
-| RQ1 独自モデルの効果 | 信頼性評価セット 300 件 | 客観性・一次情報性の AUC、含意の F1、人手評価とのスピアマン相関 | 同規模の既存モデルを 3 指標とも上回る（ブートストラップ 95% 区間が重ならない） |
-| RQ2 長文一括の効果 | 長文セット 100 件 | 矛盾検出の再現率、時間的矛盾の検出数、一括と分割の判定一致率 | 後半に根拠がある記事で、一括の再現率が 512 分割を上回る |
-| RQ3 検索の改善 | 30 クエリ × 上位 10 件 | Precision@3/5/10、MRR、nDCG@10 | 元の順位・BM25・RRF より高い |
-| RQ4 端末内実行 | スマホ 2 機種・PC 1 台 | 初回ダウンロード量、モデル読込時間、1 記事の判定時間、オフラインでの動作 | モデル合計 100 MB 以下、スマホで 1 記事 5 秒以内、機内モードで検証タブが動く |
+| RQ1 独自モデルの効果 | **JAD-AFC テスト**（記事単位分割、5 分割交差検証）＋ 自作評価セット（補） | 正解率・マクロ F1・True/False 2 値正解率・カテゴリ別；客観性は AUC | fcb-nli-30m が nlionly と MiniLM xnli を上回る（5 分割の平均±標準偏差で区間が重ならない）。fcb-embed-30m の AUC が ruri-v3-pt-30m を上回る |
+| RQ2 検索の改善 | 30 クエリ × 上位 10 | Precision@3/5/10、MRR、nDCG@10 | 元の順位より高い |
+| RQ3 端末内実行 | スマホ 2 機種・PC 1 台 | ダウンロード量・読込・1 記事の判定時間・オフライン動作 | モデル合計 100 MB 以下、1 記事 5 秒以内 |
 
-### 9.3 評価セットの作り方
+### 9.3 評価データ
 
-1. サイトの「集める」で、分野の異なる 30 トピック（健康・家電・子育て・科学・行政手続きなど）を集め、各 10 件を無作為に選ぶ
-2. 評価者 2 名（研究者と同学年の協力者 1 名）が、モデルの出力を見ずに採点する。採点基準は事前に 1 枚にまとめる
-3. 一致度（κ 係数）を出し、0.6 未満の項目は基準を見直して採点し直す
-4. 採点表は `docs/data/eval_set.csv` として保存（URL・採点・日付のみ。本文は著作権のため保存しない）
+1. **JAD-AFC**（主）：612 件を記事単位で 70/15/15 に分割。テストは 88 件と小さいので、分割の乱数を 5 通り変えて学習・評価を繰り返し、平均±標準偏差を報告
+2. **自作評価セット**（補）：サイトの「検証」で集めた実際の Web 記事の段落に対し、評価者 2 名が「主張と一致／矛盾／無関係」を採点（κ ≥ 0.6）。JAD-AFC の証拠文は整った短文なので、実際の Web 文章への汎化をこれで見る。URL と採点だけ保存し、本文は再配布しない
+3. 客観性：livedoor＋WRIME のテスト分割（Wikipedia を除いた数値も併記）
+4. 汎用性能が落ちていないか：JSTS（埋め込み）、JNLI テスト（分類）
 
 ### 9.4 測り方の統一
 
-- すべてのモデルを同じ ONNX int8 形式、同じブラウザ、同じ設定（`docs/params.json`）で測る。`python -m mbo.bench` が同じ表を PC でも出す
-- 乱数の種を固定し、学習は 3 回繰り返して平均と標準偏差を報告する（Colab の時間が足りなければ提案モデルのみ 3 回）
-- スマホの時間はサイトの履歴タブが自動記録するものを使い、機種名・OS・ブラウザの版を添える
+- すべてのモデルを同じスクリプト（`research/eval_*.py`）・同じテストで測る。ブラウザ側は同じ ONNX int8・同じ設定（`docs/params.json`）
+- 乱数の種を固定し、学習は 5 分割で繰り返す。結果は `results/*.jsonl` に自動追記
+- スマホの時間はサイトの設定画面の統計を使い、機種・OS・ブラウザの版を添える
+
+### 予備実験（CPU、2026-10-11、JAD-AFC テスト 88 件）
+
+| モデル | 正解率 | マクロ F1 | True/False 2 値 |
+| --- | --- | --- | --- |
+| nli-ja-30m（汎用 NLI だけ） | 0.352 | 0.178 | 0.460 |
+| multilingual-MiniLMv2-L6 xnli | 0.671 | 0.479 | 0.828 |
+| modernbert-ja-30m を AFC 訓練 434 件で 2 エポック | **0.807** | 0.540 | 0.816 |
+
+汎用 NLI（画像説明文）だけではファクトチェック文に転移せず、ファクトチェック由来の少量データを混ぜるだけで大きく改善する。これを GPU での本実験（汎用 NLI ＋ AFC、5 分割）で確かめる。
 
 ### 9.5 手順支援としての評価（利用者テスト、小規模）
 
@@ -432,27 +319,29 @@ m.save(args.output_dir)
 
 &#91;embedded content: 研究者の実験計画より · 2026 年 10 月〜2027 年 1 月\]
 
-モデル構築の 4 週は、7 章の段階 0〜4 を週 1 段階のペースで進める。Colab の無料枠は 1 日 3〜4 時間なので、学習は平日夜に仕掛けて翌日確認する形が現実的。
+モデル構築は自前の GPU なので時間制限がなく、1 回の学習は 10〜35 分。`run_all.sh` を 1 回通すと基準測定から ONNX 化まで約 3 時間で終わる。**11 月 10 日までに実験をすべて終え、結果を表にまとめる**。その後は執筆に充てる。
 
-| 週 | やること | 終わった判定 |
+| 期間 | やること | 終わった判定 |
 | --- | --- | --- |
-| 10/5〜10/25 | 評価セット 300 件・長文 100 件の収集と採点 | κ ≥ 0.6、`eval_set.csv` が push されている |
-| 10/19〜11/8 | 既存 7 モデルと土台候補のゼロショット基準（段階 0） | 基準表がサイトの「モデル」タブに出る |
-| 11/2〜11/29 | 段階 1〜4。◎ 土台で 1 周してから ○ 土台を試す | `models/fcb-embed`, `models/fcb-nli` がスマホで動く |
-| 11/23〜12/13 | 長文一括 vs 分割（RQ2）、アブレーション | 9.2 の表が埋まる |
-| 12/7〜12/20 | ランキング評価（RQ3）、端末計測（RQ4）、12/20 にコード凍結 | 全指標の数値と信頼区間が `runs.csv` にある |
-| 12/14〜1/24 | 執筆・図表。1/30 提出 | — |
+| 10/12〜10/15 | 環境構築（WSL2・GPU・venv）、データ準備、既存モデルの基準測定 | `env_check.py` が cuda で OK、`results/` に基準 3 行（MiniLM xnli・学習なし・ruri-v3-pt-30m） |
+| 10/16〜10/25 | 分類型 FactCheck-BERT の学習（本体＋アブレーション 2 本）、5 分割交差検証 | RQ1 の表（平均±標準偏差）が埋まる |
+| 10/26〜11/1 | 埋め込み型の学習と評価、ONNX 化してサイトに搭載、Hugging Face（mie-edu）へ公開 | `models/fcb-*` がスマホで動く |
+| 11/2〜11/8 | RQ2（検索 30 クエリ）・RQ3（端末 3 台）の測定、自作評価セットの採点（κ ≥ 0.6）、利用者テスト | 全指標が `results/` にある |
+| 11/9〜11/10 | 結果の表・図を確定、コード凍結（11/10）、指導教員に中間報告 | 論文の実験章の表が全部ある |
+| 11/11〜1/24 | 執筆・図表（追加実験は原則しない）。1/30 提出 | — |
 
 ### リスクと対策
 
 | リスク | 起きやすさ | 対策 |
 | --- | --- | --- |
-| Colab の GPU が割り当てられない・途中で切れる | 高 | `save_steps` で Drive に途中保存して再開。Kaggle を予備に。段階 1 は省略可能な設計 |
-| FactCheck-BERT が既存モデルに勝てない | 中 | 「どの段階が効かなかったか」をアブレーションで示せば論文として成立する。学習データの組み合わせを 6.2 の候補内で入れ替えて再試行 |
-| 評価者間の一致が低い | 中 | 採点基準を具体例付きで書き直し、30 件で練習してから本番 |
-| 収集先（検索・中継）の制限で記事が集まらない | 中 | システムは複数経路に切り替わる。評価セットは早めに集めて URL を固定 |
-| モデルが 100 MB を超える・スマホで遅い | 低 | 30M クラスに限定し、語彙削減と int8 で 25〜35 MB に収める。入力の上限トークン数を設定で下げられる |
-| ライセンス・著作権 | 低 | 学習データは公開ライセンスのもののみ。Web 収集本文は再配布せず URL と採点だけ保存。モデルは MIT / Apache-2.0 の土台のみ |
+| eGPU が認識されない・学習中に切れる（Thunderbolt の省電力） | 中 | 電源プランを最高パフォーマンス、ケーブルを抜かない。学習はエポックごとに保存。予備に Colab |
+| JAD-AFC が小さく、結果が分割に依存する | 高 | 5 分割交差検証で平均±標準偏差。自作評価セットで補強 |
+| FactCheck-BERT が多言語 NLI（MiniLM 67%）に勝てない | 低（予備実験で 81%） | アブレーションでどのデータが効いたかを示す |
+| 評価者間の一致が低い | 中 | 採点基準を具体例付きで書き、30 件で練習してから本番 |
+| 収集経路（検索・中継）の制限 | 中 | 複数経路に自動切替。評価セットは早めに URL を固定 |
+| モデルが 100 MB を超える・スマホで遅い | 低 | 30M クラスだけを使い、int8 で 36 MB |
+| 11/10 に間に合わない | 中 | 優先順位は RQ1 ＞ RQ3 ＞ RQ2 ＞ 自作評価セット ＞ 利用者テスト。後ろから削る |
+| ライセンス・著作権 | 低 | 学習データは公開ライセンスのもののみ。Web 本文は再配布せず URL と採点だけ保存 |
 
 ## 11. 用語解説と、指導教員に確認したい点
 
@@ -475,12 +364,11 @@ m.save(args.output_dir)
 
 ### 指導教員に確認したい点
 
-1. 土台は 30M クラス（スマホで動く）を主にし、130M は比較のみとする方針でよいか
-2. 評価セットの採点を協力してもらえる学生がいるか。いない場合、研究者 1 名で 2 回（2 週間あけて）採点する代替案でよいか
-3. 学部の PC に GPU があれば使えるか（あれば Colab の時間制限のリスクが消える）
-4. Yahoo!知恵袋コーパスの NII への利用申請は指導教員名義が必要。申請する価値があるか（なくても計画は成立する）
-5. 教育学部の卒論として、実験結果に加えて「情報モラル教材としての利用」を考察に入れるべきか
-6. RQ を 4 つにするか、RQ1・RQ2 に絞るか
+1. 土台は 30M クラス（スマホで動く）だけとし、より大きいモデルとの比較は行わない方針でよいか
+2. 主評価を JAD-AFC（612 件、5 分割交差検証）とし、自作評価セットは補助とする構成でよいか
+3. 評価セットの採点と利用者テストに協力してもらえる学生がいるか（倫理面の手続きも）
+4. RQ を 3 つ（独自モデルの効果・検索の改善・端末内実行）とし、11/10 で実験を締める計画でよいか
+5. 教育学部の卒論として、一般画面（授業での利用）を考察にどこまで入れるか
 
 ## 付録 A. 関連研究（読むべき論文）
 
@@ -509,7 +397,7 @@ m.save(args.output_dir)
 - Williams ら「MultiNLI」(2018) [arXiv:1704.05426](https://arxiv.org/abs/1704.05426) — 含意判定の標準。JNLI の元
 - 「ModernBERT is More Efficient than Conventional BERT for Chest CT Findings Classification」(2025) [arXiv:2503.05060](https://arxiv.org/abs/2503.05060) — ModernBERT を長文分類に使った先行例
 
-### A.4 軽量化・端末内実行（RQ4）
+### A.4 軽量化・端末内実行（RQ3）
 
 - Sanh ら「DistilBERT」(2019) [arXiv:1910.01108](https://arxiv.org/abs/1910.01108) — 蒸留の基本
 - Zafrir ら「Q8BERT: Quantized 8Bit BERT」(2019) [arXiv:1910.06188](https://arxiv.org/abs/1910.06188) — int8 量子化で精度がほぼ落ちない根拠
@@ -570,8 +458,8 @@ BERT は「文章を読んで、各トークン（単語の断片）に文脈を
 
 ### B.7 本研究にとって重要な点
 
-1. 「分割しない」が意味を持つのは RoPE と交互注意の組み合わせによる。RQ2 の考察はここを説明する
-2. ローカル注意の窓は 128 トークンなので、離れた 2 段落の矛盾を捉えるのはグローバル注意層。長文評価セットは「冒頭の主張と末尾の訂正」のような遠距離の関係を狙って集める
+1. 記事全体と主張を一度に照合できるのは RoPE と交互注意の組み合わせによる。「なぜ ModernBERT を土台にするか」の説明はここを使う
+2. ローカル注意の窓は 128 トークンなので、離れた 2 段落の関係を捉えるのはグローバル注意層。自作評価セットには「冒頭の主張と末尾の訂正」のような遠距離の関係も含める
 3. ローカル層の計算量は線形なので、スマホでも 2,048 トークン程度は現実的（サイトの `max_seq_browser` の根拠）
 4. 段階 1（DAPT）のマスク率は 30% に合わせる（BERT の 15% では事前学習と条件がずれる）
 

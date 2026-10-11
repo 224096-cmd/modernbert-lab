@@ -3,12 +3,12 @@
 <div class="flow"><span>トピック／URL</span>→<span>Dorks で検索エンジン巡回</span>→<span>本文抽出</span>→<span>信頼性採点</span>→<span>コーパス（端末内）</span>→<span>検証・ギャップ・構造化</span></div>
 <h3>研究の核（何を明らかにしたいか）</h3>
 <ol class="small">
-<li><b>長文一括処理の優位性</b>：文章を 512 トークンに切り刻んで処理する従来手法より、8,192 トークンを分割せず読む ModernBERT のほうが、矛盾検知・関連度判定で精度が高く、LLM より低コスト・高速か。「長文 vs 分割」タブで同じ文書・同じ問いを両方式で処理し、判定と時間を記録する</li>
+<li><b>独自モデルの効果</b>：ファクトチェック由来のデータ（JAD-AFC）で微調整した FactCheck-BERT が、汎用 NLI だけで学習したモデルや海外の多言語 NLI より、主張と証拠の照合（一致・矛盾・無関係）に強いかを、同じテスト・同じ指標で比べる。8,192 トークンを分割せずに読める ModernBERT を土台にすることで、記事全体と主張を一度に照合できる。</li>
 <li><b>不足情報・反対視点の自律的発見</b>：12 種類の問い（誰が・いつ・根拠・反対意見…）が集めた記事で答えられているかを判定し、答えのない問いに検索式を提案する。反対意見・矛盾する記述を列挙する。人が「偏った情報収集」に気づく助けになるか</li>
 <li><b>長文から構造化データへの直接変換</b>：記事群を軸（メリット／デメリット／費用／時期／根拠）ごとの比較表にし、根拠つきで要約する。人にとって見やすい形に、生成なしで変換できるか</li>
 </ol>
 <h3>独自モデル FactCheck-BERT への道筋（土台候補は「モデル」タブで学習前のまま試せる）</h3>
-<p class="small">まず既存の 7 モデル（日本語 ModernBERT 系 4 つ、海外の多言語モデル 3 つ）を同じタスクで比較する。その結果と、このサイトで集めた実データ（記事・段落・判定）を使って、次の段階で土台モデル（modernbert-ja-30m/70m/130m）を検証・構造化タスクに特化して微調整する。土台の候補は「モデル」タブに整理してある。ModernBART（生成型）の日本語公開モデルは未確認のため、要約は当面「抽出型」で行う。</p></div>
+<p class="small">独自モデル FactCheck-BERT は modernbert-ja-30m（分類型）と ruri-v3-pt-30m（埋め込み型）を土台に、公開のファクトチェック由来データ（JAD-AFC）と汎用 NLI で微調整する。比較は必要最小限（海外の多言語 NLI・学習なし・学習前）に絞る。土台の候補は「モデル」タブに整理してある。ModernBART（生成型）の日本語公開モデルは未確認のため、要約は当面「抽出型」で行う。</p></div>
 
 <div class="card"><h2 style="margin-top:0">使っているモデルと、何のデータで学習したか</h2>
 <div class="tw"><table><thead><tr><th>モデル（役割）</th><th>元</th><th>事前学習データ</th><th>追加の学習</th><th>ここでの役割・文脈長</th></tr></thead><tbody>
@@ -17,7 +17,7 @@
 <tr><td><b>intfloat/multilingual-e5-small</b>（埋め込み・海外）</td><td>Microsoft（MIT）</td><td>多言語 MiniLM（XLM-R 蒸留）</td><td>10 億対の弱教師（CCPairs 等）＋ MS MARCO・NQ・NLI などの教師あり。prefix「query: / passage: 」</td><td>比較対象。512 トークン。語彙 250k→25.7k に間引き（470→32 MB）</td></tr>
 <tr><td><b>nli-ja-30m</b>（含意・本リポジトリ）</td><td>このリポジトリ</td><td>modernbert-ja-30m</td><td><b>JNLI</b>（JGLUE、YJ Captions の画像説明文の対に含意／中立／矛盾を人手付与。訓練 20,073 対）から 8,000 対をクラス重み付けで 2 エポック。ONNX int8 で JNLI 83%、温度較正 T=1.5</td><td>矛盾・整合、主張検証、意味差分、対立の矛盾検出。8,192（学習は 128 トークン）</td></tr>
 <tr><td><b>MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli</b>（含意・海外）</td><td>公開（MIT）</td><td>多言語 MiniLMv2（XLM-R 蒸留）</td><td>MultiNLI・XNLI・ANLI・FEVER-NLI・LingNLI 等 270 万対（26 言語）</td><td>比較対象。JNLI ではゼロショット 62% だが実文に頑健。512。量子化なし（精度が落ちるため）53 MB</td></tr>
-<tr><td><b>hotchpotch/japanese-reranker-xsmall-v2</b>（関連度）</td><td>hotchpotch（MIT）</td><td>modernbert-ja-30m</td><td>日本語の質問・文書対（JQaRA・JaCWIR・MIRACL 等）で関連度を学習した cross-encoder</td><td>ナレッジギャップ（問いに答えがあるか）、Q&amp;A、比較表の確信度、長文 vs 分割。8,192</td></tr>
+<tr><td><b>hotchpotch/japanese-reranker-xsmall-v2</b>（関連度）</td><td>hotchpotch（MIT）</td><td>modernbert-ja-30m</td><td>日本語の質問・文書対（JQaRA・JaCWIR・MIRACL 等）で関連度を学習した cross-encoder</td><td>ナレッジギャップ（問いに答えがあるか）、Q&amp;A、比較表の確信度。8,192</td></tr>
 <tr><td><b>hotchpotch/japanese-reranker-cross-encoder-xsmall-v1</b>（関連度・旧世代）</td><td>hotchpotch（MIT）</td><td>multilingual-e5-small（XLM-R 系）</td><td>同上の旧版</td><td>512 トークンの比較対象（BERT 系の条件）。22 MB</td></tr>
 </tbody></table></div>
 <p class="small muted">量子化：語彙埋め込みは行ごとの int8、Transformer 本体は MatMul の動的 int8（分類ヘッドは除外）。多言語 MiniLM は int8 で崩れるため fp32 のまま。学習ログは <code>models/nli-ja-30m-torch/</code>。</p><div id="ab-train"></div></div>

@@ -4,3 +4,5 @@ datasets
 onnx
 onnxruntime
 sentencepiece
+sentence-transformers>=3.0
+accelerate

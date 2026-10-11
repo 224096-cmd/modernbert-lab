@@ -39,7 +39,7 @@
   <li>別の端末に履歴を移すには「設定」→ JSON で書き出し → もう一方で読み込む</li></ul></div>
  <div class="card"><h2 style="margin-top:0">最近の作業</h2><div id="home-latest"></div></div>
  <div class="card"><h2 style="margin-top:0">この研究で確かめること</h2><ol class="small">
-  <li><b>長文を一括処理すると精度が上がるか</b> — 同じ記事・同じ問いを「8,192 トークン一括」と「512 トークンに分割して最大値」で処理し、判定と時間を比べる（「長文 vs 分割」タブ）</li>
+  <li><b>ファクトチェック由来のデータで微調整した独自モデル（FactCheck-BERT）は、既存の公開モデルより主張と証拠の照合に強いか</b> — 日本ファクトチェックセンターの検証記事由来の JAD-AFC で、同じテスト・同じ指標で比較する（「モデル」タブで切り替え）</li>
   <li><b>不足している情報・反対視点を自律的に見つけられるか</b> — 12 種類の問い（誰が・いつ・根拠・反対意見…）が集めた記事で答えられているかをリランカーで判定し、答えのない問いに検索式を提案する（「ギャップ・対立」タブ）</li>
   <li><b>長文から人が見やすい構造化データに直接変換できるか</b> — 記事群を「メリット／デメリット／費用／時期／根拠」などの軸で表にし、根拠つきで要約する（「構造化」タブ）</li></ol></div>
 </section>
@@ -96,15 +96,6 @@
   <div id="st-diff-box" class="hidden"><div class="grid2"><div><label>旧テキスト</label><textarea id="st-diff-a" style="min-height:100px"></textarea></div><div><label>新テキスト</label><textarea id="st-diff-b" style="min-height:100px"></textarea></div></div><p class="hint">コーパスから選ぶ：<select id="st-diff-sel-a" style="max-width:220px;display:inline-block"></select> → <select id="st-diff-sel-b" style="max-width:220px;display:inline-block"></select></p></div>
   <div class="actbar"><button class="primary" id="st-run">実行</button><span id="st-status" class="small muted"></span></div></div>
  <div id="st-out"></div>
-</section>
-
-<section id="t-exp" class="hidden">
- <div class="card"><h2 style="margin-top:0">長文一括 vs 分割 <span class="muted small">— 仮説 1 の実験。同じ文書・同じ問いを、8,192 トークン一括と 512 トークン分割で処理して比べる</span></h2>
-  <div class="modelbar"></div><div class="row"><label style="margin:0">文書</label><select id="ex-doc" style="max-width:460px"></select></div>
-  <div class="row"><input id="ex-q" placeholder="問い、または主張（主張なら含意も比較）"><label style="margin:0">分割幅</label><select id="ex-chunk" style="max-width:110px"><option>256</option><option selected>512</option><option>1024</option></select></div>
-  <div class="actbar"><button class="primary" id="ex-run">実行</button><button class="small" id="ex-batch">コーパス全体で実行（表にまとめる）</button><span id="ex-status" class="small muted"></span></div>
-  <p class="hint">一括：文書を先頭から最大 8,192 トークン入力（ModernBERT 系のみ）。分割：文を境に分け、各チャンクのスコアの最大値を採用（従来の BERT 系と同じやり方）。</p></div>
- <div id="ex-out"></div>
 </section>
 
 <section id="t-history" class="hidden">

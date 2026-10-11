@@ -144,15 +144,3 @@ export async function answer(question, docs, rr, emb, nli, onStep = () => { }) {
   const isClaim = isProp(question); if (isClaim && hits.length) { onStep("含意を判定"); const pr = await nli.predict(hits.map(h => h.text), hits.map(() => question)); hits.forEach((h, i) => { h.nli = pr[i]; }); }
   return { hits, isClaim };
 }
-
-/* ---------- ⑩ 長文一括 vs 分割（実験） ---------- */
-export async function longVsChunk(question, doc, rr, nli, chunkTokens = 512, onStep = () => { }) {
-  const text = doc.text || ""; const isClaim = isProp(question); const res = {};
-  const tok = t => rr.nTokens(t);
-  onStep("一括（最大 8192 トークン）"); let t0 = performance.now(); const whole = await rr.score([question], [text], 1, 8192); res.whole = { score: whole[0], ms: Math.round(performance.now() - t0), tokens: Math.min(tok(text), 8192) };
-  if (isClaim) { t0 = performance.now(); const p = await nli.predict([text], [question], 1, 8192); res.whole.nli = p[0]; res.whole.nli_ms = Math.round(performance.now() - t0); }
-  const sents = sentences(text); const chunks = []; let cur = ""; for (const s of sents) { if (tok(cur + s) > chunkTokens && cur) { chunks.push(cur); cur = s; } else cur += s; } if (cur) chunks.push(cur);
-  onStep(`分割（${chunks.length} チャンク × ${chunkTokens} トークン）`); t0 = performance.now(); const sc = await rr.score(chunks.map(() => question), chunks, 8, chunkTokens); res.chunk = { score: Math.max(...sc), best: chunks[sc.indexOf(Math.max(...sc))]?.slice(0, 200), ms: Math.round(performance.now() - t0), n: chunks.length, scores: sc.map(x => +x.toFixed(3)) };
-  if (isClaim) { t0 = performance.now(); const pr = await nli.predict(chunks, chunks.map(() => question), 8, chunkTokens); const agg = [0, 1, 2].map(k => Math.max(...pr.map(p => p[k]))); res.chunk.nli = agg; res.chunk.nli_ms = Math.round(performance.now() - t0); }
-  return res;
-}

@@ -17,8 +17,12 @@ def main():
     rows = [json.loads(l) for l in open(a.data, encoding="utf-8")]
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     tok = AutoTokenizer.from_pretrained(a.model)
-    try: m = AutoModelForSequenceClassification.from_pretrained(a.model)
-    except Exception: m = AutoModelForSequenceClassification.from_pretrained(a.model, num_labels=3)
+    from transformers import AutoConfig
+    cfg = AutoConfig.from_pretrained(a.model)
+    if getattr(cfg, "num_labels", 2) != 3 or len(getattr(cfg, "id2label", {}) or {}) != 3:
+        torch.manual_seed(0); m = AutoModelForSequenceClassification.from_pretrained(a.model, num_labels=3, id2label={0: "entailment", 1: "neutral", 2: "contradiction"}, label2id={"entailment": 0, "neutral": 1, "contradiction": 2})
+    else:
+        m = AutoModelForSequenceClassification.from_pretrained(a.model)
     m.to(dev).eval()
     id2 = {i: str(l).lower() for i, l in m.config.id2label.items()}
     try: order = [next(i for i, l in id2.items() if k in l) for k in ("entail", "neutral", "contra")]

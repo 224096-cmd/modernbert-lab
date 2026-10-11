@@ -29,7 +29,7 @@
 | 含意 | nli-ja-30m（36 MB・既定、modernbert-ja-30m を JNLI で学習。84%）、**nli-ja-70m**（68 MB、modernbert-ja-70m を JNLI で学習。85%） | multilingual-MiniLMv2-L6-mnli-xnli（53 MB） |
 | 関連度 | japanese-reranker-xsmall-v2（36 MB・既定） | japanese-reranker-cross-encoder-xsmall-v1（22 MB） |
 
-ONNX 化・量子化・語彙間引きは `mbo/export_onnx.py`。土台候補の一覧と判定（◎○△）は `models/registry.json` の `base`。**独自モデル FactCheck-BERT の作り方（データ・学習手順・評価）は研究計画書（`docs/plan.md`）の 5〜9 章と `research/README.md`**。学習は研究者が自前の GPU（WSL2）で行い、できた `models/fcb-*` をリポジトリに置くと「モデル」タブに並ぶ。
+ONNX 化・量子化・語彙間引きは `mbo/export_onnx.py`。土台候補の一覧と判定（◎○△）は `models/registry.json` の `base`。**独自モデル FactCheck-BERT の作り方（データ・学習手順・評価）は研究計画書（`docs/plan.md`）の 5〜9 章と `research/README.md`**。 使用データセットの出どころ・使い方・漏れ防止は `research/DATASETS.md`、実際のデータの量・実例・重複点検は `results/data_report.md`。学習は研究者が自前の GPU（WSL2）で行い、できた `models/fcb-*` をリポジトリに置くと「モデル」タブに並ぶ。
 
 ## v5.3：収集結果の並び順と、研究用スクリプト（research/）
 

@@ -20,6 +20,7 @@ def main():
     from transformers import AutoConfig
     cfg = AutoConfig.from_pretrained(a.model)
     if getattr(cfg, "num_labels", 2) != 3 or len(getattr(cfg, "id2label", {}) or {}) != 3:
+        # 学習前の土台（分類ヘッドなし）：3 クラスのヘッドを乱数で付ける＝偶然水準の基準。乱数は固定
         torch.manual_seed(0); m = AutoModelForSequenceClassification.from_pretrained(a.model, num_labels=3, id2label={0: "entailment", 1: "neutral", 2: "contradiction"}, label2id={"entailment": 0, "neutral": 1, "contradiction": 2})
     else:
         m = AutoModelForSequenceClassification.from_pretrained(a.model)

@@ -5,7 +5,8 @@
 | スクリプト | 役割 |
 | --- | --- |
 | `env_check.py` | GPU・ライブラリ・1 ステップ学習の確認 |
-| `prepare_data.py` | 学習・評価データを `data/` に作る（下表） |
+| `prepare_data.py` | 学習・評価データを `data/` に作る（下表。出どころ・使い方・漏れ防止の詳細は [DATASETS.md](DATASETS.md)） |
+| `data_report.py` | データの量・ラベル分布・train/test の重複点検・実例を `results/data_report.md` に書く |
 | `eval_nli.py` | 含意（ファクトチェック）モデルの評価：正解率・マクロ F1・True/False 2 値正解率・カテゴリ別・遅延 → `results/nli_eval.jsonl` |
 | `eval_objectivity.py` | 埋め込みモデルの客観性判別：ゼロショット AUC・重心 AUC → `results/objectivity_eval.jsonl`。`--no_wiki` で Wikipedia 文を除いた数値（土台の事前学習に本文が含まれうるため併記） |
 | `finetune_nli.py` | 分類型 FactCheck-BERT の微調整（複数データの混合、クラス重み、bf16） |
@@ -16,10 +17,10 @@
 
 | ファイル | 元データ | ライセンス | 用途 |
 | --- | --- | --- | --- |
-| `afc_{train,dev,test}.jsonl` | **JAD-AFC**（Fujitsu Research）— 日本ファクトチェックセンターの検証記事 258 本から作られた 612 の主張・証拠・真偽（True 306 / False 284 / NEI 22、逆クレームで均衡） | Apache-2.0（研究目的） | **主評価**：premise=証拠説明文、hypothesis=主張、label=含意/中立/矛盾。記事単位で 70/15/15 分割 |
-| `afc_*_rationale.jsonl` | 同上（前提を正当性説明文に） | 同上 | 長めの根拠での評価 |
+| `afc_*_rationale.jsonl` | **JAD-AFC**（Fujitsu Research）— 日本ファクトチェックセンターの検証記事 258 本から作られた 612 の主張・証拠・真偽（True 306 / False 284 / NEI 22、逆クレームで均衡） | Apache-2.0（研究目的） | **主評価**：premise=正当性説明文（検証者の判断理由）、hypothesis=主張、label=含意/中立/矛盾。記事単位で 70/15/15 分割 |
+| `afc_{train,dev,test}.jsonl` | 同上（前提を証拠説明文に） | 同上 | 副：証拠説明文は主張と同一文のことが多く（612 件中 243 件）易しいので併記のみ |
 | `nli_{train,dev}.jsonl` | JNLI（JGLUE）＋ JaNLI ＋ JSICK | CC BY-SA 4.0 | 汎用の含意データ。AFC と混ぜて学習 |
-| `obj_{train,test}.jsonl` | 客観：livedoor ニュース（CC BY-ND 2.1）・Wikipedia（CC BY-SA）／主観：WRIME ver.2（研究利用可） | 各ライセンス | 客観性の評価・対照学習の正例/負例 |
+| `obj_{train,test}.jsonl` | 客観：livedoor ニュース（CC BY-ND 2.1）・Wikipedia（CC BY-SA）／主観：WRIME ver.2（研究利用可） | 各ライセンス | 客観性の評価・対照学習の正例/負例。記事・投稿者単位で分割 |
 | `pairs_stage2.jsonl` | livedoor の隣接段落（正例）＋ JSTS 高類似ペア（正例）＋ WRIME（負例） | 同上 | 対照学習 |
 | `livedoor.jsonl` / `wiki.jsonl` | 本文 | 同上 | DAPT（任意） |
 
@@ -32,7 +33,7 @@
 - `per_category_acc`：政治／国際／医療・健康／災害ごと
 - 学習前の基準として「素の土台（分類ヘッドが乱数）」も測る＝偶然水準
 
-## この場（CPU）で測った参考値（afc_test 88 件）
+## 予備実験の参考値（CPU、afc_test 88 件＝証拠説明文版。主評価の正当性説明文版は GPU 本実験で測る）
 
 | モデル | acc | macro F1 | True/False 2 値 |
 | --- | --- | --- | --- |

@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v5.6";
+const VERSION = "v5.7";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -376,11 +376,24 @@ async function renderAbout() {
 }
 
 /* ---------- 設定 ---------- */
+/* 端末レポート（RQ3）：機種・ブラウザ・保存モデル・読込時間・検証 1 回の時間を 1 つのテキストに */
+async function deviceReport() {
+  const n = navigator; let ua = n.userAgent; let hi = "";
+  try { if (n.userAgentData?.getHighEntropyValues) { const h = await n.userAgentData.getHighEntropyValues(["model", "platform", "platformVersion", "fullVersionList"]); hi = `${h.platform} ${h.platformVersion}${h.model ? " / " + h.model : ""} / ${(h.fullVersionList || []).map(x => x.brand + " " + x.version).filter(x => !/Not/.test(x)).join(", ")}`; } } catch { }
+  const names = (await getJSON("./models/registry.json"))?.browser?.map(m => m.name) || []; const stored = []; for (const nm of names) if (await ML.isStored(nm)) stored.push(`${nm}（${(await ML.storedBytes(nm) / 1048576).toFixed(1)} MB）`); const bytes = await ML.storedBytes(); const log = ML.devlogAll();
+  const L = [`## 端末レポート（${VERSION}、${nowJst()}）`, `- 機種・OS・ブラウザ: ${hi || "（取得不可）"}`, `- UA: ${ua}`, `- CPU コア: ${n.hardwareConcurrency ?? "?"}、メモリ目安: ${n.deviceMemory ?? "?"} GB、画面: ${screen.width}×${screen.height}、回線: ${n.connection?.effectiveType ?? "?"}、オンライン: ${n.onLine}`, `- 画面モード: ${MODE.v}、Service Worker: ${n.serviceWorker?.controller ? "有効" : "無効"}、PWA: ${matchMedia("(display-mode: standalone)").matches}`, `- 保存済みモデル: ${stored.join("、") || "なし"}（合計 ${(bytes / 1048576).toFixed(1)} MB）`, `- 選択中: embed=${ML.modelName("embed")}、nli=${ML.modelName("nli")}、rerank=${ML.modelName("rerank")}`, "", "### モデル読込（最新順）", "| モデル | サイズ | 読込時間 | 日時 |", "| --- | --- | --- | --- |"];
+  for (const r of log.filter(x => x.kind === "load").slice(-8).reverse()) L.push(`| ${r.model} | ${r.mb} MB | ${(r.load_ms / 1000).toFixed(1)} s | ${r.at} |`);
+  L.push("", "### 検証 1 回の所要時間（最新順）", "| 日時 | 候補 | 本文あり | 段落 | 合計 | 埋め込み | 含意 | モデル | オンライン |", "| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  for (const r of log.filter(x => x.kind === "verify").slice(-8).reverse()) L.push(`| ${r.at} | ${r.n_items} | ${r.n_read} | ${r.n_passages} | ${r.total_s} s | ${((r.embed_ms || 0) / 1000).toFixed(1)} s | ${((r.nli_ms || 0) / 1000).toFixed(1)} s | ${r.embed} / ${r.nli} | ${r.online} |`);
+  for (const [k, m] of Object.entries(state)) if (m) L.push(`- この画面での推論 ${k}（${m.name}）: ${m.stats.calls} 回・${m.stats.tokens} トークン・${(m.stats.ms / 1000).toFixed(1)} 秒`);
+  return L.join("\n");
+}
 async function renderSettings() {
   $("#st-hf").value = ML.hfRepo(); $("#st-hf-save").onclick = () => { ML.setHfRepo($("#st-hf").value.trim()); $("#st-mmsg").textContent = "保存"; };
   const reg = await registry(); let rows = "";
   for (const m of reg.browser) { const s = await ML.isStored(m.name); rows += `<span>${esc(m.name)}</span><span>${s ? `保存済み（${((await ML.storedBytes(m.name)) / 1e6).toFixed(1)} MB）` : "未取得"}${["embed", "nli", "rerank"].some(r => ML.modelName(r) === m.name) ? " ・ 使用中" : ""}</span>`; }
   $("#st-models").innerHTML = `<div class="kv">${rows}<span>合計</span><span>${((await ML.storedBytes()) / 1e6).toFixed(1)} MB</span></div>` + (Object.values(state).filter(Boolean).length ? `<p class="small muted">この画面での推論：${Object.entries(state).filter(([, m]) => m).map(([k, m]) => `${k} ${m.stats.calls} 回・${m.stats.tokens} トークン・${(m.stats.ms / 1000).toFixed(1)} 秒`).join("／")}</p>` : "");
+  $("#st-devrep") && ($("#st-devrep").onclick = async () => { const rep = await deviceReport(); $("#st-devrep-box").value = rep; $("#st-devrep-box").style.display = ""; try { await navigator.clipboard.writeText(rep); $("#st-mmsg").textContent = "端末レポートをコピーしました（チャットに貼り付け）"; } catch { $("#st-mmsg").textContent = "下の欄を全選択してコピー"; } });
   $("#st-load-models").onclick = async () => { try { await models(m => $("#st-mmsg").textContent = m, ["embed", "nli", "rerank"]); $("#st-mmsg").textContent = "完了"; renderSettings(); } catch (e) { $("#st-mmsg").textContent = "失敗: " + e.message; } };
   $("#st-del").onclick = async () => { for (const m of reg.browser) await ML.removeStored(m.name); for (const k in state) state[k] = null; renderSettings(); };
   $("#st-hist").textContent = `保存件数 ${INDEX.length}（コーパス ${INDEX.filter(r => r.kind === "topic").length}・分析 ${INDEX.filter(r => r.kind === "analysis").length}）`;
@@ -436,7 +449,7 @@ async function runFactCheck(planOnly = false) {
   const queries = fcQueries(claim); const links = toolLinks(claim, src);
   const planHtml = `<div class="card"><h3 style="margin-top:0">② 検証過程 — 高度な検索の式 <span class="muted small">クリックで各検索エンジンに送れる（手動の裏取り用）</span></h3><div class="tw"><table>${queries.map(x => `<tr><td>${esc(x.label)}</td><td class="mono">${esc(x.query)}</td><td class="small">${["google", "bing", "ddg"].map(k => `<a href="${esc(FC.ENGINES[k][1](x.query))}" target="_blank" rel="noopener">${FC.ENGINES[k][0]}</a>`).join("・")}</td></tr>`).join("")}</table></div><h3>公開情報ツールで確かめる</h3><div class="chips">${links.map(([l, u]) => u === "#tools" ? `<a class="chip" href="#" data-go="tools" data-url="${esc(src)}">${esc(l)}</a>` : `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join("")}</div></div>`;
   if (planOnly) { out.innerHTML = planHtml; wireFcLinks(out); st(""); return; }
-  $("#fc-run").disabled = true; out.innerHTML = "";
+  $("#fc-run").disabled = true; out.innerHTML = ""; const tRun = performance.now(); const statsBefore = Object.fromEntries(Object.entries(state).filter(([, m]) => m).map(([k, m]) => [k, { ...m.stats }]));
   try {
     const board = liveBoard(out); const st2 = m => { st(m); board.status(m); };
     const [, { items }] = await Promise.all([models(st2), collectLive(claim, { dorks: fcSelC.dorks, engines: fcSelC.engines, nread: +$("#fc-read").value, status: st2, onItems: xs => board.items(xs), onText: it => board.text(it) })]);
@@ -459,6 +472,7 @@ async function runFactCheck(planOnly = false) {
     $("#fc-copy").onclick = async () => { try { await navigator.clipboard.writeText($("#fc-md").value); $("#fc-status").textContent = "コピーしました"; } catch { $("#fc-md").select(); } };
     $("#fc-dl").onclick = () => dl("factcheck_" + claim.slice(0, 20).replace(/[\\/:*?"<>|\s]/g, "_") + ".md", $("#fc-md").value, "text/markdown");
     await saveRun({ kind: "analysis", label: "ファクトチェック", key: claim, html, result_label: R[0] });
+    ML.devlog("verify", { n_items: pool.length, n_read: pool.filter(i => i.text).length, n_passages: v.n_passages, total_s: +((performance.now() - tRun) / 1000).toFixed(1), ...Object.fromEntries(["embed", "nli"].filter(k => state[k]).map(k => [k + "_ms", Math.round(state[k].stats.ms - (statsBefore[k]?.ms || 0))])), embed: ML.modelName("embed"), nli: ML.modelName("nli"), online: navigator.onLine });
     st(PRIV.on ? "完了（🔒 保存していません）" : "完了（履歴に保存）"); out.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) { st("エラー: " + (e.message || e)); console.error(e); } finally { $("#fc-run").disabled = false; }
 }

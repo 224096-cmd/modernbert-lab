@@ -43,11 +43,15 @@ export const DEFAULT = { embed: "fcb-embed-30m", nli: "fcb-nli-30m", rerank: "re
 export function modelName(kind) { try { return localStorage.getItem("mbo.model." + kind) || DEFAULT[kind]; } catch { return DEFAULT[kind]; } }
 export function setModelName(kind, v) { try { v ? localStorage.setItem("mbo.model." + kind, v) : localStorage.removeItem("mbo.model." + kind); } catch { } cache[kind] = null; }
 
+/* 端末計測ログ（RQ3 用）：モデルの読込・検証 1 回の所要時間をこの端末に残す（最新 30 件） */
+export function devlog(kind, rec) { try { const a = JSON.parse(localStorage.getItem("mbo.devlog") || "[]"); a.push({ kind, at: new Date().toISOString().slice(0, 19), ...rec }); localStorage.setItem("mbo.devlog", JSON.stringify(a.slice(-30))); } catch { } }
+export function devlogAll() { try { return JSON.parse(localStorage.getItem("mbo.devlog") || "[]"); } catch { return []; } }
 export class Model {
   constructor(name) { this.name = name; }
   async load(onProgress = () => { }) {
-    const txt = b => new TextDecoder().decode(b);
+    const t0 = performance.now(); const txt = b => new TextDecoder().decode(b);
     const [meta, tj, tc, model] = await Promise.all(FILES.map(f => getFile(this.name, f, onProgress)));
+    this.bytes = [meta, tj, tc, model].reduce((s, b) => s + (b?.byteLength || 0), 0);
     this.meta = JSON.parse(txt(meta)); this.kind = this.meta.kind;
     this.tok = new PreTrainedTokenizer(JSON.parse(txt(tj)), JSON.parse(txt(tc)));
     this.maxSeq = this.meta.max_seq_browser || (this.meta.kind === "embed" ? 2048 : 1024);
@@ -56,7 +60,7 @@ export class Model {
     this.sess = await ort.InferenceSession.create(model, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
     this.padId = this.meta.pad_id ?? (this.tok.model.tokens_to_ids.get("<pad>") ?? 0);
     this.T = this.meta.temperature || 1; this.prefix = this.meta.prefixes || {};
-    onProgress(""); this.stats = { calls: 0, tokens: 0, ms: 0 }; return this;
+    onProgress(""); this.stats = { calls: 0, tokens: 0, ms: 0 }; this.loadMs = Math.round(performance.now() - t0); devlog("load", { model: this.name, kind: this.kind, mb: +(this.bytes / 1048576).toFixed(1), load_ms: this.loadMs }); return this;
   }
   ids(text, pair, maxLen) { const L = Math.min(maxLen || this.maxSeq, this.meta.max_position || 8192); const r = pair === undefined ? this.tok(text, { truncation: true, max_length: L }) : this.tok(text, { text_pair: pair, truncation: true, max_length: L }); return Array.from(r.input_ids.data, Number); }
   nTokens(text) { return this.tok(text, { truncation: false }).input_ids.data.length; }

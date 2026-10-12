@@ -33,3 +33,9 @@ for name in FIX:
         a = os.path.join(src, f); b = os.path.join(dst, f)
         if os.path.isfile(a) and (not os.path.exists(b) or os.path.getmtime(a) > os.path.getmtime(b) or os.path.getsize(a) != os.path.getsize(b)):
             shutil.copy2(a, b); print("sync", name, f)
+
+# registry.json もサイト側へコピー（docs/registry.json は実体ファイル）
+_src = os.path.join(ROOT, "registry.json"); _dst = os.path.join(os.path.dirname(ROOT), "docs", "registry.json")
+if os.path.exists(_src):
+    if os.path.islink(_dst): os.remove(_dst)
+    shutil.copy2(_src, _dst); print("sync registry.json")

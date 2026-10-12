@@ -1,6 +1,32 @@
 {
- "note": "browser: ブラウザで動く ONNX（models/<name>/）。role: embed=文埋め込み, nli=含意, rerank=関連度。base: 独自 FactCheck-BERT の土台候補。rank ◎○△、browser=学習前の土台をそのまま試せるモデル名。",
+ "note": "browser: ブラウザで動く ONNX（docs/models/<name>/）。role: embed=文埋め込み, nli=含意, rerank=関連度。default=既定。base: FactCheck-BERT の土台（採用／不採用）。",
  "browser": [
+  {
+   "name": "fcb-nli-30m",
+   "role": "nli",
+   "arch": "FactCheck-BERT 分類型（土台 modernbert-ja-30m・ModernBERT-Ja 30M）",
+   "ctx": 8192,
+   "size_mb": 36,
+   "lang": "ja",
+   "license": "MIT",
+   "default": true,
+   "note": "★本研究で学習した FactCheck-BERT（分類型）。modernbert-ja-30m を汎用 NLI（JNLI・JaNLI・JSICK）＋ JAD-AFC で微調整。JAD-AFC テスト（5 分割）正解率 0.834±0.029、矛盾側 F1 0.85。既定",
+   "kind": "own",
+   "base_model": "sbintuitions/modernbert-ja-30m"
+  },
+  {
+   "name": "fcb-embed-30m",
+   "role": "embed",
+   "arch": "FactCheck-BERT 埋め込み型（土台 ruri-v3-pt-30m・ModernBERT-Ja 30M）",
+   "ctx": 8192,
+   "size_mb": 36,
+   "lang": "ja",
+   "license": "Apache-2.0",
+   "default": true,
+   "note": "★本研究で学習した FactCheck-BERT（埋め込み型）。ruri-v3-pt-30m を対照学習（客観↔主観）。客観性 AUC 0.965→0.989。既定",
+   "kind": "own",
+   "base_model": "cl-nagoya/ruri-v3-pt-30m"
+  },
   {
    "name": "ruri-v3-30m",
    "role": "embed",
@@ -10,8 +36,8 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "Apache-2.0",
-   "default": true,
-   "note": "日本語文埋め込み。8192 トークンを一括で読める。候補検索・クラスタ・文体・要約の中核"
+   "note": "ruri-v3 の公開版（参考）",
+   "kind": "existing"
   },
   {
    "name": "ruri-v3-70m",
@@ -22,7 +48,8 @@
    "size_mb": 68,
    "lang": "ja",
    "license": "Apache-2.0",
-   "note": "30M より精度が高い（JMTEB）。スマホでは少し重い"
+   "note": "ruri-v3 の 70M 版（参考。スマホでは少し重い）",
+   "kind": "existing"
   },
   {
    "name": "multilingual-e5-small",
@@ -33,7 +60,8 @@
    "size_mb": 32,
    "lang": "multi",
    "license": "MIT",
-   "note": "海外で最も使われる小型多言語埋め込み。語彙を日英に間引き 470MB→32MB。512 トークンまで（長文は分割が必要＝比較対象）"
+   "note": "海外の小型多言語埋め込み（参考。512 トークンまで）",
+   "kind": "existing"
   },
   {
    "name": "nli-ja-30m",
@@ -44,9 +72,9 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "MIT（学習コード）",
-   "default": true,
-   "note": "modernbert-ja-30m を JNLI で微調整（本リポジトリ）。JNLI 83%。分類型 FactCheck-BERT の土台候補 ◎ の学習例。長い前提も一括で入力できる",
-   "base_candidate": "◎"
+   "note": "fcb-nli-30m の比較用（同じ土台を汎用 NLI＝JNLI だけで微調整。以前のサイトの含意モデル）。JAD-AFC では 0.35。通し検証で「学習前」として使う",
+   "base_candidate": "◎",
+   "kind": "base"
   },
   {
    "name": "minilm-l6-xnli",
@@ -57,7 +85,8 @@
    "size_mb": 53,
    "lang": "multi",
    "license": "MIT",
-   "note": "XNLI・MNLI 270 万対で学習した多言語 NLI（海外の定番）。JNLI 62%（ゼロショット）だが実文に頑健。512 まで"
+   "note": "海外の定番多言語 NLI（比較用）。JAD-AFC では 0.22",
+   "kind": "existing"
   },
   {
    "name": "reranker-ja-xsmall-v2",
@@ -69,7 +98,8 @@
    "lang": "ja",
    "license": "MIT",
    "default": true,
-   "note": "日本語リランカー（質問と文書の関連度）。ギャップ検出・マトリクス・Q&A の中核。8192 一括"
+   "note": "日本語リランカー（関連度）。本研究では学習せずそのまま使う。既定",
+   "kind": "existing"
   },
   {
    "name": "reranker-xsmall-v1",
@@ -80,7 +110,8 @@
    "size_mb": 22,
    "lang": "multi",
    "license": "MIT",
-   "note": "旧世代（BERT 系 512 トークン）のリランカー。長文一括との比較対象"
+   "note": "旧世代の多言語リランカー（参考）",
+   "kind": "existing"
   },
   {
    "name": "ruri-v3-pt-30m",
@@ -92,7 +123,8 @@
    "lang": "ja",
    "license": "Apache-2.0",
    "base_candidate": "◎",
-   "note": "FactCheck-BERT 埋め込み型の第一候補（土台）。弱教師の対照学習まで済み・仕上げ前。学習前の性能＝ゼロショット基準として使う"
+   "note": "fcb-embed-30m の土台（学習前）。客観性 AUC 0.965",
+   "kind": "base"
   },
   {
    "name": "modernbert-ja-30m-embed",
@@ -104,7 +136,8 @@
    "lang": "ja",
    "license": "MIT",
    "base_candidate": "○",
-   "note": "素の ModernBERT-Ja（マスク穴埋めのみ・平均プーリング）。「ゼロから対照学習」の条件の土台。埋め込み精度は低いのが正常"
+   "note": "素の ModernBERT-Ja（事前学習のみ・平均プーリング）。参考",
+   "kind": "base"
   },
   {
    "name": "nli-ja-70m",
@@ -116,7 +149,8 @@
    "lang": "ja",
    "license": "MIT（学習コード）",
    "base_candidate": "○",
-   "note": "modernbert-ja-70m を JNLI で微調整（本リポジトリ）。分類型 FactCheck-BERT の土台候補 ○ をそのまま学習した参考モデル"
+   "note": "modernbert-ja-70m を JNLI で微調整（参考。本研究の比較には使わない）",
+   "kind": "existing"
   }
  ],
  "base": [
@@ -127,11 +161,12 @@
    "params_m": 37,
    "ctx": 8192,
    "license": "MIT",
-   "note": "分類型の第一候補（スマホで動く）。JNLI 微調整例＝nli-ja-30m",
-   "rank": "◎",
+   "note": "分類型 FactCheck-BERT の土台。JAD-AFC＋汎用 NLI で微調整 → fcb-nli-30m",
+   "rank": "採用",
    "browser": [
-    "modernbert-ja-30m-embed",
-    "nli-ja-30m"
+    "fcb-nli-30m",
+    "nli-ja-30m",
+    "modernbert-ja-30m-embed"
    ]
   },
   {
@@ -141,8 +176,8 @@
    "params_m": 70,
    "ctx": 8192,
    "license": "MIT",
-   "note": "精度と速度の中間。JNLI 微調整例＝nli-ja-70m",
-   "rank": "○",
+   "note": "精度と速度の中間。JNLI 微調整例＝nli-ja-70m。比較を必要最小限にするため本研究では使わない",
+   "rank": "不採用",
    "browser": [
     "nli-ja-70m"
    ]
@@ -154,8 +189,8 @@
    "params_m": 132,
    "ctx": 8192,
    "license": "MIT",
-   "note": "PC 向け（130 MB）。JGLUE で BERT-base を上回る",
-   "rank": "△",
+   "note": "PC 向け（130 MB）。JGLUE で BERT-base を上回る。比較を必要最小限にするため本研究では使わない",
+   "rank": "不採用",
    "browser": []
   },
   {
@@ -165,8 +200,8 @@
    "params_m": 315,
    "ctx": 8192,
    "license": "MIT",
-   "note": "最高精度（GPU 推奨・スマホ不可）",
-   "rank": "△",
+   "note": "最高精度（GPU 推奨・スマホ不可）。比較を必要最小限にするため本研究では使わない",
+   "rank": "不採用",
    "browser": []
   },
   {
@@ -176,9 +211,10 @@
    "params_m": 37,
    "ctx": 8192,
    "license": "Apache-2.0",
-   "note": "埋め込み型の第一候補。対照学習の出発点として最も近い",
-   "rank": "◎",
+   "note": "埋め込み型 FactCheck-BERT の土台（仕上げ前の ruri-v3）。対照学習 → fcb-embed-30m",
+   "rank": "採用",
    "browser": [
+    "fcb-embed-30m",
     "ruri-v3-pt-30m"
    ]
   },
@@ -189,9 +225,9 @@
    "params_m": 70,
    "ctx": 8192,
    "license": "Apache-2.0",
-   "rank": "△",
+   "rank": "不採用",
    "browser": [],
-   "note": "埋め込み型・精度向け（68 MB）"
+   "note": "埋め込み型・精度向け（68 MB）。比較を必要最小限にするため本研究では使わない"
   },
   {
    "name": "bert-base-japanese-v3",
@@ -200,8 +236,8 @@
    "params_m": 111,
    "ctx": 512,
    "license": "Apache-2.0",
-   "note": "従来 BERT の代表（512 分割の対照）。MeCab 必須でブラウザ不可",
-   "rank": "比較",
+   "note": "従来 BERT の代表（512 分割の対照）。MeCab 必須でブラウザ不可。比較を必要最小限にするため本研究では使わない",
+   "rank": "不採用",
    "browser": []
   },
   {
@@ -211,8 +247,8 @@
    "params_m": 112,
    "ctx": 512,
    "license": "CC-BY-SA-4.0",
-   "note": "JGLUE で高性能な従来型（512）",
-   "rank": "比較",
+   "note": "JGLUE で高性能な従来型（512）。比較を必要最小限にするため本研究では使わない",
+   "rank": "不採用",
    "browser": []
   },
   {
@@ -222,8 +258,8 @@
    "params_m": 278,
    "ctx": 512,
    "license": "MIT",
-   "note": "多言語 NLI 微調整の土台（278M・PC 向け）",
-   "rank": "△",
+   "note": "多言語 NLI 微調整の土台（278M・PC 向け）。比較を必要最小限にするため本研究では使わない",
+   "rank": "不採用",
    "browser": []
   }
  ],

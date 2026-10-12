@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v5.5";
+const VERSION = "v5.6";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -25,11 +25,12 @@ const pct = x => `${Math.round((x || 0) * 100)}%`;
 
 /* ---------- ナビ ---------- */
 /* 画面モード：simple（一般・授業向け）／research（研究者向け。鍵つき） */
-const MODE = { get v() { try { return localStorage.getItem("mbo.mode") === "research" ? "research" : "simple"; } catch { return "simple"; } }, set(v) { try { v === "research" ? localStorage.setItem("mbo.mode", "research") : localStorage.removeItem("mbo.mode"); } catch { } renderNav(); } };
-const UNLOCKED = { get v() { try { return localStorage.getItem("mbo.unlocked") === "1"; } catch { return false; } }, set(v) { try { v ? localStorage.setItem("mbo.unlocked", "1") : localStorage.removeItem("mbo.unlocked"); } catch { } } };
+/* 解錠はこのタブの間だけ（sessionStorage）。タブを閉じる・開き直すと再びパスワードが要る。研究者画面は解錠中しか表示しない */
+const UNLOCKED = { get v() { try { return sessionStorage.getItem("mbo.unlocked") === "1"; } catch { return false; } }, set(v) { try { v ? sessionStorage.setItem("mbo.unlocked", "1") : sessionStorage.removeItem("mbo.unlocked"); } catch { } try { localStorage.removeItem("mbo.unlocked"); } catch { } } };
+const MODE = { get v() { try { return UNLOCKED.v && sessionStorage.getItem("mbo.mode") === "research" ? "research" : "simple"; } catch { return "simple"; } }, set(v) { try { v === "research" && UNLOCKED.v ? sessionStorage.setItem("mbo.mode", "research") : sessionStorage.removeItem("mbo.mode"); } catch { } try { localStorage.removeItem("mbo.mode"); } catch { } renderNav(); } };
 const NAV = {
   simple: [["s-home", "ホーム"], ["fc", "検証"], ["tools", "ツール"], ["history", "履歴"], ["s-learn", "基礎知識"], ["s-methods", "検証の方法"], ["s-gate", "🔑"]],
-  research: [["home", "概要"], ["fc", "ファクトチェック"], ["live", "集める"], ["check", "検証"], ["gap", "ギャップ・対立"], ["struct", "構造化"], ["history", "履歴"], ["tools", "ツール"], ["models", "モデル"], ["learn", "学ぶ"], ["how", "仕組み"], ["about", "解説"], ["settings", "設定"], ["s-home", "⇄ 一般画面"]],
+  research: [["home", "概要"], ["fc", "ファクトチェック"], ["live", "集める"], ["check", "分析"], ["history", "履歴"], ["tools", "ツール"], ["models", "モデル"], ["learn", "学ぶ"], ["how", "仕組み"], ["about", "解説"], ["settings", "設定"], ["s-home", "⇄ 一般画面"]],
 };
 const SIMPLE_TABS = new Set(["s-home", "fc", "tools", "history", "s-learn", "s-methods", "s-gate"]);
 function renderNav() { const m = MODE.v; const items = NAV[m].map(([t, l]) => (t === "s-gate" && UNLOCKED.v) ? ["s-gate", "⇄ 研究者画面"] : [t, l]); $("#nav").innerHTML = items.map(([t, l]) => `<button data-t="${t}">${l}</button>`).join(""); $$("nav button").forEach(b => b.onclick = () => show(b.dataset.t)); document.body.classList.toggle("mode-simple", m === "simple"); $("#brand-name").textContent = m === "simple" ? "情報たしかめラボ" : "ModernBERT Lab"; $("#ver").style.display = m === "simple" ? "none" : ""; }
@@ -37,7 +38,7 @@ function show(t) {
   if (t === "s-gate" && UNLOCKED.v) { MODE.set("research"); t = "home"; }
   if (t === "s-home" && MODE.v === "research") { MODE.set("simple"); }
   if (!SIMPLE_TABS.has(t) && MODE.v !== "research") t = "s-gate";
-  $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t)); $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "t-" + t)); location.hash = t; window.scrollTo(0, 0);
+  const navKey = { gap: "check", struct: "check" }[t] || t; $$("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === navKey)); $$(".subnav a").forEach(a => a.classList.toggle("on", a.dataset.go === t)); $$("main > section").forEach(s => s.classList.toggle("hidden", s.id !== "t-" + t)); location.hash = t; window.scrollTo(0, 0);
   if (t === "how") renderHow(); if (t === "settings") renderSettings(); if (t === "models") renderModels(); if (t === "about") renderAbout(); if (t === "history") renderTopicSelect(); if (t === "tools") renderTools(); if (t === "learn") renderLearn(); if (["check", "gap", "struct"].includes(t)) renderCorpusSelects();
   if (t === "s-learn") renderSimpleLearn(); if (t === "s-methods") renderSimpleMethods();
 }
@@ -345,7 +346,7 @@ async function renderModels() {
   $$("#md-browser .md-dl").forEach(b => b.onclick = async () => { b.disabled = true; try { await ML.loadByName(b.dataset.n, m => $("#md-msg").textContent = m); $("#md-msg").textContent = "完了"; renderModels(); } catch (e) { $("#md-msg").textContent = "失敗: " + e.message; b.disabled = false; } });
   $$("#md-browser .md-rm").forEach(b => b.onclick = async () => { await ML.removeStored(b.dataset.n); renderModels(); });
   $("#md-table").innerHTML = `<div class="tw"><table><thead><tr><th>モデル</th><th>役割</th><th>指標</th><th>CPU 遅延</th><th>パラメータ / 配布</th></tr></thead><tbody>${reg.compare.filter(m => m.role !== "base").map(m => { const r = R[m.name] || {}; return `<tr><td><b>${esc(m.name)}</b><div class="tiny muted">${esc(m.arch || "")}</div></td><td>${roles[m.role] || m.role}</td><td class="small">${r.ok ? (m.role === "embed" ? `JSTS ${r.jsts_spearman}・cos差 ${r.nli_cos_gap}` : `JNLI ${(r.jnli_acc * 100).toFixed(1)}%・含意再現 ${(r.entail_recall * 100) | 0}%・ECE ${r.ece}`) : '<span class="muted">未測定</span>'}</td><td>${r.latency_ms != null ? r.latency_ms + " ms" : "—"}</td><td class="small">${m.params_m ?? r.params_m ?? "—"}M / ${m.size_mb ?? "—"} MB</td></tr>`; }).join("")}</tbody></table></div>`;
-  $("#md-base").innerHTML = `<div class="tw"><table><thead><tr><th>判定</th><th>土台</th><th>構造</th><th>パラメータ</th><th>文脈長</th><th>ライセンス</th><th>ブラウザで試す</th><th>用途</th></tr></thead><tbody>${reg.base.map(m => `<tr><td><b>${esc(m.rank || "")}</b></td><td><b>${esc(m.name)}</b>${m.hf ? `<div class="tiny"><a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">${esc(m.hf)}</a></div>` : ""}</td><td>${esc(m.arch)}</td><td>${m.params_m ? m.params_m + "M" : "—"}</td><td>${m.ctx}</td><td class="small">${esc(m.license)}</td><td class="small">${(m.browser || []).map(n => `<code>${esc(n)}</code>`).join(" ") || '<span class="muted">—（学習後に追加）</span>'}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div><p class="small muted">◎＝第一候補、○＝比較して選ぶ、△＝資源があれば、比較＝従来型の対照。「ブラウザで試す」のモデルを上の表で選ぶと、学習前の土台のままの性能（ゼロショット基準）を同じ指標で測れる。学習後は <code>models/fcb-*</code> として同じ表に並ぶ。</p>`;
+  $("#md-base").innerHTML = `<div class="tw"><table><thead><tr><th>判定</th><th>土台</th><th>構造</th><th>パラメータ</th><th>文脈長</th><th>ライセンス</th><th>ブラウザで試す</th><th>用途</th></tr></thead><tbody>${reg.base.map(m => `<tr><td><b>${esc(m.rank || "")}</b></td><td><b>${esc(m.name)}</b>${m.hf ? `<div class="tiny"><a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">${esc(m.hf)}</a></div>` : ""}</td><td>${esc(m.arch)}</td><td>${m.params_m ? m.params_m + "M" : "—"}</td><td>${m.ctx}</td><td class="small">${esc(m.license)}</td><td class="small">${(m.browser || []).map(n => `<code>${esc(n)}</code>`).join(" ") || '<span class="muted">—（学習後に追加）</span>'}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div><p class="small muted">「採用」の 2 つだけを土台に使い、それ以外は比較を必要最小限にするため使わない。「ブラウザで試す」の名前を上の表で選ぶと、学習前の土台（nli-ja-30m・ruri-v3-pt-30m）と学習後（fcb-*）を同じ画面で入れ替えて比べられる。</p>`;
 }
 
 /* ---------- 仕組み・解説 ---------- */
@@ -501,12 +502,13 @@ function renderLearn() {
   <h3>このアプリとの対応</h3><div class="tw"><table><thead><tr><th>講座（日本ファクトチェックセンター・実践編）</th><th>このアプリの機能</th></tr></thead><tbody>${COURSE.map(([id, t, tab]) => `<tr><td><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">${esc(t)}</a></td><td><a href="#" data-go="${tab}">${{ fc: "ファクトチェック", tools: "ツール", gap: "ギャップ・対立（データボイド）", learn: "学ぶ" }[tab]}</a></td></tr>`).join("")}</tbody></table></div>
   <p class="small">講座の記事版：<a href="https://www.factcheckcenter.jp/courses/" target="_blank" rel="noopener">JFC 講座</a>／<a href="https://www.factcheckcenter.jp/explainer/fact-check/jfc-fact-checking-101/" target="_blank" rel="noopener">ファクトチェックとは（定義・ルール・手法）</a>／<a href="https://www.factcheckcenter.jp/info/others/jfc-factchecker-certification/" target="_blank" rel="noopener">ファクトチェッカー認定試験</a></p>
   <h3>なぜ道具が要るか（調査の数字）</h3><p class="small">JFC と国際大学 GLOCOM の 2 万人調査では、偽・誤情報を「正しい」と思った人が 51.5%、「誤り」と見抜いた人は 14.5%。画像検索を実際に行う人は 6.7% にとどまる一方、行った人は偽情報に気づきやすい。このアプリは「検索・逆検索・照合・記録」の手間を減らして、その 6.7% を増やすことを狙う。</p>
-  <h3>研究計画・モデルの作り方</h3><p class="small">独自モデル FactCheck-BERT（土台・学習データ・自前 GPU での手順・評価）は <a href="#" data-go="about">解説</a> と、リポジトリの <code>README.md</code>・<code>docs/plan.md</code> を参照。</p>`;
+  <h3>研究計画・モデルの作り方</h3><p class="small">独自モデル FactCheck-BERT（土台・学習データ・自前 GPU での手順・評価）は <a href="#" data-go="about">解説</a> と、リポジトリの <code>docs/plan.md</code>（研究計画書）・<code>research/DATASETS.md</code>（使用データ）・<code>results/data_report.md</code>（データ点検）を参照。学習済みモデルは「モデル」タブの fcb-nli-30m・fcb-embed-30m。</p>`;
   wireFcLinks(b);
 }
 
 
 $$("#t-s-home [data-go]").forEach(b => b.onclick = () => show(b.dataset.go));
+$$(".subnav a[data-go], #t-home a[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); show(a.dataset.go); });
 /* ---------- 一般画面：基礎知識・検証の方法 ---------- */
 
 /* ---------- 一括検証（研究用）：検索 → 照合 → 判定を正解つきの主張で通しで回す ---------- */

@@ -52,3 +52,4 @@ body.mode-simple .modelbar{display:none}body.mode-simple #t-fc .hint{font-size:1
 table.sortable th[data-k]{cursor:pointer;user-select:none}table.sortable th[data-dir=asc]::after{content:' ▴'}table.sortable th[data-dir=desc]::after{content:' ▾'}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}@media(max-width:760px){.grid2{grid-template-columns:1fr}}
 
 body.mode-simple .research-only{display:none}
+.subnav{margin:0 0 8px}.subnav .chip.on{background:var(--accent,#1d4ed8);color:#fff}

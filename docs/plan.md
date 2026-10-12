@@ -213,25 +213,29 @@ FactCheck-BERT は 2 つの部品からなる。**分類型**（主張と証拠�
 # 段階 0
 python research/env_check.py
 python research/prepare_data.py --out data
-# 段階 1：基準（既存モデル 2 つ＋埋め込みの学習前）
-python research/eval_nli.py --model MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli --name minilm-l6-xnli --data data/afc_test.jsonl --note baseline
-python research/eval_nli.py --model sbintuitions/modernbert-ja-30m --name modernbert-ja-30m-untrained --data data/afc_test.jsonl --note "学習前"
+python research/data_report.py --data data --out results/data_report.md   # 量・ラベル分布・漏れ点検・実例
+# 段階 1：基準（主評価は afc_*_rationale＝正当性説明文版）
+python research/eval_nli.py --model MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli --name minilm-l6-xnli --data data/afc_test_rationale.jsonl --note baseline
+python research/eval_nli.py --model sbintuitions/modernbert-ja-30m --name modernbert-ja-30m-untrained --data data/afc_test_rationale.jsonl --note "学習前"
 python research/eval_objectivity.py --model cl-nagoya/ruri-v3-pt-30m --note baseline
 python research/eval_objectivity.py --model cl-nagoya/ruri-v3-pt-30m --note baseline --no_wiki
 # 段階 2：分類型（本体 1 本＋アブレーション 2 本）
-python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl data/afc_train.jsonl --dev data/afc_dev.jsonl --out ~/fcb/fcb-nli-30m --epochs 3 --bs 32 --seq 256
-python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/afc_train.jsonl --dev data/afc_dev.jsonl --out ~/fcb/fcb-nli-30m-afconly --epochs 5 --upweight 1
-python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl --dev data/afc_dev.jsonl --out ~/fcb/fcb-nli-30m-nlionly --epochs 2
+python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl data/afc_train_rationale.jsonl --dev data/afc_dev_rationale.jsonl --out ~/fcb/fcb-nli-30m --epochs 3 --bs 32 --seq 256
+python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/afc_train_rationale.jsonl --dev data/afc_dev_rationale.jsonl --out ~/fcb/fcb-nli-30m-afconly --epochs 5 --upweight 1
+python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl --dev data/afc_dev_rationale.jsonl --out ~/fcb/fcb-nli-30m-nlionly --epochs 2
 # 段階 2b：5 分割交差検証（記事分割の乱数 1〜4 で繰り返す。0 は上の本体）
 for s in 1 2 3 4; do
   python research/prepare_data.py --out data_s$s --only afc --seed $s
-  python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl data_s$s/afc_train.jsonl --dev data_s$s/afc_dev.jsonl --out ~/fcb/cv$s --epochs 3 --seed $s
-  python research/eval_nli.py --model ~/fcb/cv$s --name fcb-nli-30m-cv$s --data data_s$s/afc_test.jsonl --note cv
+  python research/finetune_nli.py --base sbintuitions/modernbert-ja-30m --train data/nli_train.jsonl data_s$s/afc_train_rationale.jsonl --dev data_s$s/afc_dev_rationale.jsonl --out ~/fcb/cv$s --epochs 3 --seed $s
+  python research/eval_nli.py --model ~/fcb/cv$s --name fcb-nli-30m-cv$s --data data_s$s/afc_test_rationale.jsonl --note cv
 done
 # 段階 3：埋め込み型
 python research/finetune_embed.py --base cl-nagoya/ruri-v3-pt-30m --pairs data/pairs_stage2.jsonl --out ~/fcb/fcb-embed-30m
-# 段階 4：評価（同じテスト）
-for d in fcb-nli-30m-nlionly fcb-nli-30m-afconly fcb-nli-30m; do python research/eval_nli.py --model ~/fcb/$d --name $d --data data/afc_test.jsonl; done
+# 段階 4：評価（同じテスト。証拠説明文版も副として）
+for d in fcb-nli-30m-nlionly fcb-nli-30m-afconly fcb-nli-30m; do
+  python research/eval_nli.py --model ~/fcb/$d --name $d --data data/afc_test_rationale.jsonl
+  python research/eval_nli.py --model ~/fcb/$d --name $d-evidence --data data/afc_test.jsonl
+done
 python research/eval_objectivity.py --model ~/fcb/fcb-embed-30m --name fcb-embed-30m
 python research/eval_objectivity.py --model ~/fcb/fcb-embed-30m --name fcb-embed-30m --no_wiki
 # 段階 5：サイトへ
@@ -290,10 +294,11 @@ ONNX 化したモデルは GitHub（`models/`）に置く。あわせて Hugging
 
 ### 9.3 評価データ
 
-1. **JAD-AFC**（主）：612 件を記事単位で 70/15/15 に分割。テストは 88 件と小さいので、分割の乱数を 5 通り変えて学習・評価を繰り返し、平均±標準偏差を報告
-2. **自作評価セット**（補）：サイトの「検証」で集めた実際の Web 記事の段落に対し、評価者 2 名が「主張と一致／矛盾／無関係」を採点（κ ≥ 0.6）。JAD-AFC の証拠文は整った短文なので、実際の Web 文章への汎化をこれで見る。URL と採点だけ保存し、本文は再配布しない
-3. 客観性：livedoor＋WRIME のテスト分割（Wikipedia を除いた数値も併記）
-4. 汎用性能が落ちていないか：JSTS（埋め込み）、JNLI テスト（分類）
+1. **JAD-AFC**（主）：612 件を記事単位で 70/15/15 に分割。前提は**正当性説明文**（検証者の判断理由）を主とする。「証拠説明文」は 612 件中 243 件が主張と同一文で文字の一致だけで解けてしまうため、副として併記する。テストは 88 件と小さいので、分割の乱数を 5 通り変えて学習・評価を繰り返し、平均±標準偏差を報告
+2. **自作評価セット**（補）：サイトの「検証」で集めた実際の Web 記事の段落に対し、評価者 2 名が「主張と一致／矛盾／無関係」を採点（κ ≥ 0.6）。実際の Web 文章への汎化をこれで見る。URL と採点だけ保存し、本文は再配布しない
+3. 客観性：livedoor＋WRIME のテスト分割（記事・投稿者単位で分割。Wikipedia を除いた数値も併記）
+4. 汎用性能が落ちていないか：JSTS（埋め込み。学習に使った train とは別の分割）、JNLI テスト（分類）
+5. 漏れ防止の点検：`research/data_report.py` が train と test の同じ記事・同じ文を数えて 0 件を確認。データの出どころ・使い方・ライセンスは `research/DATASETS.md`
 
 ### 9.4 測り方の統一
 
@@ -301,15 +306,43 @@ ONNX 化したモデルは GitHub（`models/`）に置く。あわせて Hugging
 - 乱数の種を固定し、学習は 5 分割で繰り返す。結果は `results/*.jsonl` に自動追記
 - スマホの時間はサイトの設定画面の統計を使い、機種・OS・ブラウザの版を添える
 
-### 予備実験（CPU、2026-10-11、JAD-AFC テスト 88 件）
+### 予備実験（自前環境の CPU、2026-10-11、JAD-AFC テスト 88 件、前提＝証拠説明文版）
 
-| モデル | 正解率 | マクロ F1 | True/False 2 値 |
+| モデル | 正解率 | マクロ F1 | True/False 2 値 | 矛盾側 F1 |
+| --- | --- | --- | --- | --- |
+| modernbert-ja-30m 学習なし（分類ヘッドが乱数＝偶然水準） | 0.489 | 0.219 | 0.494 | — |
+| nli-ja-30m（汎用 NLI だけ） | 0.352 | 0.178 | 0.460 | — |
+| multilingual-MiniLMv2-L6 xnli（海外の定番） | 0.671 | 0.479 | 0.828 | 0.594 |
+| modernbert-ja-30m を JAD-AFC 訓練 434 件だけで 5 エポック（fcb-nli-30m-afconly） | **0.852** | 0.571 | 0.862 | **0.851** |
+
+客観性（obj\_test 1,500 件、学習前の ruri-v3-pt-30m）：重心 AUC 0.970（Wikipedia を除くと 0.951）、ゼロショット AUC 0.54。ラベル文との類似では判別できず、少数の例文の重心を使えば学習前でも高い。埋め込み型の対照学習はこの 0.970 を超えるか、という評価になる。
+
+汎用 NLI（画像説明文）だけではファクトチェック文に転移せず、ファクトチェック由来の少量データだけで 85% に達する。特に矛盾（誤情報）側の F1 が 0.59 → 0.85 と大きく改善する。GPU での本実験（汎用 NLI ＋ AFC、5 分割）でこれを確かめる。
+
+注意：この表は前提に「証拠説明文」を使った値である。データの点検で、証拠説明文は 612 件中 243 件が主張と同一文であることが分かったため（文字の一致だけで解ける）、主評価は前提を「正当性説明文」（検証者の判断理由、主張との類似度の中央値 0.28）にした版（`afc_*_rationale`）で行う。証拠説明文版は副として併記する。
+
+**主評価（正当性説明文版）の予備実験**（CPU、2026-10-11、テスト 88 件）
+
+| モデル | 正解率 | True/False 2 値 | 矛盾側 F1 |
 | --- | --- | --- | --- |
-| nli-ja-30m（汎用 NLI だけ） | 0.352 | 0.178 | 0.460 |
-| multilingual-MiniLMv2-L6 xnli | 0.671 | 0.479 | 0.828 |
-| modernbert-ja-30m を AFC 訓練 434 件で 2 エポック | **0.807** | 0.540 | 0.816 |
+| 学習なし（偶然水準） | 0.489 | 0.494 | — |
+| multilingual-MiniLMv2-L6 xnli | 0.216 | 0.552 | 0.189 |
+| modernbert-ja-30m を AFC 訓練 434 件だけで 5 エポック | **0.716** | **0.724** | **0.713** |
 
-汎用 NLI（画像説明文）だけではファクトチェック文に転移せず、ファクトチェック由来の少量データを混ぜるだけで大きく改善する。これを GPU での本実験（汎用 NLI ＋ AFC、5 分割）で確かめる。
+証拠説明文版（85%）より低くなるが、こちらが本来の難しさである。海外の多言語 NLI は検証者の説明文と主張の関係を「無関係」と判定してしまい（88 件中 57 件）、偶然水準を下回る。CPU での 5 エポックは dev 正解率がまだ上がり途中（0.30 → 0.73）なので、GPU で汎用 NLI を混ぜた本体と 5 分割交差検証で確かめる。
+
+**GPU 本実験（2026-10-12、RTX 3060、正当性説明文版）**
+
+| 条件 | 正解率 | True/False 2 値 | 矛盾側 F1 |
+| --- | --- | --- | --- |
+| 学習なし | 0.489 | 0.494 | — |
+| multilingual-MiniLMv2-L6 xnli | 0.216 | 0.552 | 0.189 |
+| 汎用 NLI だけ（5 分割） | 0.315 ± 0.098 | 0.488 | — |
+| AFC だけ | 0.716 | 0.747 | 0.721 |
+| **fcb-nli-30m（汎用 NLI ＋ AFC、5 分割）** | **0.834 ± 0.029** | **0.852 ± 0.021** | **0.851 ± 0.026** |
+| 埋め込み型：ruri-v3-pt-30m → fcb-embed-30m | 重心 AUC 0.965 → **0.989**（Wikipedia 除く 0.946 → 0.982） |  |  |
+
+RQ1 の仮説は支持された（5 分割の平均±標準偏差で区間が重ならない）。次は通し検証（検索 → 照合 → 判定）で、この差がシステム全体にどれだけ残るかを測る（`research/e2e_make.py`・サイトの「一括検証（研究用）」・`research/e2e_eval.py`）。
 
 ### 9.5 手順支援としての評価（利用者テスト、小規模）
 

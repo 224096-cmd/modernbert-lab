@@ -20,5 +20,15 @@
   "acc": 0.87125,
   "ece_T1": 0.03309880543500183,
   "ece_T": 0.033769080379039314
- }
+ },
+ "max_position": 8192,
+ "max_seq_browser": 1024,
+ "lang": "ja",
+ "label_order": [
+  0,
+  1,
+  2
+ ],
+ "display": "FactCheck-BERT（分類型）",
+ "size_mb": 36.3
 }

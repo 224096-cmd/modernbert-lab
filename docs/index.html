@@ -39,9 +39,10 @@
   <li>別の端末に履歴を移すには「設定」→ JSON で書き出し → もう一方で読み込む</li></ul></div>
  <div class="card"><h2 style="margin-top:0">最近の作業</h2><div id="home-latest"></div></div>
  <div class="card"><h2 style="margin-top:0">この研究で確かめること</h2><ol class="small">
-  <li><b>ファクトチェック由来のデータで微調整した独自モデル（FactCheck-BERT）は、既存の公開モデルより主張と証拠の照合に強いか</b> — 日本ファクトチェックセンターの検証記事由来の JAD-AFC で、同じテスト・同じ指標で比較する（「モデル」タブで切り替え）</li>
-  <li><b>不足している情報・反対視点を自律的に見つけられるか</b> — 12 種類の問い（誰が・いつ・根拠・反対意見…）が集めた記事で答えられているかをリランカーで判定し、答えのない問いに検索式を提案する（「ギャップ・対立」タブ）</li>
-  <li><b>長文から人が見やすい構造化データに直接変換できるか</b> — 記事群を「メリット／デメリット／費用／時期／根拠」などの軸で表にし、根拠つきで要約する（「構造化」タブ）</li></ol></div>
+  <li><b>RQ1 独自モデルの効果</b> — ファクトチェック由来のデータ（JAD-AFC）で微調整した FactCheck-BERT は、汎用 NLI だけのモデルや海外の多言語 NLI より、主張と証拠の照合に強いか。結果：5 分割交差検証で正解率 0.834±0.029（汎用 NLI だけ 0.32、多言語 NLI 0.22、学習なし 0.49）。さらに「ファクトチェック」タブの一括検証で、検索から判定までの通しでも差が残るかを測る</li>
+  <li><b>RQ2 検索の改善</b> — 信頼性スコアと関連度で並べ替えると、検索エンジンの元の順位より上位の質が上がるか（Precision@k・MRR・nDCG）</li>
+  <li><b>RQ3 端末内実行</b> — 30M クラスのモデルを int8 でスマートフォンのブラウザで動かし、実用的な時間で検証できるか（モデル合計 100 MB 以下、1 記事 5 秒以内）</li></ol>
+  <p class="small muted">「分析」タブ（検証・ギャップ・対立・構造化）は信頼性スコアの成分を可視化する研究用の補助機能で、研究課題の対象外。</p></div>
 </section>
 
 <section id="t-fc" class="hidden">
@@ -81,7 +82,8 @@
 </section>
 
 <section id="t-check" class="hidden">
- <div class="card"><h2 style="margin-top:0">検証 <span class="muted small">— 集めた記事（コーパス）を多角的に検証する</span></h2>
+ <div class="chips subnav"><a class="chip" href="#" data-go="check">検証（矛盾・偏り・一次情報・時間）</a><a class="chip" href="#" data-go="gap">ギャップ・対立</a><a class="chip" href="#" data-go="struct">構造化（比較表・要約・Q&amp;A・差分）</a></div>
+ <div class="card"><h2 style="margin-top:0">分析：検証 <span class="muted small">— 「集める」で作ったコーパス（記事の集合）を多角的に点検する。信頼性スコアの各成分（矛盾・偏り・一次情報・時間）をそのまま可視化する研究用の画面</span></h2>
   <div class="modelbar"></div><div class="row"><label style="margin:0">対象</label><select id="ck-corpus" style="max-width:420px"></select><span class="small muted" id="ck-meta"></span></div>
   <details class="small"><summary>テキストを直接貼って検証する</summary><textarea id="ck-paste" style="min-height:90px" placeholder="複数の文章は --- の行で区切る"></textarea><div class="actbar"><button class="small" id="ck-paste-use">この文章をコーパスにする</button></div></details>
   <div class="chips" id="ck-tabs"><span class="chip on" data-k="consistency">矛盾・整合</span><span class="chip" data-k="bias">偏り・客観性</span><span class="chip" data-k="primary">一次情報</span><span class="chip" data-k="temporal">時間的矛盾</span><span class="chip" data-k="claim">主張を検証</span></div>
@@ -91,7 +93,8 @@
 </section>
 
 <section id="t-gap" class="hidden">
- <div class="card"><h2 style="margin-top:0">ギャップ・対立 <span class="muted small">— 何がまだ分かっていないか、どんな反対意見があるか</span></h2>
+ <div class="chips subnav"><a class="chip" href="#" data-go="check">検証（矛盾・偏り・一次情報・時間）</a><a class="chip" href="#" data-go="gap">ギャップ・対立</a><a class="chip" href="#" data-go="struct">構造化（比較表・要約・Q&amp;A・差分）</a></div>
+ <div class="card"><h2 style="margin-top:0">分析：ギャップ・対立 <span class="muted small">— 何がまだ分かっていないか（データボイド＝情報の空白）、どんな反対意見があるか。「ファクトチェック」のデータボイド警告はこの仕組みを使う</span></h2>
   <div class="modelbar"></div><div class="row"><label style="margin:0">対象</label><select id="gp-corpus" style="max-width:420px"></select></div>
   <div class="row"><input id="gp-topic" placeholder="トピック（問いを作るのに使う。空ならコーパスの名前）" style="max-width:420px"></div>
   <div class="chips" id="gp-tabs"><span class="chip on" data-k="gaps">ナレッジギャップ</span><span class="chip" data-k="opposing">対立視点・矛盾</span></div>
@@ -100,7 +103,8 @@
 </section>
 
 <section id="t-struct" class="hidden">
- <div class="card"><h2 style="margin-top:0">構造化 <span class="muted small">— 比較表・要約・Q&amp;A・意味差分</span></h2>
+ <div class="chips subnav"><a class="chip" href="#" data-go="check">検証（矛盾・偏り・一次情報・時間）</a><a class="chip" href="#" data-go="gap">ギャップ・対立</a><a class="chip" href="#" data-go="struct">構造化（比較表・要約・Q&amp;A・差分）</a></div>
+ <div class="card"><h2 style="margin-top:0">分析：構造化 <span class="muted small">— 比較表・要約・Q&amp;A・意味差分。集めた記事を根拠つきで読みやすい形にする補助機能（研究課題の対象外）</span></h2>
   <div class="modelbar"></div><div class="row"><label style="margin:0">対象</label><select id="st-corpus" style="max-width:420px"></select></div>
   <div class="chips" id="st-tabs"><span class="chip on" data-k="matrix">比較表（マトリクス）</span><span class="chip" data-k="summary">要約</span><span class="chip" data-k="qa">Q&amp;A</span><span class="chip" data-k="diff">意味的な差分</span></div>
   <div id="st-matrix-box"><label>比較の軸（カンマ区切り）</label><input id="st-axes"></div>
@@ -131,14 +135,16 @@
 </section>
 
 <section id="t-models" class="hidden">
- <div class="card"><h2 style="margin-top:0">ブラウザで動くモデル <span class="muted small">— 役割ごとに選ぶ。スマホでも動くサイズ（22〜68 MB）</span></h2><div id="md-browser"></div><p class="hint">ダウンロードは端末に保存され、2 回目からはオフラインでも動く。「日本語・ModernBERT」は 8,192 トークンを一括で読める。「多言語」は海外で広く使われるモデルで 512 トークンまで（長文は分割）。</p></div>
+ <div class="card"><h2 style="margin-top:0">ブラウザで動くモデル <span class="muted small">— 役割ごとに選ぶ。既定は本研究の FactCheck-BERT（fcb-nli-30m・fcb-embed-30m）。学習前の土台や海外モデルに切り替えて同じ画面で比較できる</span></h2><div id="md-browser"></div><p class="hint">ダウンロードは端末に保存され、2 回目からはオフラインでも動く。「日本語・ModernBERT」は 8,192 トークンを一括で読める。「多言語」は海外で広く使われるモデルで 512 トークンまで（長文は分割）。</p></div>
  <div class="card"><h2 style="margin-top:0">同じ指標での比較 <span class="muted small">— JSTS（文類似）・JNLI（含意）・CPU 遅延</span></h2><div id="md-table"></div><p class="small muted"><code>python -m mbo.bench</code> の結果（docs/data/models.json）。ブラウザ側の速度は「設定」の統計に出る。</p></div>
- <div class="card"><h2 style="margin-top:0">独自 FactCheck-BERT の土台候補 <span class="muted small">— 「ブラウザで試す」列に名前があるものは、学習前の状態で上の表から選んで動かせる（＝ゼロショット基準）。学習手順は「学ぶ」→ 研究計画書</span></h2><div id="md-base"></div></div>
+ <div class="card"><h2 style="margin-top:0">FactCheck-BERT の土台 <span class="muted small">— 採用した 2 つと、比較を絞るために使わなかったもの。学習手順は「学ぶ」→ 研究計画書</span></h2><div id="md-base"></div></div>
 </section>
 
 <section id="t-how" class="hidden">
- <div class="card"><h2 style="margin-top:0">流れ</h2><div class="flow"><span>トピック／URL</span>→<span>Dorks で検索エンジン巡回</span>→<span>本文抽出</span>→<span>信頼性採点（出所・内容・裏取り・時間）</span>→<span>コーパスとして履歴に保存</span>→<span>検証／ギャップ／構造化（埋め込み・含意・リランカー）</span></div></div>
- <div class="card"><h2 style="margin-top:0">各機能で何をしているか</h2><div class="kv">
+ <div class="card"><h2 style="margin-top:0">流れ</h2><div class="flow"><span>主張</span>→<span>6 種類の検索式 × 検索エンジン</span>→<span>読む前の優先順位（主張の語・情報源の種類・複数式での出現・同一サイト 2 件まで・SNS は後回し）</span>→<span>本文抽出（3 件ずつ並列）</span>→<span>信頼性採点（出所・内容・裏取り・時間）</span>→<span>埋め込みで候補段落を絞る</span>→<span>FactCheck-BERT（含意）で 一致／矛盾／無関係</span>→<span>5 段階の判定の下書き・検証記録</span></div>
+  <p class="small muted">端末内モデルは 3 つ：埋め込み（fcb-embed-30m）、含意（fcb-nli-30m）、関連度（reranker-ja-xsmall-v2）。いずれも ModernBERT-Ja 30M を土台にした ONNX int8（各 36 MB）。「モデル」タブで学習前の土台や海外モデルに入れ替えて同じ画面で比べられる。</p></div>
+ <div class="card"><h2 style="margin-top:0">各機能で何をしているか <span class="muted small">— 「ファクトチェック」の照合と、「分析」タブの各機能</span></h2><div class="kv">
+  <span>主張の照合（ファクトチェック）</span><span>集めた記事を段落に分け、埋め込みで主張に近い上位段落を選び、含意モデルで 一致／矛盾／無関係 を判定。出所の重みをかけた支持・否定の合計から supported／refuted／mixed／insufficient を決め、JFC 式の 5 段階（正確／ほぼ正確／根拠不明／不正確／誤り）の下書きにする</span>
   <span>矛盾・整合</span><span>各記事の要旨（冒頭の命題）を他記事の段落と突き合わせ、含意モデルで 一致／矛盾／無関係 を判定して行列にする</span>
   <span>偏り・客観性</span><span>埋め込みゼロショット（客観／主観／感情／宣伝）＋ 含意ゼロショット（「この文章は客観的な事実を報告している」など）＋ 語彙（煽り語・推量表現・宣伝語の密度）を合成し 0〜100</span>
   <span>一次情報</span><span>出所の種別（公的・報道・ブログ…）＋ 引用・伝聞表現と発表元表現の数 ＋ 含意ゼロショット（一次／二次）</span>
@@ -153,14 +159,14 @@
  <div class="card"><h2 style="margin-top:0">信頼性スコア R（0–100）</h2>
   <p class="formula">R = 100 × ( w<sub>src</sub>·s<sub>src</sub> + w<sub>con</sub>·s<sub>con</sub> + w<sub>cor</sub>·s<sub>cor</sub> + w<sub>time</sub>·s<sub>time</sub> )</p>
   <div class="kv"><span>s<sub>src</sub> 出所</span><span>ドメイン種別の基礎点（公的 1.0 … SNS 0.3）＋ HTTPS ＋ ドメイン年齢（Wayback 最古）＋ Wikipedia 出典回数 ＋ 著者・日付</span><span>s<sub>con</sub> 内容</span><span>0.35·長さ ＋ 0.40·具体性（数値・日付・引用・固有名詞）＋ 0.25 ＋ 文体（煽り −0.3、報告 +0.2、意見 −0.1、宣伝 −0.2）</span><span>s<sub>cor</sub> 裏取り</span><span>要旨を他ドメインの段落が含意する重み付き件数 S（同趣旨の中立は部分点）、矛盾 C：0.15 + 0.85·(1−e<sup>−S/2</sup>) − 0.6·(1−e<sup>−C/2</sup>)</span><span>s<sub>time</sub> 時間</span><span>0.2 + 0.8·0.5<sup>経過日数/30</sup>（日付なし 0.4）</span></div></div>
- <div class="card"><h2 style="margin-top:0">パラメータ <span class="muted small">— この端末の判定に即時反映</span></h2><div id="how-params"></div><div class="actbar"><button class="small" id="pr-save">この端末に保存</button><button class="small" id="pr-dl">params.json をダウンロード</button><button class="small" id="pr-reset">初期値に戻す</button><span id="pr-msg" class="small muted"></span></div></div>
+ <div class="card"><h2 style="margin-top:0">パラメータ <span class="muted small">— 動かした瞬間から、この端末の次の判定に反映される（保存しなければ再読み込みで初期値に戻る）</span></h2><div id="how-params"></div><div class="actbar"><button class="small" id="pr-save">この端末に保存</button><button class="small" id="pr-dl">params.json をダウンロード</button><button class="small" id="pr-reset">初期値に戻す</button><span id="pr-msg" class="small muted"></span></div></div>
  <div class="card"><h2 style="margin-top:0">情報源</h2><div id="how-sources"></div></div>
  <div class="card"><h2 style="margin-top:0">Dorks テンプレート</h2><div id="how-dorks"></div></div>
 </section>
 <section id="t-about" class="hidden"><div id="about-box"></div></section>
 
 <section id="t-settings" class="hidden">
- <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load-models">既定の 3 モデルを今ダウンロード</button><button class="small" id="st-del">端末からすべて削除</button><span id="st-mmsg" class="small muted"></span></div>
+ <div class="card"><h2 style="margin-top:0">端末内モデル</h2><div id="st-models"></div><div class="actbar"><button class="small" id="st-load-models">既定の 3 モデル（FactCheck-BERT ×2・関連度）を今ダウンロード</button><button class="small" id="st-del">端末からすべて削除</button><span id="st-mmsg" class="small muted"></span></div>
   <label>Hugging Face 配布リポジトリ（空なら GitHub Pages の ./models/）</label><div class="row"><input id="st-hf" placeholder="owner/repo"><button class="small" id="st-hf-save">保存</button></div></div>
  <div class="card"><h2 style="margin-top:0">画面モード</h2><p class="small">いまは研究者用の画面。授業・一般向けの画面に戻してロックする：</p><button class="small" id="st-lock">一般画面に戻してロック</button></div>
  <div class="card"><h2 style="margin-top:0">プライベートモード</h2>

@@ -21,12 +21,12 @@
 
 人物検索・アカウント特定・非公開情報の取得・ポートスキャンは実装しない。外部ツールはすべて利用者のブラウザで開くリンクであり、このアプリは中継しない。
 
-## ブラウザで動く 10 モデル（役割ごとに切り替え。土台候補は学習前のまま試せる）
+## ブラウザで動く 12 モデル（既定は FactCheck-BERT。学習前の土台や海外モデルに切り替えて比較できる）
 
 | 役割 | 日本語・ModernBERT（8,192） | 海外・多言語（512） |
 | --- | --- | --- |
-| 埋め込み | ruri-v3-30m（36 MB・既定）、ruri-v3-70m（68 MB）、**ruri-v3-pt-30m**（土台候補 ◎・学習前）、**modernbert-ja-30m-embed**（素の土台 ○） | multilingual-e5-small（32 MB、語彙間引き） |
-| 含意 | nli-ja-30m（36 MB・既定、modernbert-ja-30m を JNLI で学習。84%）、**nli-ja-70m**（68 MB、modernbert-ja-70m を JNLI で学習。85%） | multilingual-MiniLMv2-L6-mnli-xnli（53 MB） |
+| 埋め込み | **fcb-embed-30m**（36 MB・既定。FactCheck-BERT、客観性 AUC 0.989）、ruri-v3-pt-30m（土台・学習前、AUC 0.965）、ruri-v3-30m、ruri-v3-70m、modernbert-ja-30m-embed | multilingual-e5-small（32 MB、語彙間引き） |
+| 含意 | **fcb-nli-30m**（36 MB・既定。FactCheck-BERT、JAD-AFC 5 分割 0.834±0.029）、nli-ja-30m（汎用 NLI だけ。JAD-AFC 0.35）、nli-ja-70m | multilingual-MiniLMv2-L6-mnli-xnli（53 MB） |
 | 関連度 | japanese-reranker-xsmall-v2（36 MB・既定） | japanese-reranker-cross-encoder-xsmall-v1（22 MB） |
 
 ONNX 化・量子化・語彙間引きは `mbo/export_onnx.py`。土台候補の一覧と判定（◎○△）は `models/registry.json` の `base`。**独自モデル FactCheck-BERT の作り方（データ・学習手順・評価）は研究計画書（`docs/plan.md`）の 5〜9 章と `research/README.md`**。 使用データセットの出どころ・使い方・漏れ防止は `research/DATASETS.md`、実際のデータの量・実例・重複点検は `results/data_report.md`。学習は研究者が自前の GPU（WSL2）で行い、できた `models/fcb-*` をリポジトリに置くと「モデル」タブに並ぶ。

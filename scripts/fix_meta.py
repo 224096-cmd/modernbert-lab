@@ -12,6 +12,8 @@ FIX = {
  "ruri-v3-pt-30m": {"max_position": 8192, "prefixes": {"query": "検索クエリ: ", "doc": "検索文書: ", "topic": "トピック: ", "": ""}, "max_seq_browser": 2048, "lang": "ja"},
  "modernbert-ja-30m-embed": {"max_position": 8192, "prefixes": {"query": "", "doc": "", "topic": "", "": ""}, "max_seq_browser": 2048, "lang": "ja"},
  "nli-ja-70m": {"max_position": 8192, "max_seq_browser": 1024, "lang": "ja", "label_order": [0, 1, 2]},
+ "fcb-nli-30m": {"max_position": 8192, "max_seq_browser": 1024, "lang": "ja", "label_order": [0, 1, 2], "display": "FactCheck-BERT（分類型）"},
+ "fcb-embed-30m": {"max_position": 8192, "prefixes": {"query": "検索クエリ: ", "doc": "検索文書: ", "topic": "トピック: ", "": ""}, "max_seq_browser": 2048, "lang": "ja", "display": "FactCheck-BERT（埋め込み型）"},
 }
 for name, fix in FIX.items():
     p = os.path.join(ROOT, name, "meta.json")
@@ -19,3 +21,15 @@ for name, fix in FIX.items():
         continue
     m = json.load(open(p, encoding="utf-8")); m.update(fix); m["size_mb"] = round(os.path.getsize(os.path.join(ROOT, name, "model_int8.onnx")) / 1048576, 1)
     json.dump(m, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1); print(name, m["size_mb"], "MB")
+
+# models/<name> をサイトが読む docs/models/<name> に同期する（GitHub Pages は docs/ を配信する）
+import shutil
+DOCS = os.path.join(os.path.dirname(ROOT), "docs", "models")
+for name in FIX:
+    src = os.path.join(ROOT, name); dst = os.path.join(DOCS, name)
+    if not os.path.isdir(src): continue
+    os.makedirs(dst, exist_ok=True)
+    for f in os.listdir(src):
+        a = os.path.join(src, f); b = os.path.join(dst, f)
+        if os.path.isfile(a) and (not os.path.exists(b) or os.path.getmtime(a) > os.path.getmtime(b) or os.path.getsize(a) != os.path.getsize(b)):
+            shutil.copy2(a, b); print("sync", name, f)

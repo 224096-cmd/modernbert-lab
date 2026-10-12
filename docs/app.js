@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v5.4";
+const VERSION = "v5.5";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -180,19 +180,33 @@ $("#lv-examples").innerHTML = `<span class="tiny muted" style="align-self:center
 $("#lv-run").onclick = runLive; $("#lv-q").onkeydown = e => { if (e.key === "Enter") runLive(); };
 /* 収集：検索は（検索式 × 情報源）を並列 3 本、本文取得は並列 3 本。途中経過は onItems（候補一覧が増えるたび）／onText（本文が 1 件読めるたび）で通知し、画面はそれに合わせて描き直す */
 const PAR = { search: 3, read: 3 };
-async function collectLive(topic, { dorks, engines, nread, status, onItems, onText }) {
+/* 主張の語（数字・漢字/カタカナ/英字のかたまり）とタイトル・抜粋の重なり＝読む前に分かる関連度 */
+const JUNK_HOSTS = /(^|\.)(twitter\.com|x\.com|facebook\.com|instagram\.com|tiktok\.com|youtube\.com|youtu\.be|threads\.net|5ch\.net|2ch\.sc|chiebukuro\.yahoo\.co\.jp|detail\.chiebukuro|matome|togetter\.com|pinterest|ameblo\.jp|hatenablog|livedoor\.blog|fc2\.com|note\.com|mercari|rakuten\.co\.jp|amazon\.co\.jp)$/i;
+const FC_SITES = /factcheck|fij\.info|infact\.press|fact-?check|検証記事/i;
+function claimKeys(t) { const ks = new Set(); for (const m of String(t).matchAll(/\d[\d,.]*[%％]?|[一-龠々]{2,}|[ァ-ヶー]{2,}|[A-Za-z][A-Za-z0-9-]{2,}/g)) { const k = m[0]; if (!/^(こと|もの|ため|よう|という|について|により|という|する|ある|いる|年|月|日)$/.test(k)) ks.add(k); } return [...ks]; }
+function lexRel(keys, text) { if (!keys.length) return 0; const t = String(text); let n = 0; for (const k of keys) if (t.includes(k)) n++; return n / keys.length; }
+async function collectLive(topic, { dorks, engines, nread, status, onItems, onText, exclude = null }) {
   const queries = [{ name: "topic", label: "そのまま", query: topic }, ...[...dorks].map(k => ({ name: k, label: DORKS[k][0], query: DORKS[k][1].replace("{q}", topic) }))];
   const seen = new Map(); const jobs = [];
   for (const q of queries) for (const e of engines) { if (e === "wiki" && q.name !== "topic") continue; jobs.push({ q, e }); }
   let done = 0;
-  const prio = it => it.engines.length * 2 + it.dorks.length + ({ gov: 3, news: 3, edu: 2, academic: 2, wiki: 1 }[J.domainClass(NET.hostOf(it.url))] || 0);
-  const snapshot = () => [...seen.values()].sort((a, b) => prio(b) - prio(a)).slice(0, 60);
+  /* 本文を読む前の優先度：複数の検索式・エンジンに出た（信頼の収束）＋ 情報源の種類 ＋ 主張の語がタイトル・抜粋にどれだけ含まれるか（関連度）
+     ＋ 否定・一次資料の検索式で出た（反証を拾う）− SNS・まとめ・Q&A（本文が読めず根拠にならない） */
+  const keys = claimKeys(topic);
+  const prio = it => { const cls = J.domainClass(NET.hostOf(it.url)); const h = NET.hostOf(it.url);
+    return it.engines.length * 2 + it.dorks.length + ({ gov: 4, academic: 3, news: 3, edu: 2, wiki: 1 }[cls] || 0) + 4 * lexRel(keys, (it.title || "") + " " + (it.snippet || ""))
+      + (it.dorks.includes("deny") || it.dorks.includes("primary") ? 1 : 0) + (FC_SITES.test(h) ? 2 : 0) - (JUNK_HOSTS.test(h) ? 4 : 0) + (it.published ? 0.5 : 0); };
+  const snapshot = () => [...seen.values()].filter(it => !exclude || !exclude(it)).map(it => (it.prio = +prio(it).toFixed(2), it)).sort((a, b) => b.prio - a.prio).slice(0, 60);
   await NET.pool(jobs, PAR.search, async ({ q, e }) => NET.search(e === "ddg" ? q.query.replace(/[()]/g, "") : q.query, [e], 10), (rs, { q, e }) => {
     for (const r of rs || []) { if (seen.has(r.url)) { const x = seen.get(r.url); x.engines = [...new Set([...x.engines, e])]; x.dorks = [...new Set([...x.dorks, q.name])]; if (!x.published && r.published) x.published = r.published; } else seen.set(r.url, { ...r, id: Math.random().toString(36).slice(2, 10), dorks: [q.name], text: "", topic }); }
     done++; status(`検索 ${done}/${jobs.length}（${NET.ENGINES[e].label}：${q.label}）— 候補 ${seen.size} 件`); onItems?.(snapshot());
   });
   const items = snapshot(); onItems?.(items);
-  const toRead = items.slice(0, Math.min(nread, items.length)); let nr = 0;
+  /* 読む順：優先度順に、同じホストは 2 件まで（1 サイトに偏らない）、SNS・まとめは後回し */
+  const perHost = {}; const toRead = []; const later = [];
+  for (const it of items) { const h = NET.hostOf(it.url); if (JUNK_HOSTS.test(h)) { later.push(it); continue; } if ((perHost[h] || 0) >= 2) { later.push(it); continue; } perHost[h] = (perHost[h] || 0) + 1; toRead.push(it); if (toRead.length >= nread) break; }
+  for (const it of later) { if (toRead.length >= nread) break; toRead.push(it); }
+  let nr = 0;
   await NET.pool(toRead, PAR.read, it => NET.readPage(it.url), (r, it) => {
     if (r) { it.text = r.text.slice(0, 6000); it.title = it.title || r.title; if (r.finalUrl && /^https?:/.test(r.finalUrl) && NET.hostOf(r.finalUrl) !== "news.google.com" && NET.hostOf(r.finalUrl) !== NET.hostOf(it.url)) { it.orig_url = it.url; it.url = NET.normUrl(r.finalUrl); } }
     nr++; status(`本文を読む ${nr}/${toRead.length}：${NET.hostOf(it.url)}${r ? "" : "（読めず）"}`); onText?.(it, items);
@@ -201,7 +215,7 @@ async function collectLive(topic, { dorks, engines, nread, status, onItems, onTe
 }
 /* 途中経過の描画：候補カードを id ごとに置き、本文が届いたらそのカードだけ差し替える */
 function liveBoard(root) {
-  root.innerHTML = `<div class="card" id="lb-prog"><div class="row"><b>集めています</b><span class="small muted" id="lb-msg"></span></div><div class="bar" style="margin-top:6px"><i id="lb-bar" style="width:0%"></i></div></div><div class="card"><h3 style="margin-top:0">候補 <span class="muted small" id="lb-n">0 件</span> <span class="tiny muted">— 複数の情報源・検索式に出たもの、公的機関・報道を上に。本文が読めたものから「本文 ○ 字」が付き、最後に採点して並べ替える</span></h3><div id="lb-list"></div></div>`;
+  root.innerHTML = `<div class="card" id="lb-prog"><div class="row"><b>集めています</b><span class="small muted" id="lb-msg"></span></div><div class="bar" style="margin-top:6px"><i id="lb-bar" style="width:0%"></i></div></div><div class="card"><h3 style="margin-top:0">候補 <span class="muted small" id="lb-n">0 件</span> <span class="tiny muted">— 複数の情報源・検索式に出たもの、公的機関・報道、主張の語を含むものを上に（同じサイトは 2 件まで、SNS・まとめは後回し）。本文が読めたものから「本文 ○ 字」が付き、最後に採点して並べ替える</span></h3><div id="lb-list"></div></div>`;
   const list = root.querySelector("#lb-list"), msg = root.querySelector("#lb-msg"), bar = root.querySelector("#lb-bar"), n = root.querySelector("#lb-n");
   const card = it => `<div class="item lb" data-id="${esc(it.id)}"><div class="row" style="gap:6px"><span class="g" style="background:var(--muted)">…</span><a class="t" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title || it.url)}</a></div><div class="m"><span>${esc(NET.hostOf(it.url))}</span><span>${esc(J.CLASS_LABEL[J.domainClass(NET.hostOf(it.url))] || "")}</span>${it.published ? `<span>${esc(it.published)}</span>` : ""}<span>${(it.engines || []).join("・")}</span>${it.text ? `<span class="ok">本文 ${it.text.length} 字</span>` : `<span class="muted">本文 未取得</span>`}</div>${it.snippet ? `<div class="sn">${esc(it.snippet.slice(0, 160))}</div>` : ""}</div>`;
   return {
@@ -494,6 +508,38 @@ function renderLearn() {
 
 $$("#t-s-home [data-go]").forEach(b => b.onclick = () => show(b.dataset.go));
 /* ---------- 一般画面：基礎知識・検証の方法 ---------- */
+
+/* ---------- 一括検証（研究用）：検索 → 照合 → 判定を正解つきの主張で通しで回す ---------- */
+async function fcHeadless(claim, { src = "", oracle = false, nofc = true, nread = 10, status = () => { } } = {}) {
+  const t0 = performance.now(); let docs = [];
+  if (oracle && src) { const r = await NET.readPage(src); if (r) docs = [{ id: "src", url: src, title: r.title, text: r.text.slice(0, 20000), snippet: r.text.slice(0, 200), engines: [], dorks: [], published: null }]; }
+  else { const { items } = await collectLive(claim, { dorks: fcSelC.dorks, engines: fcSelC.engines, nread, status, onItems: () => { }, onText: () => { }, exclude: nofc ? (it => FC_SITES.test(it.url + " " + (it.title || ""))) : null }); docs = items; }
+  const n_fc = docs.filter(it => FC_SITES.test(it.url + " " + (it.title || ""))).length;
+  const dom = await domInfosFor(docs, status); await J.scoreItems(docs, dom, state.embed, state.nli, status);
+  const v = await J.verify(claim, docs, state.embed, state.nli, status); const ck = FC.checkable(claim); const rating = FC.suggestRating(v, ck.ok);
+  return { claim, src, rating, verdict: v.verdict, support: v.support, refute: v.refute, support_domains: v.support_domains || [], refute_domains: v.refute_domains || [], n_items: docs.length, n_fc_sites: n_fc, n_passages: v.n_passages, checkable: ck.ok,
+    evidence: (v.evidence || []).slice(0, 5).map(e => ({ url: e.url, domain: e.domain, kind: e.kind, entail: e.entail, contra: e.contra, sim: e.sim, text: e.text.slice(0, 160) })), sec: +((performance.now() - t0) / 1000).toFixed(1) };
+}
+const E2E = { rows: [], out: [], stop: false };
+$("#e2e-file")?.addEventListener("change", async e => { const f = e.target.files[0]; if (!f) return; const txt = await f.text(); E2E.rows = txt.split(/\r?\n/).filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean); $("#e2e-n").textContent = `${E2E.rows.length} 件読み込み`; });
+$("#e2e-stop")?.addEventListener("click", () => { E2E.stop = true; });
+$("#e2e-dl")?.addEventListener("click", () => dl(`e2e_${ML.modelName("nli")}_${$("#e2e-oracle").checked ? "oracle" : $("#e2e-nofc").checked ? "nofc" : "all"}_${Date.now().toString(36)}.json`, JSON.stringify({ config: { nli: ML.modelName("nli"), embed: ML.modelName("embed"), oracle: $("#e2e-oracle").checked, nofc: $("#e2e-nofc").checked, nread: +$("#fc-read").value, dorks: [...fcSelC.dorks], engines: [...fcSelC.engines], version: VERSION, run_at: nowJst() }, results: E2E.out }, null, 1), "application/json"));
+$("#e2e-run")?.addEventListener("click", async () => {
+  if (!E2E.rows.length) { $("#e2e-status").textContent = "先に主張リストを読み込んでください"; return; }
+  const st = m => $("#e2e-status").textContent = m; const log = $("#e2e-log"); log.innerHTML = ""; E2E.out = []; E2E.stop = false; $("#e2e-run").disabled = true; $("#e2e-dl").disabled = true;
+  const max = Math.min(+$("#e2e-max").value || 88, E2E.rows.length), wait = Math.max(0, +$("#e2e-wait").value || 0) * 1000, oracle = $("#e2e-oracle").checked, nofc = $("#e2e-nofc").checked;
+  try {
+    await models(st);
+    for (let i = 0; i < max && !E2E.stop; i++) {
+      const r = E2E.rows[i]; st(`${i + 1}/${max}：${r.claim.slice(0, 30)}`);
+      try { const res = await fcHeadless(r.claim, { src: r.article || "", oracle, nofc, nread: +$("#fc-read").value, status: m => st(`${i + 1}/${max}：${m}`) }); E2E.out.push({ i, gold: r.label, gold_rating: r.rating, category: r.category, ...res }); log.insertAdjacentHTML("beforeend", `<div>${i + 1}. ${esc(r.claim.slice(0, 40))} → ${FC.RATINGS[res.rating][0]}（正解 ${["True", "NEI", "False"][r.label] ?? r.label}、根拠 ${res.n_items} 件、${res.sec}s）</div>`); }
+      catch (e) { E2E.out.push({ i, gold: r.label, claim: r.claim, error: String(e).slice(0, 200) }); log.insertAdjacentHTML("beforeend", `<div class="warn">${i + 1}. エラー：${esc(String(e).slice(0, 80))}</div>`); }
+      log.scrollTop = log.scrollHeight; if (wait && i < max - 1) await new Promise(r => setTimeout(r, wait));
+    }
+    st(`${E2E.out.length} 件完了。JSON をダウンロードして research/e2e_eval.py で集計`); $("#e2e-dl").disabled = false;
+  } finally { $("#e2e-run").disabled = false; }
+});
+
 function renderSimpleLearn() { const b = $("#sl-box"); if (b.dataset.done) return; b.dataset.done = 1; b.innerHTML = CT.basicsHtml(FC.RATINGS); wireFcLinks(b); }
 function renderSimpleMethods() { const b = $("#sm-box"); if (b.dataset.done) return; b.dataset.done = 1; b.innerHTML = CT.methodsHtml(FC.TOOLS); wireFcLinks(b); }
 

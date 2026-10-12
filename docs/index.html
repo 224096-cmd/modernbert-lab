@@ -55,6 +55,18 @@
   <details class="small"><summary>収集の設定（検索式・情報源）</summary><label>検索式（主張に当てはめる）</label><div class="chips" id="fc-dorks"></div><label>情報源</label><div class="chips" id="fc-engines"></div></details>
   <div class="actbar"><button class="primary" id="fc-run">② 検証を実行（収集 → 照合 → 判定の下書き）</button><button class="small" id="fc-plan">検索式だけ作る</button><span id="fc-status" class="small muted"></span></div>
   <p class="hint">実行すると「集める」と同じ経路で公開情報を集め（結果は届いた順に表示）、端末内の含意モデルで主張と段落を照合する。結果は履歴に保存。</p></div>
+ <details class="card research-only" id="fc-e2e"><summary><b>一括検証（研究用）— 検索から判定までを通しで測る</b></summary>
+  <p class="small">正解つきの主張リスト（<code>python research/e2e_make.py</code> が作る <code>results/e2e_claims.jsonl</code>）を読み込み、1 件ずつ「収集 → 照合 → 判定の下書き」を自動で回して結果を JSON に書き出す。<code>python research/e2e_eval.py</code> で正解率・証拠の発見率・ファクトチェック記事への依存度を集計する。含意モデル・埋め込みモデルは上の「モデル」タブで切り替えてから実行（結果にモデル名が記録される）。</p>
+  <div class="actbar"><label class="small" style="margin:0"><span class="chip" style="cursor:pointer">主張リスト（.jsonl）を読み込む</span><input type="file" id="e2e-file" accept=".jsonl,.json,text/plain" style="display:none"></label><span id="e2e-n" class="small muted">未読込</span></div>
+  <div class="gate small">
+   <label><input type="checkbox" id="e2e-nofc" checked> ファクトチェック機関のページを除外する（factcheckcenter.jp・fij.info・infact.press など。実力を測る条件）</label>
+   <label><input type="checkbox" id="e2e-oracle"> 根拠ページを与える（検索せず、正解データの記事 URL だけを読む＝判定だけの実力）</label>
+   <label>件数の上限 <input type="number" id="e2e-max" value="88" min="1" max="500" style="width:5em"></label>
+   <label>1 件ごとの待ち時間（秒） <input type="number" id="e2e-wait" value="4" min="0" max="60" style="width:4em"></label>
+  </div>
+  <div class="actbar"><button class="primary" id="e2e-run">一括検証を開始</button><button class="small" id="e2e-stop">停止</button><button class="small" id="e2e-dl" disabled>結果 JSON をダウンロード</button><span id="e2e-status" class="small muted"></span></div>
+  <div id="e2e-log" class="small mono" style="max-height:220px;overflow:auto"></div>
+ </details>
  <div id="fc-out"></div>
 </section>
 

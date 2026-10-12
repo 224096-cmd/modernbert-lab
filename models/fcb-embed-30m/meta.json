@@ -1,0 +1,17 @@
+{
+ "kind": "embed",
+ "source": "/home/rt101/fcb/fcb-embed-30m",
+ "output": "embedding",
+ "pooling": "mean+l2norm",
+ "pruned_vocab": false,
+ "quant": "all",
+ "pad_id": 3,
+ "n_labels": null,
+ "labels": null,
+ "max_seq": 256,
+ "prefixes": {
+  "query": "検索クエリ: ",
+  "doc": "検索文書: ",
+  "topic": "トピック: "
+ }
+}

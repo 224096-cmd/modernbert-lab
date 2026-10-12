@@ -1,0 +1,41 @@
+{
+ "base": "sbintuitions/modernbert-ja-30m",
+ "train": [
+  "data/nli_train.jsonl",
+  "data/afc_train_rationale.jsonl"
+ ],
+ "dev": "data/afc_dev_rationale.jsonl",
+ "n_train": 39555,
+ "epochs": 3,
+ "best_epoch": 1,
+ "lr": 3e-05,
+ "seq": 256,
+ "bs": 32,
+ "upweight": 3,
+ "balance": false,
+ "dev_acc": 0.9,
+ "confusion": [
+  [
+   38,
+   0,
+   7
+  ],
+  [
+   0,
+   1,
+   0
+  ],
+  [
+   2,
+   0,
+   42
+  ]
+ ],
+ "labels": [
+  "entailment",
+  "neutral",
+  "contradiction"
+ ],
+ "sec": 184,
+ "device": "cuda"
+}

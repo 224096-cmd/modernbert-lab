@@ -1,0 +1,1743 @@
+== 0. 環境確認
+python 3.12.3
+torch                  2.14.1+cu126
+transformers           5.19.0
+datasets               5.1.0
+sentence_transformers  6.1.0
+onnx                   1.23.2
+onnxruntime            1.31.0
+accelerate             1.15.0
+cuda available: True
+gpu: NVIDIA GeForce RTX 3060 12.0 GB bf16: True cuda 12.6
+matmul 4096x4096 x10: 0.35s
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1238.80it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.weight | MISSING    | 
+classifier.bias   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+1 step (bs=8) on cuda: 0.71s  loss 15.406
+OK
+== 1. データ準備
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+== afc
+data/afc_train.jsonl: 434
+data/afc_dev.jsonl: 90
+data/afc_test.jsonl: 88
+data/afc_train_rationale.jsonl: 434
+data/afc_dev_rationale.jsonl: 90
+data/afc_test_rationale.jsonl: 88
+== nli
+JaNLI 14400
+JSICK 9927
+data/nli_train.jsonl: 38253
+data/nli_dev.jsonl: 8581
+== livedoor
+data/livedoor.jsonl: 7369
+== wiki
+data/wiki.jsonl: 20000
+== obj
+WRIME 35000
+data/obj_train.jsonl: 20349
+data/obj_test.jsonl: 3600
+== pairs
+data/pairs_stage2.jsonl: 35906
+wrote results/data_report.md
+== 2. 既存モデルの基準（含意：JAD-AFC テスト）
+Loading weights:   0%|          | 0/105 [00:00<?, ?it/s]Loading weights:  44%|████▍     | 46/105 [00:00<00:00, 459.19it/s]Loading weights: 100%|██████████| 105/105 [00:00<00:00, 673.22it/s]
+{
+ "name": "minilm-l6-xnli",
+ "model": "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli",
+ "data": "data/afc_test_rationale.jsonl",
+ "n": 88,
+ "acc": 0.2159,
+ "macro_f1": 0.2077,
+ "f1_entail_neutral_contra": [
+  0.4,
+  0.0345,
+  0.1887
+ ],
+ "binary_acc_true_false": 0.5517,
+ "confusion": [
+  [
+   13,
+   26,
+   5
+  ],
+  [
+   0,
+   1,
+   0
+  ],
+  [
+   8,
+   30,
+   5
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.167,
+  "国際": 0.167,
+  "災害": 0.167,
+  "政治": 0.294
+ },
+ "latency_ms": 13.0,
+ "device": "cuda",
+ "note": "baseline",
+ "run_at": "2026-10-12T20:10"
+}
+Loading weights:   0%|          | 0/105 [00:00<?, ?it/s]Loading weights: 100%|██████████| 105/105 [00:00<00:00, 1261.04it/s]
+{
+ "name": "minilm-l6-xnli-evidence",
+ "model": "MoritzLaurer/multilingual-MiniLMv2-L6-mnli-xnli",
+ "data": "data/afc_test.jsonl",
+ "n": 88,
+ "acc": 0.6705,
+ "macro_f1": 0.4786,
+ "f1_entail_neutral_contra": [
+  0.8421,
+  0,
+  0.5938
+ ],
+ "binary_acc_true_false": 0.8276,
+ "confusion": [
+  [
+   40,
+   3,
+   1
+  ],
+  [
+   0,
+   0,
+   1
+  ],
+  [
+   11,
+   13,
+   19
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.708,
+  "国際": 0.625,
+  "災害": 0.667,
+  "政治": 0.676
+ },
+ "latency_ms": 5.9,
+ "device": "cuda",
+ "note": "baseline 証拠説明文版（副）",
+ "run_at": "2026-10-12T20:10"
+}
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1904.81it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.bias   | MISSING    | 
+classifier.weight | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+{
+ "name": "modernbert-ja-30m-untrained",
+ "model": "sbintuitions/modernbert-ja-30m",
+ "data": "data/afc_test_rationale.jsonl",
+ "n": 88,
+ "acc": 0.4886,
+ "macro_f1": 0.2188,
+ "f1_entail_neutral_contra": [
+  0,
+  0,
+  0.6565
+ ],
+ "binary_acc_true_false": 0.4943,
+ "confusion": [
+  [
+   0,
+   0,
+   44
+  ],
+  [
+   0,
+   0,
+   1
+  ],
+  [
+   0,
+   0,
+   43
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.5,
+  "国際": 0.5,
+  "災害": 0.333,
+  "政治": 0.5
+ },
+ "latency_ms": 5.9,
+ "device": "cuda",
+ "note": "baseline",
+ "run_at": "2026-10-12T20:10"
+}
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1572.30it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.weight | MISSING    | 
+classifier.bias   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+{
+ "name": "modernbert-ja-30m-untrained-evidence",
+ "model": "sbintuitions/modernbert-ja-30m",
+ "data": "data/afc_test.jsonl",
+ "n": 88,
+ "acc": 0.4886,
+ "macro_f1": 0.2188,
+ "f1_entail_neutral_contra": [
+  0,
+  0,
+  0.6565
+ ],
+ "binary_acc_true_false": 0.4943,
+ "confusion": [
+  [
+   0,
+   0,
+   44
+  ],
+  [
+   0,
+   0,
+   1
+  ],
+  [
+   0,
+   0,
+   43
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.5,
+  "国際": 0.5,
+  "災害": 0.333,
+  "政治": 0.5
+ },
+ "latency_ms": 5.9,
+ "device": "cuda",
+ "note": "baseline 証拠説明文版（副）",
+ "run_at": "2026-10-12T20:10"
+}
+== 3. 既存モデルの基準（客観性）
+Loading weights:   0%|          | 0/62 [00:00<?, ?it/s]Loading weights: 100%|██████████| 62/62 [00:00<00:00, 857.66it/s]
+{
+ "name": "ruri-v3-pt-30m",
+ "model": "cl-nagoya/ruri-v3-pt-30m",
+ "n": 1500,
+ "zeroshot_auc": 0.541,
+ "zeroshot_best_acc": 0.556,
+ "sec": 2,
+ "device": "cuda",
+ "note": "baseline",
+ "run_at": "2026-10-12T20:10",
+ "centroid_auc": 0.9645,
+ "centroid_best_acc": 0.8987
+}
+Loading weights:   0%|          | 0/62 [00:00<?, ?it/s]Loading weights: 100%|██████████| 62/62 [00:00<00:00, 1473.15it/s]
+{
+ "name": "ruri-v3-pt-30m-nowiki",
+ "model": "cl-nagoya/ruri-v3-pt-30m",
+ "n": 1500,
+ "zeroshot_auc": 0.4889,
+ "zeroshot_best_acc": 0.594,
+ "sec": 2,
+ "device": "cuda",
+ "note": "baseline",
+ "run_at": "2026-10-12T20:11",
+ "centroid_auc": 0.9462,
+ "centroid_best_acc": 0.8787
+}
+== 4. 分類型 FactCheck-BERT の学習（JNLI+JaNLI+JSICK と AFC 訓練を混合、AFC は 3 倍）
+data/nli_train.jsonl 38253 x 1
+data/afc_train_rationale.jsonl 434 x 3
+data/afc_dev_rationale.jsonl 90 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1997.97it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.bias   | MISSING    | 
+classifier.weight | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 39555 dev 90 class counts [11336, 20881, 7338]
+{'step': 50, 'epoch': 0, 'loss': 1.8932, 'sec': 4}
+{'step': 100, 'epoch': 0, 'loss': 0.81, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.9285, 'sec': 12}
+{'step': 200, 'epoch': 0, 'loss': 0.9915, 'sec': 16}
+{'step': 250, 'epoch': 0, 'loss': 0.6229, 'sec': 19}
+{'step': 300, 'epoch': 0, 'loss': 1.0433, 'sec': 23}
+{'step': 350, 'epoch': 0, 'loss': 0.8064, 'sec': 26}
+{'step': 400, 'epoch': 0, 'loss': 0.6326, 'sec': 30}
+{'step': 450, 'epoch': 0, 'loss': 0.7171, 'sec': 34}
+{'step': 500, 'epoch': 0, 'loss': 0.6575, 'sec': 38}
+{'step': 550, 'epoch': 0, 'loss': 0.4768, 'sec': 42}
+{'step': 600, 'epoch': 0, 'loss': 0.4249, 'sec': 46}
+{'step': 650, 'epoch': 0, 'loss': 0.6252, 'sec': 50}
+{'step': 700, 'epoch': 0, 'loss': 0.6892, 'sec': 53}
+{'step': 750, 'epoch': 0, 'loss': 0.4724, 'sec': 57}
+{'step': 800, 'epoch': 0, 'loss': 0.4842, 'sec': 61}
+{'step': 850, 'epoch': 0, 'loss': 0.4491, 'sec': 65}
+{'step': 900, 'epoch': 0, 'loss': 0.7462, 'sec': 68}
+{'step': 950, 'epoch': 0, 'loss': 0.4754, 'sec': 72}
+{'step': 1000, 'epoch': 0, 'loss': 0.8852, 'sec': 77}
+{'step': 1050, 'epoch': 0, 'loss': 0.4023, 'sec': 80}
+{'step': 1100, 'epoch': 0, 'loss': 0.4594, 'sec': 84}
+{'step': 1150, 'epoch': 0, 'loss': 0.5221, 'sec': 88}
+{'step': 1200, 'epoch': 0, 'loss': 0.4119, 'sec': 91}
+{'epoch': 0, 'dev_acc': 0.8444, 'confusion': [[38, 2, 5], [0, 0, 1], [6, 0, 38]], 'sec': 94}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  4.03it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  4.02it/s]
+saved /home/rt101/fcb/fcb-nli-30m
+{'step': 1250, 'epoch': 1, 'loss': 0.4089, 'sec': 96}
+{'step': 1300, 'epoch': 1, 'loss': 0.422, 'sec': 99}
+{'step': 1350, 'epoch': 1, 'loss': 0.6165, 'sec': 103}
+{'step': 1400, 'epoch': 1, 'loss': 0.4479, 'sec': 106}
+{'step': 1450, 'epoch': 1, 'loss': 0.4212, 'sec': 110}
+{'step': 1500, 'epoch': 1, 'loss': 0.3735, 'sec': 114}
+{'step': 1550, 'epoch': 1, 'loss': 0.3464, 'sec': 117}
+{'step': 1600, 'epoch': 1, 'loss': 0.3494, 'sec': 120}
+{'step': 1650, 'epoch': 1, 'loss': 0.4121, 'sec': 124}
+{'step': 1700, 'epoch': 1, 'loss': 0.3793, 'sec': 127}
+{'step': 1750, 'epoch': 1, 'loss': 0.3827, 'sec': 131}
+{'step': 1800, 'epoch': 1, 'loss': 0.5941, 'sec': 135}
+{'step': 1850, 'epoch': 1, 'loss': 0.4051, 'sec': 139}
+{'step': 1900, 'epoch': 1, 'loss': 0.3354, 'sec': 142}
+{'step': 1950, 'epoch': 1, 'loss': 0.4726, 'sec': 146}
+{'step': 2000, 'epoch': 1, 'loss': 0.3908, 'sec': 149}
+{'step': 2050, 'epoch': 1, 'loss': 0.4117, 'sec': 153}
+{'step': 2100, 'epoch': 1, 'loss': 0.3075, 'sec': 157}
+{'step': 2150, 'epoch': 1, 'loss': 0.4737, 'sec': 160}
+{'step': 2200, 'epoch': 1, 'loss': 0.3311, 'sec': 164}
+{'step': 2250, 'epoch': 1, 'loss': 0.3286, 'sec': 168}
+{'step': 2300, 'epoch': 1, 'loss': 0.357, 'sec': 171}
+{'step': 2350, 'epoch': 1, 'loss': 0.4349, 'sec': 175}
+{'step': 2400, 'epoch': 1, 'loss': 0.4191, 'sec': 179}
+{'step': 2450, 'epoch': 1, 'loss': 0.3244, 'sec': 182}
+{'epoch': 1, 'dev_acc': 0.9, 'confusion': [[38, 0, 7], [0, 1, 0], [2, 0, 42]], 'sec': 184}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.76it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.75it/s]
+saved /home/rt101/fcb/fcb-nli-30m
+{'step': 2500, 'epoch': 2, 'loss': 0.3431, 'sec': 186}
+{'step': 2550, 'epoch': 2, 'loss': 0.3216, 'sec': 190}
+{'step': 2600, 'epoch': 2, 'loss': 0.438, 'sec': 193}
+{'step': 2650, 'epoch': 2, 'loss': 0.3694, 'sec': 197}
+{'step': 2700, 'epoch': 2, 'loss': 0.3191, 'sec': 201}
+{'step': 2750, 'epoch': 2, 'loss': 0.3067, 'sec': 204}
+{'step': 2800, 'epoch': 2, 'loss': 0.3079, 'sec': 208}
+{'step': 2850, 'epoch': 2, 'loss': 0.2965, 'sec': 212}
+{'step': 2900, 'epoch': 2, 'loss': 0.4042, 'sec': 216}
+{'step': 2950, 'epoch': 2, 'loss': 0.4534, 'sec': 219}
+{'step': 3000, 'epoch': 2, 'loss': 0.3131, 'sec': 223}
+{'step': 3050, 'epoch': 2, 'loss': 0.3122, 'sec': 227}
+{'step': 3100, 'epoch': 2, 'loss': 0.3334, 'sec': 230}
+{'step': 3150, 'epoch': 2, 'loss': 0.4475, 'sec': 233}
+{'step': 3200, 'epoch': 2, 'loss': 0.3919, 'sec': 237}
+{'step': 3250, 'epoch': 2, 'loss': 0.3887, 'sec': 241}
+{'step': 3300, 'epoch': 2, 'loss': 0.4081, 'sec': 244}
+{'step': 3350, 'epoch': 2, 'loss': 0.3725, 'sec': 248}
+{'step': 3400, 'epoch': 2, 'loss': 0.3023, 'sec': 251}
+{'step': 3450, 'epoch': 2, 'loss': 0.3076, 'sec': 255}
+{'step': 3500, 'epoch': 2, 'loss': 0.2969, 'sec': 259}
+{'step': 3550, 'epoch': 2, 'loss': 0.3603, 'sec': 263}
+{'step': 3600, 'epoch': 2, 'loss': 0.3692, 'sec': 267}
+{'step': 3650, 'epoch': 2, 'loss': 0.3024, 'sec': 270}
+{'step': 3700, 'epoch': 2, 'loss': 0.2962, 'sec': 274}
+{'epoch': 2, 'dev_acc': 0.7889, 'confusion': [[35, 3, 7], [0, 1, 0], [9, 0, 35]], 'sec': 275}
+best dev acc 0.9
+data/afc_train_rationale.jsonl 434 x 1
+data/afc_dev_rationale.jsonl 90 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 2170.21it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.bias   | MISSING    | 
+classifier.weight | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 434 dev 90 class counts [217, 20, 197]
+{'epoch': 0, 'dev_acc': 0.2222, 'confusion': [[6, 26, 13], [0, 0, 1], [5, 25, 14]], 'sec': 2}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.37it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.37it/s]
+saved /home/rt101/fcb/fcb-nli-30m-afconly
+{'epoch': 1, 'dev_acc': 0.5111, 'confusion': [[5, 0, 40], [0, 0, 1], [3, 0, 41]], 'sec': 3}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.82it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.79it/s]
+saved /home/rt101/fcb/fcb-nli-30m-afconly
+{'epoch': 2, 'dev_acc': 0.6889, 'confusion': [[44, 0, 1], [1, 0, 0], [26, 0, 18]], 'sec': 5}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.35it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.35it/s]
+saved /home/rt101/fcb/fcb-nli-30m-afconly
+{'step': 50, 'epoch': 3, 'loss': 0.893, 'sec': 6}
+{'epoch': 3, 'dev_acc': 0.6778, 'confusion': [[27, 0, 18], [0, 0, 1], [7, 3, 34]], 'sec': 6}
+{'epoch': 4, 'dev_acc': 0.7222, 'confusion': [[34, 1, 10], [1, 0, 0], [10, 3, 31]], 'sec': 8}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.89it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.88it/s]
+saved /home/rt101/fcb/fcb-nli-30m-afconly
+best dev acc 0.7222222222222222
+data/nli_train.jsonl 38253 x 1
+data/afc_dev_rationale.jsonl 90 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1443.40it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.weight | MISSING    | 
+classifier.bias   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 38253 dev 90 class counts [10685, 20821, 6747]
+{'step': 50, 'epoch': 0, 'loss': 0.7437, 'sec': 5}
+{'step': 100, 'epoch': 0, 'loss': 0.9319, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.6658, 'sec': 12}
+{'step': 200, 'epoch': 0, 'loss': 0.7766, 'sec': 16}
+{'step': 250, 'epoch': 0, 'loss': 1.123, 'sec': 19}
+{'step': 300, 'epoch': 0, 'loss': 0.5489, 'sec': 23}
+{'step': 350, 'epoch': 0, 'loss': 0.4477, 'sec': 26}
+{'step': 400, 'epoch': 0, 'loss': 0.7768, 'sec': 30}
+{'step': 450, 'epoch': 0, 'loss': 0.5535, 'sec': 33}
+{'step': 500, 'epoch': 0, 'loss': 0.5783, 'sec': 37}
+{'step': 550, 'epoch': 0, 'loss': 0.5763, 'sec': 40}
+{'step': 600, 'epoch': 0, 'loss': 0.4373, 'sec': 44}
+{'step': 650, 'epoch': 0, 'loss': 0.4298, 'sec': 47}
+{'step': 700, 'epoch': 0, 'loss': 0.6331, 'sec': 50}
+{'step': 750, 'epoch': 0, 'loss': 0.4323, 'sec': 53}
+{'step': 800, 'epoch': 0, 'loss': 0.4173, 'sec': 57}
+{'step': 850, 'epoch': 0, 'loss': 0.5643, 'sec': 60}
+{'step': 900, 'epoch': 0, 'loss': 0.359, 'sec': 64}
+{'step': 950, 'epoch': 0, 'loss': 0.544, 'sec': 67}
+{'step': 1000, 'epoch': 0, 'loss': 0.5817, 'sec': 71}
+{'step': 1050, 'epoch': 0, 'loss': 0.6064, 'sec': 75}
+{'step': 1100, 'epoch': 0, 'loss': 0.4002, 'sec': 78}
+{'step': 1150, 'epoch': 0, 'loss': 0.3927, 'sec': 82}
+{'epoch': 0, 'dev_acc': 0.1556, 'confusion': [[1, 31, 13], [0, 1, 0], [0, 32, 12]], 'sec': 85}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  4.74it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  4.73it/s]
+saved /home/rt101/fcb/fcb-nli-30m-nlionly
+{'step': 1200, 'epoch': 1, 'loss': 0.3577, 'sec': 86}
+{'step': 1250, 'epoch': 1, 'loss': 0.3998, 'sec': 89}
+{'step': 1300, 'epoch': 1, 'loss': 0.3312, 'sec': 93}
+{'step': 1350, 'epoch': 1, 'loss': 0.4283, 'sec': 97}
+{'step': 1400, 'epoch': 1, 'loss': 0.401, 'sec': 100}
+{'step': 1450, 'epoch': 1, 'loss': 0.3352, 'sec': 104}
+{'step': 1500, 'epoch': 1, 'loss': 0.338, 'sec': 108}
+{'step': 1550, 'epoch': 1, 'loss': 0.449, 'sec': 111}
+{'step': 1600, 'epoch': 1, 'loss': 0.419, 'sec': 115}
+{'step': 1650, 'epoch': 1, 'loss': 0.3066, 'sec': 118}
+{'step': 1700, 'epoch': 1, 'loss': 0.4371, 'sec': 122}
+{'step': 1750, 'epoch': 1, 'loss': 0.3762, 'sec': 126}
+{'step': 1800, 'epoch': 1, 'loss': 0.3868, 'sec': 129}
+{'step': 1850, 'epoch': 1, 'loss': 0.3669, 'sec': 133}
+{'step': 1900, 'epoch': 1, 'loss': 0.3948, 'sec': 137}
+{'step': 1950, 'epoch': 1, 'loss': 0.3018, 'sec': 140}
+{'step': 2000, 'epoch': 1, 'loss': 0.369, 'sec': 144}
+{'step': 2050, 'epoch': 1, 'loss': 0.4159, 'sec': 147}
+{'step': 2100, 'epoch': 1, 'loss': 0.3462, 'sec': 151}
+{'step': 2150, 'epoch': 1, 'loss': 0.3049, 'sec': 154}
+{'step': 2200, 'epoch': 1, 'loss': 0.4314, 'sec': 157}
+{'step': 2250, 'epoch': 1, 'loss': 0.3407, 'sec': 161}
+{'step': 2300, 'epoch': 1, 'loss': 0.3119, 'sec': 164}
+{'step': 2350, 'epoch': 1, 'loss': 0.3785, 'sec': 167}
+{'epoch': 1, 'dev_acc': 0.2889, 'confusion': [[2, 26, 17], [0, 0, 1], [0, 20, 24]], 'sec': 170}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  4.32it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  4.31it/s]
+saved /home/rt101/fcb/fcb-nli-30m-nlionly
+best dev acc 0.28888888888888886
+== 4b. 5 分割交差検証（主結果）
+== afc
+data_s1/afc_train.jsonl: 428
+data_s1/afc_dev.jsonl: 92
+data_s1/afc_test.jsonl: 92
+data_s1/afc_train_rationale.jsonl: 428
+data_s1/afc_dev_rationale.jsonl: 92
+data_s1/afc_test_rationale.jsonl: 92
+data/nli_train.jsonl 38253 x 1
+data_s1/afc_train_rationale.jsonl 428 x 3
+data_s1/afc_dev_rationale.jsonl 92 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1513.53it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.weight | MISSING    | 
+classifier.bias   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 39537 dev 92 class counts [11327, 20878, 7332]
+{'step': 50, 'epoch': 0, 'loss': 1.3309, 'sec': 4}
+{'step': 100, 'epoch': 0, 'loss': 1.0961, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 1.2333, 'sec': 12}
+{'step': 200, 'epoch': 0, 'loss': 0.5425, 'sec': 15}
+{'step': 250, 'epoch': 0, 'loss': 0.5838, 'sec': 19}
+{'step': 300, 'epoch': 0, 'loss': 0.672, 'sec': 23}
+{'step': 350, 'epoch': 0, 'loss': 0.7157, 'sec': 27}
+{'step': 400, 'epoch': 0, 'loss': 0.6848, 'sec': 30}
+{'step': 450, 'epoch': 0, 'loss': 0.5665, 'sec': 34}
+{'step': 500, 'epoch': 0, 'loss': 0.6, 'sec': 37}
+{'step': 550, 'epoch': 0, 'loss': 0.5804, 'sec': 41}
+{'step': 600, 'epoch': 0, 'loss': 0.535, 'sec': 45}
+{'step': 650, 'epoch': 0, 'loss': 0.6109, 'sec': 48}
+{'step': 700, 'epoch': 0, 'loss': 0.5884, 'sec': 52}
+{'step': 750, 'epoch': 0, 'loss': 0.8164, 'sec': 56}
+{'step': 800, 'epoch': 0, 'loss': 0.5552, 'sec': 60}
+{'step': 850, 'epoch': 0, 'loss': 0.4895, 'sec': 64}
+{'step': 900, 'epoch': 0, 'loss': 0.4, 'sec': 67}
+{'step': 950, 'epoch': 0, 'loss': 0.4829, 'sec': 71}
+{'step': 1000, 'epoch': 0, 'loss': 0.6445, 'sec': 75}
+{'step': 1050, 'epoch': 0, 'loss': 0.5218, 'sec': 78}
+{'step': 1100, 'epoch': 0, 'loss': 0.586, 'sec': 82}
+{'step': 1150, 'epoch': 0, 'loss': 0.4898, 'sec': 87}
+{'step': 1200, 'epoch': 0, 'loss': 0.5237, 'sec': 90}
+{'epoch': 0, 'dev_acc': 0.8043, 'confusion': [[44, 0, 2], [2, 0, 0], [13, 1, 30]], 'sec': 93}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.90it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.89it/s]
+saved /home/rt101/fcb/cv1
+{'step': 1250, 'epoch': 1, 'loss': 0.3232, 'sec': 94}
+{'step': 1300, 'epoch': 1, 'loss': 0.6549, 'sec': 98}
+{'step': 1350, 'epoch': 1, 'loss': 0.3771, 'sec': 101}
+{'step': 1400, 'epoch': 1, 'loss': 0.4723, 'sec': 104}
+{'step': 1450, 'epoch': 1, 'loss': 0.4571, 'sec': 108}
+{'step': 1500, 'epoch': 1, 'loss': 0.4963, 'sec': 111}
+{'step': 1550, 'epoch': 1, 'loss': 0.4239, 'sec': 114}
+{'step': 1600, 'epoch': 1, 'loss': 0.4042, 'sec': 118}
+{'step': 1650, 'epoch': 1, 'loss': 0.512, 'sec': 122}
+{'step': 1700, 'epoch': 1, 'loss': 0.4737, 'sec': 125}
+{'step': 1750, 'epoch': 1, 'loss': 0.5029, 'sec': 129}
+{'step': 1800, 'epoch': 1, 'loss': 0.441, 'sec': 132}
+{'step': 1850, 'epoch': 1, 'loss': 0.4064, 'sec': 136}
+{'step': 1900, 'epoch': 1, 'loss': 0.4526, 'sec': 139}
+{'step': 1950, 'epoch': 1, 'loss': 0.4467, 'sec': 143}
+{'step': 2000, 'epoch': 1, 'loss': 0.3482, 'sec': 147}
+{'step': 2050, 'epoch': 1, 'loss': 0.4266, 'sec': 151}
+{'step': 2100, 'epoch': 1, 'loss': 0.4259, 'sec': 155}
+{'step': 2150, 'epoch': 1, 'loss': 0.3392, 'sec': 159}
+{'step': 2200, 'epoch': 1, 'loss': 0.398, 'sec': 162}
+{'step': 2250, 'epoch': 1, 'loss': 0.4602, 'sec': 166}
+{'step': 2300, 'epoch': 1, 'loss': 0.3845, 'sec': 170}
+{'step': 2350, 'epoch': 1, 'loss': 0.3959, 'sec': 173}
+{'step': 2400, 'epoch': 1, 'loss': 0.309, 'sec': 177}
+{'step': 2450, 'epoch': 1, 'loss': 0.3428, 'sec': 181}
+{'epoch': 1, 'dev_acc': 0.8152, 'confusion': [[31, 0, 15], [1, 0, 1], [0, 0, 44]], 'sec': 183}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.72it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.71it/s]
+saved /home/rt101/fcb/cv1
+{'step': 2500, 'epoch': 2, 'loss': 0.3218, 'sec': 186}
+{'step': 2550, 'epoch': 2, 'loss': 0.4452, 'sec': 190}
+{'step': 2600, 'epoch': 2, 'loss': 0.3632, 'sec': 194}
+{'step': 2650, 'epoch': 2, 'loss': 0.3845, 'sec': 197}
+{'step': 2700, 'epoch': 2, 'loss': 0.3105, 'sec': 201}
+{'step': 2750, 'epoch': 2, 'loss': 0.3185, 'sec': 204}
+{'step': 2800, 'epoch': 2, 'loss': 0.3173, 'sec': 208}
+{'step': 2850, 'epoch': 2, 'loss': 0.3212, 'sec': 211}
+{'step': 2900, 'epoch': 2, 'loss': 0.3838, 'sec': 215}
+{'step': 2950, 'epoch': 2, 'loss': 0.3041, 'sec': 218}
+{'step': 3000, 'epoch': 2, 'loss': 0.3167, 'sec': 222}
+{'step': 3050, 'epoch': 2, 'loss': 0.3215, 'sec': 225}
+{'step': 3100, 'epoch': 2, 'loss': 0.3251, 'sec': 228}
+{'step': 3150, 'epoch': 2, 'loss': 0.3201, 'sec': 232}
+{'step': 3200, 'epoch': 2, 'loss': 0.2953, 'sec': 235}
+{'step': 3250, 'epoch': 2, 'loss': 0.4337, 'sec': 239}
+{'step': 3300, 'epoch': 2, 'loss': 0.3019, 'sec': 242}
+{'step': 3350, 'epoch': 2, 'loss': 0.2939, 'sec': 246}
+{'step': 3400, 'epoch': 2, 'loss': 0.3019, 'sec': 250}
+{'step': 3450, 'epoch': 2, 'loss': 0.3002, 'sec': 254}
+{'step': 3500, 'epoch': 2, 'loss': 0.2976, 'sec': 258}
+{'step': 3550, 'epoch': 2, 'loss': 0.3086, 'sec': 261}
+{'step': 3600, 'epoch': 2, 'loss': 0.293, 'sec': 265}
+{'step': 3650, 'epoch': 2, 'loss': 0.2939, 'sec': 268}
+{'step': 3700, 'epoch': 2, 'loss': 0.3849, 'sec': 272}
+{'epoch': 2, 'dev_acc': 0.8478, 'confusion': [[39, 0, 7], [1, 0, 1], [5, 0, 39]], 'sec': 273}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.78it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.78it/s]
+saved /home/rt101/fcb/cv1
+best dev acc 0.8478260869565217
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 2229.75it/s]
+{
+ "name": "fcb-nli-30m-cv1",
+ "model": "/home/rt101/fcb/cv1",
+ "data": "data_s1/afc_test_rationale.jsonl",
+ "n": 92,
+ "acc": 0.8152,
+ "macro_f1": 0.5581,
+ "f1_entail_neutral_contra": [
+  0.8602,
+  0,
+  0.814
+ ],
+ "binary_acc_true_false": 0.8571,
+ "confusion": [
+  [
+   40,
+   1,
+   5
+  ],
+  [
+   0,
+   0,
+   1
+  ],
+  [
+   7,
+   3,
+   35
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.6,
+  "政治": 0.962,
+  "国際": 0.808,
+  "災害": 0.85
+ },
+ "latency_ms": 4.7,
+ "device": "cuda",
+ "note": "cv",
+ "run_at": "2026-10-12T20:24"
+}
+data/nli_train.jsonl 38253 x 1
+data_s1/afc_dev_rationale.jsonl 92 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1874.58it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.weight | MISSING    | 
+classifier.bias   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 38253 dev 92 class counts [10685, 20821, 6747]
+{'step': 50, 'epoch': 0, 'loss': 1.0835, 'sec': 4}
+{'step': 100, 'epoch': 0, 'loss': 1.1131, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.7158, 'sec': 11}
+{'step': 200, 'epoch': 0, 'loss': 0.7353, 'sec': 15}
+{'step': 250, 'epoch': 0, 'loss': 0.8194, 'sec': 19}
+{'step': 300, 'epoch': 0, 'loss': 0.8224, 'sec': 22}
+{'step': 350, 'epoch': 0, 'loss': 1.1658, 'sec': 26}
+{'step': 400, 'epoch': 0, 'loss': 0.4849, 'sec': 30}
+{'step': 450, 'epoch': 0, 'loss': 0.4312, 'sec': 33}
+{'step': 500, 'epoch': 0, 'loss': 0.5144, 'sec': 37}
+{'step': 550, 'epoch': 0, 'loss': 0.6171, 'sec': 40}
+{'step': 600, 'epoch': 0, 'loss': 0.5959, 'sec': 44}
+{'step': 650, 'epoch': 0, 'loss': 0.5598, 'sec': 47}
+{'step': 700, 'epoch': 0, 'loss': 0.5715, 'sec': 50}
+{'step': 750, 'epoch': 0, 'loss': 0.347, 'sec': 54}
+{'step': 800, 'epoch': 0, 'loss': 0.424, 'sec': 57}
+{'step': 850, 'epoch': 0, 'loss': 0.4577, 'sec': 61}
+{'step': 900, 'epoch': 0, 'loss': 0.4432, 'sec': 64}
+{'step': 950, 'epoch': 0, 'loss': 0.5273, 'sec': 67}
+{'step': 1000, 'epoch': 0, 'loss': 0.4201, 'sec': 71}
+{'step': 1050, 'epoch': 0, 'loss': 0.4721, 'sec': 74}
+{'step': 1100, 'epoch': 0, 'loss': 0.4359, 'sec': 78}
+{'step': 1150, 'epoch': 0, 'loss': 0.4953, 'sec': 81}
+{'epoch': 0, 'dev_acc': 0.3587, 'confusion': [[10, 19, 17], [0, 1, 1], [5, 17, 22]], 'sec': 85}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  4.56it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  4.56it/s]
+saved /home/rt101/fcb/cv1-nlionly
+{'step': 1200, 'epoch': 1, 'loss': 0.4197, 'sec': 86}
+{'step': 1250, 'epoch': 1, 'loss': 0.3358, 'sec': 89}
+{'step': 1300, 'epoch': 1, 'loss': 0.4522, 'sec': 93}
+{'step': 1350, 'epoch': 1, 'loss': 0.3898, 'sec': 97}
+{'step': 1400, 'epoch': 1, 'loss': 0.4585, 'sec': 100}
+{'step': 1450, 'epoch': 1, 'loss': 0.3339, 'sec': 104}
+{'step': 1500, 'epoch': 1, 'loss': 0.36, 'sec': 108}
+{'step': 1550, 'epoch': 1, 'loss': 0.5701, 'sec': 111}
+{'step': 1600, 'epoch': 1, 'loss': 0.4744, 'sec': 115}
+{'step': 1650, 'epoch': 1, 'loss': 0.4234, 'sec': 118}
+{'step': 1700, 'epoch': 1, 'loss': 0.3635, 'sec': 122}
+{'step': 1750, 'epoch': 1, 'loss': 0.3961, 'sec': 126}
+{'step': 1800, 'epoch': 1, 'loss': 0.4292, 'sec': 130}
+{'step': 1850, 'epoch': 1, 'loss': 0.4636, 'sec': 134}
+{'step': 1900, 'epoch': 1, 'loss': 0.325, 'sec': 137}
+{'step': 1950, 'epoch': 1, 'loss': 0.4378, 'sec': 141}
+{'step': 2000, 'epoch': 1, 'loss': 0.4059, 'sec': 145}
+{'step': 2050, 'epoch': 1, 'loss': 0.3421, 'sec': 148}
+{'step': 2100, 'epoch': 1, 'loss': 0.324, 'sec': 152}
+{'step': 2150, 'epoch': 1, 'loss': 0.3167, 'sec': 155}
+{'step': 2200, 'epoch': 1, 'loss': 0.3143, 'sec': 159}
+{'step': 2250, 'epoch': 1, 'loss': 0.405, 'sec': 163}
+{'step': 2300, 'epoch': 1, 'loss': 0.3044, 'sec': 166}
+{'step': 2350, 'epoch': 1, 'loss': 0.3618, 'sec': 169}
+{'epoch': 1, 'dev_acc': 0.3261, 'confusion': [[0, 19, 27], [0, 0, 2], [0, 14, 30]], 'sec': 172}
+best dev acc 0.358695652173913
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1980.09it/s]
+{
+ "name": "fcb-nli-30m-nlionly-cv1",
+ "model": "/home/rt101/fcb/cv1-nlionly",
+ "data": "data_s1/afc_test_rationale.jsonl",
+ "n": 92,
+ "acc": 0.3913,
+ "macro_f1": 0.3136,
+ "f1_entail_neutral_contra": [
+  0.338,
+  0.08,
+  0.5227
+ ],
+ "binary_acc_true_false": 0.4835,
+ "confusion": [
+  [
+   12,
+   14,
+   20
+  ],
+  [
+   0,
+   1,
+   0
+  ],
+  [
+   13,
+   9,
+   23
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.35,
+  "政治": 0.577,
+  "国際": 0.423,
+  "災害": 0.15
+ },
+ "latency_ms": 5.3,
+ "device": "cuda",
+ "note": "cv",
+ "run_at": "2026-10-12T20:27"
+}
+== afc
+data_s2/afc_train.jsonl: 430
+data_s2/afc_dev.jsonl: 96
+data_s2/afc_test.jsonl: 86
+data_s2/afc_train_rationale.jsonl: 430
+data_s2/afc_dev_rationale.jsonl: 96
+data_s2/afc_test_rationale.jsonl: 86
+data/nli_train.jsonl 38253 x 1
+data_s2/afc_train_rationale.jsonl 430 x 3
+data_s2/afc_dev_rationale.jsonl 96 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 2187.65it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.bias   | MISSING    | 
+classifier.weight | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 39543 dev 96 class counts [11330, 20869, 7344]
+{'step': 50, 'epoch': 0, 'loss': 1.0605, 'sec': 5}
+{'step': 100, 'epoch': 0, 'loss': 0.813, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.8499, 'sec': 12}
+{'step': 200, 'epoch': 0, 'loss': 0.8097, 'sec': 15}
+{'step': 250, 'epoch': 0, 'loss': 0.5925, 'sec': 19}
+{'step': 300, 'epoch': 0, 'loss': 0.6769, 'sec': 23}
+{'step': 350, 'epoch': 0, 'loss': 0.5171, 'sec': 26}
+{'step': 400, 'epoch': 0, 'loss': 0.544, 'sec': 30}
+{'step': 450, 'epoch': 0, 'loss': 0.6495, 'sec': 34}
+{'step': 500, 'epoch': 0, 'loss': 0.5533, 'sec': 38}
+{'step': 550, 'epoch': 0, 'loss': 0.6553, 'sec': 41}
+{'step': 600, 'epoch': 0, 'loss': 0.3919, 'sec': 45}
+{'step': 650, 'epoch': 0, 'loss': 0.7502, 'sec': 49}
+{'step': 700, 'epoch': 0, 'loss': 0.3551, 'sec': 52}
+{'step': 750, 'epoch': 0, 'loss': 0.5254, 'sec': 56}
+{'step': 800, 'epoch': 0, 'loss': 0.4983, 'sec': 60}
+{'step': 850, 'epoch': 0, 'loss': 0.4204, 'sec': 63}
+{'step': 900, 'epoch': 0, 'loss': 0.5686, 'sec': 67}
+{'step': 950, 'epoch': 0, 'loss': 0.6132, 'sec': 71}
+{'step': 1000, 'epoch': 0, 'loss': 0.5224, 'sec': 75}
+{'step': 1050, 'epoch': 0, 'loss': 0.6794, 'sec': 78}
+{'step': 1100, 'epoch': 0, 'loss': 0.3959, 'sec': 82}
+{'step': 1150, 'epoch': 0, 'loss': 0.4849, 'sec': 85}
+{'step': 1200, 'epoch': 0, 'loss': 0.8449, 'sec': 89}
+{'epoch': 0, 'dev_acc': 0.8229, 'confusion': [[34, 8, 6], [0, 1, 3], [0, 0, 44]], 'sec': 91}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.03it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.03it/s]
+saved /home/rt101/fcb/cv2
+{'step': 1250, 'epoch': 1, 'loss': 0.3601, 'sec': 93}
+{'step': 1300, 'epoch': 1, 'loss': 0.3967, 'sec': 96}
+{'step': 1350, 'epoch': 1, 'loss': 0.501, 'sec': 99}
+{'step': 1400, 'epoch': 1, 'loss': 0.3423, 'sec': 103}
+{'step': 1450, 'epoch': 1, 'loss': 0.4467, 'sec': 106}
+{'step': 1500, 'epoch': 1, 'loss': 0.4269, 'sec': 109}
+{'step': 1550, 'epoch': 1, 'loss': 0.5822, 'sec': 112}
+{'step': 1600, 'epoch': 1, 'loss': 0.436, 'sec': 115}
+{'step': 1650, 'epoch': 1, 'loss': 0.4988, 'sec': 119}
+{'step': 1700, 'epoch': 1, 'loss': 0.475, 'sec': 122}
+{'step': 1750, 'epoch': 1, 'loss': 0.4626, 'sec': 126}
+{'step': 1800, 'epoch': 1, 'loss': 0.3587, 'sec': 129}
+{'step': 1850, 'epoch': 1, 'loss': 0.4358, 'sec': 133}
+{'step': 1900, 'epoch': 1, 'loss': 0.3353, 'sec': 137}
+{'step': 1950, 'epoch': 1, 'loss': 0.4543, 'sec': 141}
+{'step': 2000, 'epoch': 1, 'loss': 0.3922, 'sec': 145}
+{'step': 2050, 'epoch': 1, 'loss': 0.4293, 'sec': 148}
+{'step': 2100, 'epoch': 1, 'loss': 0.417, 'sec': 152}
+{'step': 2150, 'epoch': 1, 'loss': 0.3952, 'sec': 156}
+{'step': 2200, 'epoch': 1, 'loss': 0.4087, 'sec': 159}
+{'step': 2250, 'epoch': 1, 'loss': 0.4701, 'sec': 163}
+{'step': 2300, 'epoch': 1, 'loss': 0.4607, 'sec': 167}
+{'step': 2350, 'epoch': 1, 'loss': 0.3, 'sec': 171}
+{'step': 2400, 'epoch': 1, 'loss': 0.3612, 'sec': 175}
+{'step': 2450, 'epoch': 1, 'loss': 0.3002, 'sec': 178}
+{'epoch': 1, 'dev_acc': 0.8021, 'confusion': [[45, 0, 3], [2, 0, 2], [12, 0, 32]], 'sec': 180}
+{'step': 2500, 'epoch': 2, 'loss': 0.3334, 'sec': 182}
+{'step': 2550, 'epoch': 2, 'loss': 0.3274, 'sec': 185}
+{'step': 2600, 'epoch': 2, 'loss': 0.3186, 'sec': 189}
+{'step': 2650, 'epoch': 2, 'loss': 0.2951, 'sec': 193}
+{'step': 2700, 'epoch': 2, 'loss': 0.4475, 'sec': 196}
+{'step': 2750, 'epoch': 2, 'loss': 0.3424, 'sec': 200}
+{'step': 2800, 'epoch': 2, 'loss': 0.3047, 'sec': 204}
+{'step': 2850, 'epoch': 2, 'loss': 0.2999, 'sec': 207}
+{'step': 2900, 'epoch': 2, 'loss': 0.3028, 'sec': 211}
+{'step': 2950, 'epoch': 2, 'loss': 0.2948, 'sec': 214}
+{'step': 3000, 'epoch': 2, 'loss': 0.3327, 'sec': 218}
+{'step': 3050, 'epoch': 2, 'loss': 0.3007, 'sec': 221}
+{'step': 3100, 'epoch': 2, 'loss': 0.3402, 'sec': 224}
+{'step': 3150, 'epoch': 2, 'loss': 0.4664, 'sec': 228}
+{'step': 3200, 'epoch': 2, 'loss': 0.3086, 'sec': 231}
+{'step': 3250, 'epoch': 2, 'loss': 0.2993, 'sec': 235}
+{'step': 3300, 'epoch': 2, 'loss': 0.2956, 'sec': 238}
+{'step': 3350, 'epoch': 2, 'loss': 0.3301, 'sec': 241}
+{'step': 3400, 'epoch': 2, 'loss': 0.3786, 'sec': 245}
+{'step': 3450, 'epoch': 2, 'loss': 0.3918, 'sec': 248}
+{'step': 3500, 'epoch': 2, 'loss': 0.4332, 'sec': 251}
+{'step': 3550, 'epoch': 2, 'loss': 0.4695, 'sec': 255}
+{'step': 3600, 'epoch': 2, 'loss': 0.3221, 'sec': 259}
+{'step': 3650, 'epoch': 2, 'loss': 0.3092, 'sec': 263}
+{'step': 3700, 'epoch': 2, 'loss': 0.3646, 'sec': 266}
+{'epoch': 2, 'dev_acc': 0.875, 'confusion': [[42, 2, 4], [2, 0, 2], [2, 0, 42]], 'sec': 268}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:01<00:00,  1.09s/it]Writing model shards: 100%|██████████| 1/1 [00:01<00:00,  1.09s/it]
+saved /home/rt101/fcb/cv2
+best dev acc 0.875
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1374.18it/s]
+{
+ "name": "fcb-nli-30m-cv2",
+ "model": "/home/rt101/fcb/cv2",
+ "data": "data_s2/afc_test_rationale.jsonl",
+ "n": 86,
+ "acc": 0.814,
+ "macro_f1": 0.5618,
+ "f1_entail_neutral_contra": [
+  0.825,
+  0,
+  0.8605
+ ],
+ "binary_acc_true_false": 0.8333,
+ "confusion": [
+  [
+   33,
+   4,
+   6
+  ],
+  [
+   0,
+   0,
+   2
+  ],
+  [
+   4,
+   0,
+   37
+  ]
+ ],
+ "per_category_acc": {
+  "政治": 0.844,
+  "医療・健康": 0.833,
+  "国際": 0.821,
+  "災害": 0.625
+ },
+ "latency_ms": 6.1,
+ "device": "cuda",
+ "note": "cv",
+ "run_at": "2026-10-12T20:32"
+}
+data/nli_train.jsonl 38253 x 1
+data_s2/afc_dev_rationale.jsonl 96 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 2252.22it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.bias   | MISSING    | 
+classifier.weight | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 38253 dev 96 class counts [10685, 20821, 6747]
+{'step': 50, 'epoch': 0, 'loss': 1.0149, 'sec': 5}
+{'step': 100, 'epoch': 0, 'loss': 0.9839, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.9486, 'sec': 12}
+{'step': 200, 'epoch': 0, 'loss': 0.5444, 'sec': 16}
+{'step': 250, 'epoch': 0, 'loss': 0.4968, 'sec': 20}
+{'step': 300, 'epoch': 0, 'loss': 0.8364, 'sec': 23}
+{'step': 350, 'epoch': 0, 'loss': 0.5117, 'sec': 27}
+{'step': 400, 'epoch': 0, 'loss': 0.4338, 'sec': 31}
+{'step': 450, 'epoch': 0, 'loss': 0.8074, 'sec': 34}
+{'step': 500, 'epoch': 0, 'loss': 0.6371, 'sec': 38}
+{'step': 550, 'epoch': 0, 'loss': 0.4831, 'sec': 41}
+{'step': 600, 'epoch': 0, 'loss': 0.7488, 'sec': 45}
+{'step': 650, 'epoch': 0, 'loss': 0.4728, 'sec': 49}
+{'step': 700, 'epoch': 0, 'loss': 0.4314, 'sec': 52}
+{'step': 750, 'epoch': 0, 'loss': 0.5574, 'sec': 55}
+{'step': 800, 'epoch': 0, 'loss': 0.5558, 'sec': 59}
+{'step': 850, 'epoch': 0, 'loss': 0.542, 'sec': 63}
+{'step': 900, 'epoch': 0, 'loss': 0.4235, 'sec': 66}
+{'step': 950, 'epoch': 0, 'loss': 0.4104, 'sec': 69}
+{'step': 1000, 'epoch': 0, 'loss': 0.576, 'sec': 73}
+{'step': 1050, 'epoch': 0, 'loss': 0.5031, 'sec': 76}
+{'step': 1100, 'epoch': 0, 'loss': 0.3753, 'sec': 80}
+{'step': 1150, 'epoch': 0, 'loss': 0.3735, 'sec': 84}
+{'epoch': 0, 'dev_acc': 0.1042, 'confusion': [[1, 39, 8], [0, 4, 0], [0, 39, 5]], 'sec': 87}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.40it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  3.39it/s]
+saved /home/rt101/fcb/cv2-nlionly
+{'step': 1200, 'epoch': 1, 'loss': 0.4034, 'sec': 88}
+{'step': 1250, 'epoch': 1, 'loss': 0.4797, 'sec': 92}
+{'step': 1300, 'epoch': 1, 'loss': 0.5906, 'sec': 95}
+{'step': 1350, 'epoch': 1, 'loss': 0.32, 'sec': 99}
+{'step': 1400, 'epoch': 1, 'loss': 0.5421, 'sec': 103}
+{'step': 1450, 'epoch': 1, 'loss': 0.3854, 'sec': 106}
+{'step': 1500, 'epoch': 1, 'loss': 0.4625, 'sec': 110}
+{'step': 1550, 'epoch': 1, 'loss': 0.3395, 'sec': 114}
+{'step': 1600, 'epoch': 1, 'loss': 0.3391, 'sec': 118}
+{'step': 1650, 'epoch': 1, 'loss': 0.3251, 'sec': 121}
+{'step': 1700, 'epoch': 1, 'loss': 0.4789, 'sec': 125}
+{'step': 1750, 'epoch': 1, 'loss': 0.3079, 'sec': 128}
+{'step': 1800, 'epoch': 1, 'loss': 0.5649, 'sec': 132}
+{'step': 1850, 'epoch': 1, 'loss': 0.3249, 'sec': 135}
+{'step': 1900, 'epoch': 1, 'loss': 0.384, 'sec': 139}
+{'step': 1950, 'epoch': 1, 'loss': 0.312, 'sec': 143}
+{'step': 2000, 'epoch': 1, 'loss': 0.3117, 'sec': 147}
+{'step': 2050, 'epoch': 1, 'loss': 0.3197, 'sec': 150}
+{'step': 2100, 'epoch': 1, 'loss': 0.4003, 'sec': 154}
+{'step': 2150, 'epoch': 1, 'loss': 0.4354, 'sec': 157}
+{'step': 2200, 'epoch': 1, 'loss': 0.3442, 'sec': 161}
+{'step': 2250, 'epoch': 1, 'loss': 0.3924, 'sec': 164}
+{'step': 2300, 'epoch': 1, 'loss': 0.3916, 'sec': 168}
+{'step': 2350, 'epoch': 1, 'loss': 0.3891, 'sec': 171}
+{'epoch': 1, 'dev_acc': 0.3438, 'confusion': [[3, 18, 27], [0, 0, 4], [1, 13, 30]], 'sec': 174}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.26it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.26it/s]
+saved /home/rt101/fcb/cv2-nlionly
+best dev acc 0.34375
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1416.75it/s]
+{
+ "name": "fcb-nli-30m-nlionly-cv2",
+ "model": "/home/rt101/fcb/cv2-nlionly",
+ "data": "data_s2/afc_test_rationale.jsonl",
+ "n": 86,
+ "acc": 0.2093,
+ "macro_f1": 0.1446,
+ "f1_entail_neutral_contra": [
+  0,
+  0,
+  0.4337
+ ],
+ "binary_acc_true_false": 0.4762,
+ "confusion": [
+  [
+   0,
+   21,
+   22
+  ],
+  [
+   0,
+   0,
+   2
+  ],
+  [
+   1,
+   22,
+   18
+  ]
+ ],
+ "per_category_acc": {
+  "政治": 0.219,
+  "医療・健康": 0.222,
+  "国際": 0.25,
+  "災害": 0.0
+ },
+ "latency_ms": 5.4,
+ "device": "cuda",
+ "note": "cv",
+ "run_at": "2026-10-12T20:35"
+}
+== afc
+data_s3/afc_train.jsonl: 442
+data_s3/afc_dev.jsonl: 86
+data_s3/afc_test.jsonl: 84
+data_s3/afc_train_rationale.jsonl: 442
+data_s3/afc_dev_rationale.jsonl: 86
+data_s3/afc_test_rationale.jsonl: 84
+data/nli_train.jsonl 38253 x 1
+data_s3/afc_train_rationale.jsonl 442 x 3
+data_s3/afc_dev_rationale.jsonl 86 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 2509.87it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.weight | MISSING    | 
+classifier.bias   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 39579 dev 86 class counts [11348, 20875, 7356]
+{'step': 50, 'epoch': 0, 'loss': 1.0769, 'sec': 4}
+{'step': 100, 'epoch': 0, 'loss': 1.1276, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.6433, 'sec': 12}
+{'step': 200, 'epoch': 0, 'loss': 0.6937, 'sec': 16}
+{'step': 250, 'epoch': 0, 'loss': 0.5946, 'sec': 19}
+{'step': 300, 'epoch': 0, 'loss': 0.771, 'sec': 23}
+{'step': 350, 'epoch': 0, 'loss': 0.7416, 'sec': 27}
+{'step': 400, 'epoch': 0, 'loss': 0.6895, 'sec': 31}
+{'step': 450, 'epoch': 0, 'loss': 0.6799, 'sec': 35}
+{'step': 500, 'epoch': 0, 'loss': 0.5068, 'sec': 39}
+{'step': 550, 'epoch': 0, 'loss': 0.5657, 'sec': 42}
+{'step': 600, 'epoch': 0, 'loss': 0.5004, 'sec': 46}
+{'step': 650, 'epoch': 0, 'loss': 0.4933, 'sec': 50}
+{'step': 700, 'epoch': 0, 'loss': 0.5626, 'sec': 53}
+{'step': 750, 'epoch': 0, 'loss': 0.7003, 'sec': 57}
+{'step': 800, 'epoch': 0, 'loss': 0.4631, 'sec': 60}
+{'step': 850, 'epoch': 0, 'loss': 0.5672, 'sec': 64}
+{'step': 900, 'epoch': 0, 'loss': 0.3964, 'sec': 68}
+{'step': 950, 'epoch': 0, 'loss': 0.5915, 'sec': 72}
+{'step': 1000, 'epoch': 0, 'loss': 0.5645, 'sec': 76}
+{'step': 1050, 'epoch': 0, 'loss': 0.833, 'sec': 79}
+{'step': 1100, 'epoch': 0, 'loss': 0.5379, 'sec': 83}
+{'step': 1150, 'epoch': 0, 'loss': 0.4644, 'sec': 86}
+{'step': 1200, 'epoch': 0, 'loss': 0.5417, 'sec': 90}
+{'epoch': 0, 'dev_acc': 0.7791, 'confusion': [[31, 3, 9], [0, 0, 2], [5, 0, 36]], 'sec': 93}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.61it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.61it/s]
+saved /home/rt101/fcb/cv3
+{'step': 1250, 'epoch': 1, 'loss': 0.3884, 'sec': 94}
+{'step': 1300, 'epoch': 1, 'loss': 0.4426, 'sec': 98}
+{'step': 1350, 'epoch': 1, 'loss': 0.4015, 'sec': 102}
+{'step': 1400, 'epoch': 1, 'loss': 0.4397, 'sec': 105}
+{'step': 1450, 'epoch': 1, 'loss': 0.3998, 'sec': 108}
+{'step': 1500, 'epoch': 1, 'loss': 0.4702, 'sec': 112}
+{'step': 1550, 'epoch': 1, 'loss': 0.3446, 'sec': 115}
+{'step': 1600, 'epoch': 1, 'loss': 0.4166, 'sec': 119}
+{'step': 1650, 'epoch': 1, 'loss': 0.6824, 'sec': 122}
+{'step': 1700, 'epoch': 1, 'loss': 0.5277, 'sec': 125}
+{'step': 1750, 'epoch': 1, 'loss': 0.4495, 'sec': 129}
+{'step': 1800, 'epoch': 1, 'loss': 0.3761, 'sec': 133}
+{'step': 1850, 'epoch': 1, 'loss': 0.3528, 'sec': 137}
+{'step': 1900, 'epoch': 1, 'loss': 0.4634, 'sec': 140}
+{'step': 1950, 'epoch': 1, 'loss': 0.3706, 'sec': 144}
+{'step': 2000, 'epoch': 1, 'loss': 0.313, 'sec': 147}
+{'step': 2050, 'epoch': 1, 'loss': 0.3585, 'sec': 150}
+{'step': 2100, 'epoch': 1, 'loss': 0.327, 'sec': 154}
+{'step': 2150, 'epoch': 1, 'loss': 0.3918, 'sec': 157}
+{'step': 2200, 'epoch': 1, 'loss': 0.3591, 'sec': 161}
+{'step': 2250, 'epoch': 1, 'loss': 0.3388, 'sec': 165}
+{'step': 2300, 'epoch': 1, 'loss': 0.4135, 'sec': 169}
+{'step': 2350, 'epoch': 1, 'loss': 0.3001, 'sec': 173}
+{'step': 2400, 'epoch': 1, 'loss': 0.3049, 'sec': 177}
+{'step': 2450, 'epoch': 1, 'loss': 0.319, 'sec': 180}
+{'epoch': 1, 'dev_acc': 0.814, 'confusion': [[32, 4, 7], [0, 1, 1], [4, 0, 37]], 'sec': 182}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.27it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.27it/s]
+saved /home/rt101/fcb/cv3
+{'step': 2500, 'epoch': 2, 'loss': 0.3225, 'sec': 185}
+{'step': 2550, 'epoch': 2, 'loss': 0.3574, 'sec': 189}
+{'step': 2600, 'epoch': 2, 'loss': 0.3535, 'sec': 192}
+{'step': 2650, 'epoch': 2, 'loss': 0.3867, 'sec': 196}
+{'step': 2700, 'epoch': 2, 'loss': 0.4238, 'sec': 201}
+{'step': 2750, 'epoch': 2, 'loss': 0.3112, 'sec': 204}
+{'step': 2800, 'epoch': 2, 'loss': 0.3044, 'sec': 208}
+{'step': 2850, 'epoch': 2, 'loss': 0.2965, 'sec': 212}
+{'step': 2900, 'epoch': 2, 'loss': 0.3004, 'sec': 215}
+{'step': 2950, 'epoch': 2, 'loss': 0.4501, 'sec': 218}
+{'step': 3000, 'epoch': 2, 'loss': 0.2941, 'sec': 222}
+{'step': 3050, 'epoch': 2, 'loss': 0.3773, 'sec': 225}
+{'step': 3100, 'epoch': 2, 'loss': 0.3127, 'sec': 229}
+{'step': 3150, 'epoch': 2, 'loss': 0.3542, 'sec': 233}
+{'step': 3200, 'epoch': 2, 'loss': 0.3021, 'sec': 236}
+{'step': 3250, 'epoch': 2, 'loss': 0.3513, 'sec': 240}
+{'step': 3300, 'epoch': 2, 'loss': 0.2991, 'sec': 243}
+{'step': 3350, 'epoch': 2, 'loss': 0.3375, 'sec': 247}
+{'step': 3400, 'epoch': 2, 'loss': 0.2976, 'sec': 250}
+{'step': 3450, 'epoch': 2, 'loss': 0.4048, 'sec': 254}
+{'step': 3500, 'epoch': 2, 'loss': 0.3332, 'sec': 258}
+{'step': 3550, 'epoch': 2, 'loss': 0.2965, 'sec': 262}
+{'step': 3600, 'epoch': 2, 'loss': 0.3028, 'sec': 266}
+{'step': 3650, 'epoch': 2, 'loss': 0.3628, 'sec': 270}
+{'step': 3700, 'epoch': 2, 'loss': 0.3066, 'sec': 274}
+{'epoch': 2, 'dev_acc': 0.7791, 'confusion': [[30, 5, 8], [1, 1, 0], [4, 1, 36]], 'sec': 274}
+best dev acc 0.813953488372093
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1370.42it/s]
+{
+ "name": "fcb-nli-30m-cv3",
+ "model": "/home/rt101/fcb/cv3",
+ "data": "data_s3/afc_test_rationale.jsonl",
+ "n": 84,
+ "acc": 0.881,
+ "macro_f1": 0.8556,
+ "f1_entail_neutral_contra": [
+  0.8837,
+  0.8,
+  0.8831
+ ],
+ "binary_acc_true_false": 0.878,
+ "confusion": [
+  [
+   38,
+   1,
+   3
+  ],
+  [
+   0,
+   2,
+   0
+  ],
+  [
+   6,
+   0,
+   34
+  ]
+ ],
+ "per_category_acc": {
+  "政治": 0.881,
+  "国際": 0.967,
+  "災害": 0.75,
+  "医療・健康": 0.625
+ },
+ "latency_ms": 5.4,
+ "device": "cuda",
+ "note": "cv",
+ "run_at": "2026-10-12T20:40"
+}
+data/nli_train.jsonl 38253 x 1
+data_s3/afc_dev_rationale.jsonl 86 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1625.80it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.weight | MISSING    | 
+classifier.bias   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 38253 dev 86 class counts [10685, 20821, 6747]
+{'step': 50, 'epoch': 0, 'loss': 0.9966, 'sec': 4}
+{'step': 100, 'epoch': 0, 'loss': 0.8793, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.7184, 'sec': 12}
+{'step': 200, 'epoch': 0, 'loss': 0.6122, 'sec': 15}
+{'step': 250, 'epoch': 0, 'loss': 0.5797, 'sec': 19}
+{'step': 300, 'epoch': 0, 'loss': 0.8135, 'sec': 23}
+{'step': 350, 'epoch': 0, 'loss': 0.6945, 'sec': 26}
+{'step': 400, 'epoch': 0, 'loss': 0.514, 'sec': 30}
+{'step': 450, 'epoch': 0, 'loss': 0.4504, 'sec': 33}
+{'step': 500, 'epoch': 0, 'loss': 0.5153, 'sec': 37}
+{'step': 550, 'epoch': 0, 'loss': 0.6457, 'sec': 40}
+{'step': 600, 'epoch': 0, 'loss': 0.4529, 'sec': 44}
+{'step': 650, 'epoch': 0, 'loss': 0.5351, 'sec': 47}
+{'step': 700, 'epoch': 0, 'loss': 0.5151, 'sec': 51}
+{'step': 750, 'epoch': 0, 'loss': 0.442, 'sec': 55}
+{'step': 800, 'epoch': 0, 'loss': 0.5237, 'sec': 59}
+{'step': 850, 'epoch': 0, 'loss': 0.4641, 'sec': 62}
+{'step': 900, 'epoch': 0, 'loss': 0.3814, 'sec': 65}
+{'step': 950, 'epoch': 0, 'loss': 0.4134, 'sec': 68}
+{'step': 1000, 'epoch': 0, 'loss': 0.51, 'sec': 71}
+{'step': 1050, 'epoch': 0, 'loss': 0.5718, 'sec': 75}
+{'step': 1100, 'epoch': 0, 'loss': 0.4622, 'sec': 79}
+{'step': 1150, 'epoch': 0, 'loss': 0.4647, 'sec': 82}
+{'epoch': 0, 'dev_acc': 0.3372, 'confusion': [[0, 22, 21], [0, 0, 2], [0, 12, 29]], 'sec': 86}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  2.15it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  2.15it/s]
+saved /home/rt101/fcb/cv3-nlionly
+{'step': 1200, 'epoch': 1, 'loss': 0.3845, 'sec': 87}
+{'step': 1250, 'epoch': 1, 'loss': 0.3091, 'sec': 91}
+{'step': 1300, 'epoch': 1, 'loss': 0.6578, 'sec': 95}
+{'step': 1350, 'epoch': 1, 'loss': 0.5162, 'sec': 98}
+{'step': 1400, 'epoch': 1, 'loss': 0.6191, 'sec': 102}
+{'step': 1450, 'epoch': 1, 'loss': 0.4473, 'sec': 105}
+{'step': 1500, 'epoch': 1, 'loss': 0.488, 'sec': 109}
+{'step': 1550, 'epoch': 1, 'loss': 0.4143, 'sec': 113}
+{'step': 1600, 'epoch': 1, 'loss': 0.4114, 'sec': 117}
+{'step': 1650, 'epoch': 1, 'loss': 0.4557, 'sec': 121}
+{'step': 1700, 'epoch': 1, 'loss': 0.3809, 'sec': 125}
+{'step': 1750, 'epoch': 1, 'loss': 0.3677, 'sec': 129}
+{'step': 1800, 'epoch': 1, 'loss': 0.3531, 'sec': 133}
+{'step': 1850, 'epoch': 1, 'loss': 0.3099, 'sec': 137}
+{'step': 1900, 'epoch': 1, 'loss': 0.3541, 'sec': 140}
+{'step': 1950, 'epoch': 1, 'loss': 0.3688, 'sec': 144}
+{'step': 2000, 'epoch': 1, 'loss': 0.3381, 'sec': 148}
+{'step': 2050, 'epoch': 1, 'loss': 0.3575, 'sec': 151}
+{'step': 2100, 'epoch': 1, 'loss': 0.3541, 'sec': 155}
+{'step': 2150, 'epoch': 1, 'loss': 0.3893, 'sec': 159}
+{'step': 2200, 'epoch': 1, 'loss': 0.3413, 'sec': 162}
+{'step': 2250, 'epoch': 1, 'loss': 0.3706, 'sec': 165}
+{'step': 2300, 'epoch': 1, 'loss': 0.3476, 'sec': 168}
+{'step': 2350, 'epoch': 1, 'loss': 0.3029, 'sec': 172}
+{'epoch': 1, 'dev_acc': 0.2674, 'confusion': [[1, 23, 19], [0, 0, 2], [0, 19, 22]], 'sec': 174}
+best dev acc 0.3372093023255814
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 2170.62it/s]
+{
+ "name": "fcb-nli-30m-nlionly-cv3",
+ "model": "/home/rt101/fcb/cv3-nlionly",
+ "data": "data_s3/afc_test_rationale.jsonl",
+ "n": 84,
+ "acc": 0.4405,
+ "macro_f1": 0.2349,
+ "f1_entail_neutral_contra": [
+  0,
+  0,
+  0.7048
+ ],
+ "binary_acc_true_false": 0.4878,
+ "confusion": [
+  [
+   0,
+   16,
+   26
+  ],
+  [
+   0,
+   0,
+   2
+  ],
+  [
+   0,
+   3,
+   37
+  ]
+ ],
+ "per_category_acc": {
+  "政治": 0.452,
+  "国際": 0.433,
+  "災害": 0.5,
+  "医療・健康": 0.375
+ },
+ "latency_ms": 5.4,
+ "device": "cuda",
+ "note": "cv",
+ "run_at": "2026-10-12T20:43"
+}
+== afc
+data_s4/afc_train.jsonl: 418
+data_s4/afc_dev.jsonl: 98
+data_s4/afc_test.jsonl: 96
+data_s4/afc_train_rationale.jsonl: 418
+data_s4/afc_dev_rationale.jsonl: 98
+data_s4/afc_test_rationale.jsonl: 96
+data/nli_train.jsonl 38253 x 1
+data_s4/afc_train_rationale.jsonl 418 x 3
+data_s4/afc_dev_rationale.jsonl 98 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 1796.42it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.bias   | MISSING    | 
+classifier.weight | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 39507 dev 98 class counts [11312, 20860, 7335]
+{'step': 50, 'epoch': 0, 'loss': 0.9923, 'sec': 4}
+{'step': 100, 'epoch': 0, 'loss': 0.9298, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.6348, 'sec': 12}
+{'step': 200, 'epoch': 0, 'loss': 0.891, 'sec': 15}
+{'step': 250, 'epoch': 0, 'loss': 0.7429, 'sec': 19}
+{'step': 300, 'epoch': 0, 'loss': 0.7139, 'sec': 23}
+{'step': 350, 'epoch': 0, 'loss': 0.6078, 'sec': 27}
+{'step': 400, 'epoch': 0, 'loss': 0.6315, 'sec': 31}
+{'step': 450, 'epoch': 0, 'loss': 0.662, 'sec': 34}
+{'step': 500, 'epoch': 0, 'loss': 0.519, 'sec': 39}
+{'step': 550, 'epoch': 0, 'loss': 0.6572, 'sec': 42}
+{'step': 600, 'epoch': 0, 'loss': 0.7117, 'sec': 46}
+{'step': 650, 'epoch': 0, 'loss': 0.3896, 'sec': 50}
+{'step': 700, 'epoch': 0, 'loss': 0.6118, 'sec': 54}
+{'step': 750, 'epoch': 0, 'loss': 0.618, 'sec': 57}
+{'step': 800, 'epoch': 0, 'loss': 0.5254, 'sec': 61}
+{'step': 850, 'epoch': 0, 'loss': 0.6134, 'sec': 64}
+{'step': 900, 'epoch': 0, 'loss': 0.4533, 'sec': 68}
+{'step': 950, 'epoch': 0, 'loss': 0.4979, 'sec': 72}
+{'step': 1000, 'epoch': 0, 'loss': 0.4432, 'sec': 76}
+{'step': 1050, 'epoch': 0, 'loss': 0.459, 'sec': 80}
+{'step': 1100, 'epoch': 0, 'loss': 0.4846, 'sec': 84}
+{'step': 1150, 'epoch': 0, 'loss': 0.3865, 'sec': 87}
+{'step': 1200, 'epoch': 0, 'loss': 0.5483, 'sec': 91}
+{'epoch': 0, 'dev_acc': 0.8265, 'confusion': [[40, 1, 8], [2, 2, 3], [1, 2, 39]], 'sec': 93}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.17it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.17it/s]
+saved /home/rt101/fcb/cv4
+{'step': 1250, 'epoch': 1, 'loss': 0.5224, 'sec': 95}
+{'step': 1300, 'epoch': 1, 'loss': 0.4956, 'sec': 99}
+{'step': 1350, 'epoch': 1, 'loss': 0.3111, 'sec': 103}
+{'step': 1400, 'epoch': 1, 'loss': 0.3209, 'sec': 106}
+{'step': 1450, 'epoch': 1, 'loss': 0.5124, 'sec': 111}
+{'step': 1500, 'epoch': 1, 'loss': 0.507, 'sec': 114}
+{'step': 1550, 'epoch': 1, 'loss': 0.448, 'sec': 118}
+{'step': 1600, 'epoch': 1, 'loss': 0.591, 'sec': 121}
+{'step': 1650, 'epoch': 1, 'loss': 0.421, 'sec': 125}
+{'step': 1700, 'epoch': 1, 'loss': 0.4624, 'sec': 129}
+{'step': 1750, 'epoch': 1, 'loss': 0.4043, 'sec': 132}
+{'step': 1800, 'epoch': 1, 'loss': 0.4505, 'sec': 136}
+{'step': 1850, 'epoch': 1, 'loss': 0.3443, 'sec': 140}
+{'step': 1900, 'epoch': 1, 'loss': 0.4007, 'sec': 144}
+{'step': 1950, 'epoch': 1, 'loss': 0.3864, 'sec': 147}
+{'step': 2000, 'epoch': 1, 'loss': 0.424, 'sec': 151}
+{'step': 2050, 'epoch': 1, 'loss': 0.3472, 'sec': 155}
+{'step': 2100, 'epoch': 1, 'loss': 0.4278, 'sec': 159}
+{'step': 2150, 'epoch': 1, 'loss': 0.3131, 'sec': 163}
+{'step': 2200, 'epoch': 1, 'loss': 0.3336, 'sec': 166}
+{'step': 2250, 'epoch': 1, 'loss': 0.4352, 'sec': 170}
+{'step': 2300, 'epoch': 1, 'loss': 0.5076, 'sec': 174}
+{'step': 2350, 'epoch': 1, 'loss': 0.4313, 'sec': 178}
+{'step': 2400, 'epoch': 1, 'loss': 0.3307, 'sec': 181}
+{'step': 2450, 'epoch': 1, 'loss': 0.3839, 'sec': 185}
+{'epoch': 1, 'dev_acc': 0.8367, 'confusion': [[42, 1, 6], [2, 2, 3], [4, 0, 38]], 'sec': 186}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.09it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.09it/s]
+saved /home/rt101/fcb/cv4
+{'step': 2500, 'epoch': 2, 'loss': 0.3762, 'sec': 190}
+{'step': 2550, 'epoch': 2, 'loss': 0.3406, 'sec': 193}
+{'step': 2600, 'epoch': 2, 'loss': 0.3292, 'sec': 197}
+{'step': 2650, 'epoch': 2, 'loss': 0.3256, 'sec': 200}
+{'step': 2700, 'epoch': 2, 'loss': 0.4937, 'sec': 204}
+{'step': 2750, 'epoch': 2, 'loss': 0.3088, 'sec': 207}
+{'step': 2800, 'epoch': 2, 'loss': 0.3004, 'sec': 211}
+{'step': 2850, 'epoch': 2, 'loss': 0.3956, 'sec': 214}
+{'step': 2900, 'epoch': 2, 'loss': 0.3213, 'sec': 217}
+{'step': 2950, 'epoch': 2, 'loss': 0.3483, 'sec': 221}
+{'step': 3000, 'epoch': 2, 'loss': 0.3169, 'sec': 225}
+{'step': 3050, 'epoch': 2, 'loss': 0.3777, 'sec': 228}
+{'step': 3100, 'epoch': 2, 'loss': 0.4333, 'sec': 232}
+{'step': 3150, 'epoch': 2, 'loss': 0.2949, 'sec': 235}
+{'step': 3200, 'epoch': 2, 'loss': 0.3615, 'sec': 239}
+{'step': 3250, 'epoch': 2, 'loss': 0.3179, 'sec': 242}
+{'step': 3300, 'epoch': 2, 'loss': 0.3061, 'sec': 246}
+{'step': 3350, 'epoch': 2, 'loss': 0.3111, 'sec': 250}
+{'step': 3400, 'epoch': 2, 'loss': 0.3676, 'sec': 253}
+{'step': 3450, 'epoch': 2, 'loss': 0.4019, 'sec': 257}
+{'step': 3500, 'epoch': 2, 'loss': 0.47, 'sec': 261}
+{'step': 3550, 'epoch': 2, 'loss': 0.2928, 'sec': 264}
+{'step': 3600, 'epoch': 2, 'loss': 0.3061, 'sec': 268}
+{'step': 3650, 'epoch': 2, 'loss': 0.3042, 'sec': 271}
+{'step': 3700, 'epoch': 2, 'loss': 0.4087, 'sec': 275}
+{'epoch': 2, 'dev_acc': 0.8061, 'confusion': [[36, 5, 8], [2, 4, 1], [2, 1, 39]], 'sec': 276}
+best dev acc 0.8367346938775511
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1542.84it/s]
+{
+ "name": "fcb-nli-30m-cv4",
+ "model": "/home/rt101/fcb/cv4",
+ "data": "data_s4/afc_test_rationale.jsonl",
+ "n": 96,
+ "acc": 0.8438,
+ "macro_f1": 0.5681,
+ "f1_entail_neutral_contra": [
+  0.8444,
+  0,
+  0.86
+ ],
+ "binary_acc_true_false": 0.8617,
+ "confusion": [
+  [
+   38,
+   0,
+   10
+  ],
+  [
+   1,
+   0,
+   1
+  ],
+  [
+   3,
+   0,
+   43
+  ]
+ ],
+ "per_category_acc": {
+  "災害": 0.929,
+  "医療・健康": 0.778,
+  "国際": 0.923,
+  "政治": 0.8
+ },
+ "latency_ms": 4.4,
+ "device": "cuda",
+ "note": "cv",
+ "run_at": "2026-10-12T20:48"
+}
+data/nli_train.jsonl 38253 x 1
+data_s4/afc_dev_rationale.jsonl 98 x 1
+Loading weights:   0%|          | 0/64 [00:00<?, ?it/s]Loading weights: 100%|██████████| 64/64 [00:00<00:00, 2399.14it/s]
+[transformers] [1mModernBertForSequenceClassification LOAD REPORT[0m from: sbintuitions/modernbert-ja-30m
+Key               | Status     | 
+------------------+------------+-
+decoder.bias      | UNEXPECTED | 
+classifier.weight | MISSING    | 
+classifier.bias   | MISSING    | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+- MISSING:	those params were newly initialized because missing from the checkpoint. Consider training on your downstream task.
+device cuda bf16 True train 38253 dev 98 class counts [10685, 20821, 6747]
+{'step': 50, 'epoch': 0, 'loss': 0.9799, 'sec': 4}
+{'step': 100, 'epoch': 0, 'loss': 1.0059, 'sec': 8}
+{'step': 150, 'epoch': 0, 'loss': 0.5012, 'sec': 11}
+{'step': 200, 'epoch': 0, 'loss': 0.4856, 'sec': 15}
+{'step': 250, 'epoch': 0, 'loss': 0.9199, 'sec': 18}
+{'step': 300, 'epoch': 0, 'loss': 0.6423, 'sec': 22}
+{'step': 350, 'epoch': 0, 'loss': 0.9621, 'sec': 26}
+{'step': 400, 'epoch': 0, 'loss': 0.6279, 'sec': 29}
+{'step': 450, 'epoch': 0, 'loss': 0.5457, 'sec': 33}
+{'step': 500, 'epoch': 0, 'loss': 0.516, 'sec': 36}
+{'step': 550, 'epoch': 0, 'loss': 0.5845, 'sec': 39}
+{'step': 600, 'epoch': 0, 'loss': 0.6166, 'sec': 43}
+{'step': 650, 'epoch': 0, 'loss': 0.5644, 'sec': 46}
+{'step': 700, 'epoch': 0, 'loss': 0.4001, 'sec': 49}
+{'step': 750, 'epoch': 0, 'loss': 0.6203, 'sec': 53}
+{'step': 800, 'epoch': 0, 'loss': 0.4064, 'sec': 56}
+{'step': 850, 'epoch': 0, 'loss': 0.3695, 'sec': 60}
+{'step': 900, 'epoch': 0, 'loss': 0.4815, 'sec': 63}
+{'step': 950, 'epoch': 0, 'loss': 0.5402, 'sec': 67}
+{'step': 1000, 'epoch': 0, 'loss': 0.3248, 'sec': 71}
+{'step': 1050, 'epoch': 0, 'loss': 0.5213, 'sec': 74}
+{'step': 1100, 'epoch': 0, 'loss': 0.4603, 'sec': 78}
+{'step': 1150, 'epoch': 0, 'loss': 0.3874, 'sec': 81}
+{'epoch': 0, 'dev_acc': 0.1837, 'confusion': [[0, 38, 11], [0, 6, 1], [0, 30, 12]], 'sec': 85}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  2.89it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  2.89it/s]
+saved /home/rt101/fcb/cv4-nlionly
+{'step': 1200, 'epoch': 1, 'loss': 0.3868, 'sec': 85}
+{'step': 1250, 'epoch': 1, 'loss': 0.3319, 'sec': 89}
+{'step': 1300, 'epoch': 1, 'loss': 0.3955, 'sec': 93}
+{'step': 1350, 'epoch': 1, 'loss': 0.4288, 'sec': 97}
+{'step': 1400, 'epoch': 1, 'loss': 0.4561, 'sec': 100}
+{'step': 1450, 'epoch': 1, 'loss': 0.4407, 'sec': 104}
+{'step': 1500, 'epoch': 1, 'loss': 0.41, 'sec': 107}
+{'step': 1550, 'epoch': 1, 'loss': 0.419, 'sec': 110}
+{'step': 1600, 'epoch': 1, 'loss': 0.5176, 'sec': 114}
+{'step': 1650, 'epoch': 1, 'loss': 0.3571, 'sec': 118}
+{'step': 1700, 'epoch': 1, 'loss': 0.4622, 'sec': 121}
+{'step': 1750, 'epoch': 1, 'loss': 0.4801, 'sec': 126}
+{'step': 1800, 'epoch': 1, 'loss': 0.4754, 'sec': 129}
+{'step': 1850, 'epoch': 1, 'loss': 0.48, 'sec': 133}
+{'step': 1900, 'epoch': 1, 'loss': 0.3303, 'sec': 137}
+{'step': 1950, 'epoch': 1, 'loss': 0.3644, 'sec': 140}
+{'step': 2000, 'epoch': 1, 'loss': 0.3819, 'sec': 144}
+{'step': 2050, 'epoch': 1, 'loss': 0.3244, 'sec': 148}
+{'step': 2100, 'epoch': 1, 'loss': 0.3732, 'sec': 151}
+{'step': 2150, 'epoch': 1, 'loss': 0.3548, 'sec': 155}
+{'step': 2200, 'epoch': 1, 'loss': 0.3106, 'sec': 158}
+{'step': 2250, 'epoch': 1, 'loss': 0.3918, 'sec': 162}
+{'step': 2300, 'epoch': 1, 'loss': 0.3296, 'sec': 165}
+{'step': 2350, 'epoch': 1, 'loss': 0.327, 'sec': 168}
+{'epoch': 1, 'dev_acc': 0.2041, 'confusion': [[1, 29, 19], [0, 4, 3], [1, 26, 15]], 'sec': 171}
+Writing model shards:   0%|          | 0/1 [00:00<?, ?it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.27it/s]Writing model shards: 100%|██████████| 1/1 [00:00<00:00,  1.27it/s]
+saved /home/rt101/fcb/cv4-nlionly
+best dev acc 0.20408163265306123
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1801.55it/s]
+{
+ "name": "fcb-nli-30m-nlionly-cv4",
+ "model": "/home/rt101/fcb/cv4-nlionly",
+ "data": "data_s4/afc_test_rationale.jsonl",
+ "n": 96,
+ "acc": 0.2812,
+ "macro_f1": 0.2256,
+ "f1_entail_neutral_contra": [
+  0.08,
+  0.0741,
+  0.5227
+ ],
+ "binary_acc_true_false": 0.5106,
+ "confusion": [
+  [
+   2,
+   27,
+   19
+  ],
+  [
+   0,
+   2,
+   0
+  ],
+  [
+   0,
+   23,
+   23
+  ]
+ ],
+ "per_category_acc": {
+  "災害": 0.429,
+  "医療・健康": 0.222,
+  "国際": 0.231,
+  "政治": 0.35
+ },
+ "latency_ms": 5.2,
+ "device": "cuda",
+ "note": "cv",
+ "run_at": "2026-10-12T20:51"
+}
+== 5. 学習後の評価（同じテスト）
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 5227.24it/s]
+{
+ "name": "fcb-nli-30m-nlionly",
+ "model": "/home/rt101/fcb/fcb-nli-30m-nlionly",
+ "data": "data/afc_test_rationale.jsonl",
+ "n": 88,
+ "acc": 0.25,
+ "macro_f1": 0.1881,
+ "f1_entail_neutral_contra": [
+  0,
+  0.0392,
+  0.525
+ ],
+ "binary_acc_true_false": 0.4828,
+ "confusion": [
+  [
+   0,
+   28,
+   16
+  ],
+  [
+   0,
+   1,
+   0
+  ],
+  [
+   1,
+   21,
+   21
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.167,
+  "国際": 0.125,
+  "災害": 0.5,
+  "政治": 0.353
+ },
+ "latency_ms": 4.2,
+ "device": "cuda",
+ "note": "finetuned",
+ "run_at": "2026-10-12T20:51"
+}
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 2910.26it/s]
+{
+ "name": "fcb-nli-30m-nlionly-evidence",
+ "model": "/home/rt101/fcb/fcb-nli-30m-nlionly",
+ "data": "data/afc_test.jsonl",
+ "n": 88,
+ "acc": 0.3977,
+ "macro_f1": 0.288,
+ "f1_entail_neutral_contra": [
+  0.3793,
+  0,
+  0.4848
+ ],
+ "binary_acc_true_false": 0.5862,
+ "confusion": [
+  [
+   11,
+   2,
+   31
+  ],
+  [
+   0,
+   0,
+   1
+  ],
+  [
+   3,
+   16,
+   24
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.417,
+  "国際": 0.375,
+  "災害": 0.5,
+  "政治": 0.382
+ },
+ "latency_ms": 4.1,
+ "device": "cuda",
+ "note": "finetuned 証拠説明文版（副）",
+ "run_at": "2026-10-12T20:51"
+}
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1808.75it/s]
+{
+ "name": "fcb-nli-30m-afconly",
+ "model": "/home/rt101/fcb/fcb-nli-30m-afconly",
+ "data": "data/afc_test_rationale.jsonl",
+ "n": 88,
+ "acc": 0.7159,
+ "macro_f1": 0.4884,
+ "f1_entail_neutral_contra": [
+  0.7442,
+  0,
+  0.7209
+ ],
+ "binary_acc_true_false": 0.7471,
+ "confusion": [
+  [
+   32,
+   1,
+   11
+  ],
+  [
+   0,
+   0,
+   1
+  ],
+  [
+   10,
+   2,
+   31
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.792,
+  "国際": 0.75,
+  "災害": 0.5,
+  "政治": 0.676
+ },
+ "latency_ms": 5.2,
+ "device": "cuda",
+ "note": "finetuned",
+ "run_at": "2026-10-12T20:51"
+}
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1963.88it/s]
+{
+ "name": "fcb-nli-30m-afconly-evidence",
+ "model": "/home/rt101/fcb/fcb-nli-30m-afconly",
+ "data": "data/afc_test.jsonl",
+ "n": 88,
+ "acc": 0.5,
+ "macro_f1": 0.2222,
+ "f1_entail_neutral_contra": [
+  0.6667,
+  0,
+  0
+ ],
+ "binary_acc_true_false": 0.5057,
+ "confusion": [
+  [
+   44,
+   0,
+   0
+  ],
+  [
+   1,
+   0,
+   0
+  ],
+  [
+   43,
+   0,
+   0
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.5,
+  "国際": 0.5,
+  "災害": 0.5,
+  "政治": 0.5
+ },
+ "latency_ms": 4.4,
+ "device": "cuda",
+ "note": "finetuned 証拠説明文版（副）",
+ "run_at": "2026-10-12T20:52"
+}
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 1755.08it/s]
+{
+ "name": "fcb-nli-30m",
+ "model": "/home/rt101/fcb/fcb-nli-30m",
+ "data": "data/afc_test_rationale.jsonl",
+ "n": 88,
+ "acc": 0.8182,
+ "macro_f1": 0.7163,
+ "f1_entail_neutral_contra": [
+  0.8101,
+  0.5,
+  0.8387
+ ],
+ "binary_acc_true_false": 0.8276,
+ "confusion": [
+  [
+   32,
+   1,
+   11
+  ],
+  [
+   0,
+   1,
+   0
+  ],
+  [
+   3,
+   1,
+   39
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.75,
+  "国際": 0.875,
+  "災害": 0.667,
+  "政治": 0.853
+ },
+ "latency_ms": 4.3,
+ "device": "cuda",
+ "note": "finetuned",
+ "run_at": "2026-10-12T20:52"
+}
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 2050.65it/s]
+{
+ "name": "fcb-nli-30m-evidence",
+ "model": "/home/rt101/fcb/fcb-nli-30m",
+ "data": "data/afc_test.jsonl",
+ "n": 88,
+ "acc": 0.6477,
+ "macro_f1": 0.4139,
+ "f1_entail_neutral_contra": [
+  0.7257,
+  0,
+  0.5161
+ ],
+ "binary_acc_true_false": 0.6552,
+ "confusion": [
+  [
+   41,
+   0,
+   3
+  ],
+  [
+   1,
+   0,
+   0
+  ],
+  [
+   27,
+   0,
+   16
+  ]
+ ],
+ "per_category_acc": {
+  "医療・健康": 0.75,
+  "国際": 0.625,
+  "災害": 0.667,
+  "政治": 0.588
+ },
+ "latency_ms": 3.8,
+ "device": "cuda",
+ "note": "finetuned 証拠説明文版（副）",
+ "run_at": "2026-10-12T20:52"
+}
+== 6. 埋め込み型 FactCheck-BERT（対照学習）と評価
+/home/rt101/modernbert-lab/research/finetune_embed.py:17: DeprecationWarning: Importing from 'sentence_transformers.losses' is deprecated and will be removed in a future version. Please use 'sentence_transformers.sentence_transformer.losses' instead.
+  from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer, SentenceTransformerTrainingArguments, losses
+                                                                                                                                                                                                                                                                                                                                                                                             

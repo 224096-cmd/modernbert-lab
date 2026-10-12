@@ -1,0 +1,158 @@
+nohup: ignoring input
+/home/rt101/modernbert-lab/research/finetune_embed.py:17: DeprecationWarning: Importing from 'sentence_transformers.losses' is deprecated and will be removed in a future version. Please use 'sentence_transformers.sentence_transformer.losses' instead.
+  from sentence_transformers import SentenceTransformer, SentenceTransformerTrainer, SentenceTransformerTrainingArguments, losses
+Traceback (most recent call last):
+  File "/home/rt101/modernbert-lab/research/finetune_embed.py", line 31, in <module>
+    main()
+  File "/home/rt101/modernbert-lab/research/finetune_embed.py", line 23, in main
+    m = SentenceTransformer(a.base); m.max_seq_length = a.seq
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/sentence_transformers/util/decorators.py", line 46, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/sentence_transformers/sentence_transformer/model.py", line 194, in __init__
+    super().__init__(
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/sentence_transformers/base/model.py", line 236, in __init__
+    modules, self.module_kwargs = self._load_modules(
+                                  ^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/sentence_transformers/base/model.py", line 1072, in _load_modules
+    model_type_being_loaded = self._get_model_type(
+                              ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/sentence_transformers/base/model.py", line 1419, in _get_model_type
+    config = json.load(fIn)
+             ^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 355, in raw_decode
+    raise JSONDecodeError("Expecting value", s, err.value) from None
+json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+Traceback (most recent call last):
+  File "/home/rt101/modernbert-lab/research/eval_objectivity.py", line 62, in <module>
+    main()
+  File "/home/rt101/modernbert-lab/research/eval_objectivity.py", line 43, in main
+    dev = "cuda" if torch.cuda.is_available() else "cpu"; tok = AutoTokenizer.from_pretrained(a.model); m = AutoModel.from_pretrained(a.model).to(dev).eval()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/models/auto/tokenization_auto.py", line 990, in from_pretrained
+    return tokenizer_class.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 1739, in from_pretrained
+    return cls._from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 1933, in _from_pretrained
+    tokenizer = cls(*init_inputs, **init_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_tokenizers.py", line 412, in __init__
+    raise ValueError(
+ValueError: Couldn't instantiate the backend tokenizer from one of: 
+(1) a `tokenizers` library serialization file, 
+(2) a slow tokenizer instance to convert or 
+(3) an equivalent slow tokenizer class to instantiate and convert. 
+You need to have sentencepiece or tiktoken installed to convert a slow tokenizer to a fast one.
+Traceback (most recent call last):
+  File "/home/rt101/modernbert-lab/research/eval_objectivity.py", line 62, in <module>
+    main()
+  File "/home/rt101/modernbert-lab/research/eval_objectivity.py", line 43, in main
+    dev = "cuda" if torch.cuda.is_available() else "cpu"; tok = AutoTokenizer.from_pretrained(a.model); m = AutoModel.from_pretrained(a.model).to(dev).eval()
+                                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/models/auto/tokenization_auto.py", line 990, in from_pretrained
+    return tokenizer_class.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 1739, in from_pretrained
+    return cls._from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 1933, in _from_pretrained
+    tokenizer = cls(*init_inputs, **init_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_tokenizers.py", line 412, in __init__
+    raise ValueError(
+ValueError: Couldn't instantiate the backend tokenizer from one of: 
+(1) a `tokenizers` library serialization file, 
+(2) a slow tokenizer instance to convert or 
+(3) an equivalent slow tokenizer class to instantiate and convert. 
+You need to have sentencepiece or tiktoken installed to convert a slow tokenizer to a fast one.
+Loading weights:   0%|          | 0/66 [00:00<?, ?it/s]Loading weights: 100%|██████████| 66/66 [00:00<00:00, 695.46it/s]
+/home/rt101/modernbert-lab/mbo/export_onnx.py:142: DeprecationWarning: You are using the legacy TorchScript-based ONNX export. Starting in PyTorch 2.9, the new torch.export-based ONNX exporter has become the default. Learn more about the new export logic: https://docs.pytorch.org/docs/stable/onnx_export.html. For exporting control flow: https://pytorch.org/tutorials/beginner/onnx/export_control_flow_model_to_onnx_tutorial.html
+  torch.onnx.export(w, (enc["input_ids"], enc["attention_mask"]), os.path.join(out, "model.onnx"), input_names=["input_ids", "attention_mask"], output_names=[outname],
+/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/masking_utils.py:213: TracerWarning: Converting a tensor to a Python boolean might cause the trace to be incorrect. We can't record the data flow of Python values, so this value will be treated as a constant in the future. This means that the trace might not generalize to other inputs!
+  if (padding_length := kv_length + kv_offset - attention_mask.shape[-1]) > 0:
+/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/masking_utils.py:606: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+  mask = torch.where(mask, torch.tensor(0.0, device=mask.device, dtype=dtype), min_dtype)
+/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/torch/onnx/_internal/torchscript_exporter/symbolic_opset11.py:955: UserWarning: Exporting aten::index operator of advanced indexing in opset 17 is achieved by combination of multiple ONNX operators, including Reshape, Transpose, Concat, and Gather. If indices include negative values, the exported graph will produce incorrect results.
+  return opset9.index(g, self, index)
+WARNING:root:Please consider to run pre-processing before quantization. Refer to example: https://github.com/microsoft/onnxruntime-inference-examples/blob/main/quantization/image_classification/cpu/ReadMe.md 
+int8 embeddings: 1
+model.onnx 143875 KB  max|diff| vs torch: 1.4781951904296875e-05
+model_int8.onnx 37163 KB  max|diff| vs torch: 0.9965877532958984
+done models/fcb-nli-30m ['tokenizer_config.json', 'tokenizer.json', 'model_int8.onnx', 'config.json', 'meta.json']
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+{
+ "n": 800,
+ "acc": 0.87125,
+ "confusion": [
+  [
+   71,
+   39,
+   2
+  ],
+  [
+   18,
+   422,
+   8
+  ],
+  [
+   18,
+   18,
+   204
+  ]
+ ],
+ "ece_T1": 0.03309880543500183,
+ "ece_T": 0.033769080379039314,
+ "T": 0.9,
+ "labels": [
+  "entailment",
+  "neutral",
+  "contradiction"
+ ]
+}
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/rt101/modernbert-lab/mbo/export_onnx.py", line 185, in <module>
+    export(a.embed, a.out, "embed", pooling=a.pooling, prune=a.prune, quant=a.quant)
+  File "/home/rt101/modernbert-lab/mbo/export_onnx.py", line 133, in export
+    tok = AutoTokenizer.from_pretrained(src)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/models/auto/tokenization_auto.py", line 990, in from_pretrained
+    return tokenizer_class.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 1739, in from_pretrained
+    return cls._from_pretrained(
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_base.py", line 1933, in _from_pretrained
+    tokenizer = cls(*init_inputs, **init_kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rt101/modernbert-lab/.venv/lib/python3.12/site-packages/transformers/tokenization_utils_tokenizers.py", line 412, in __init__
+    raise ValueError(
+ValueError: Couldn't instantiate the backend tokenizer from one of: 
+(1) a `tokenizers` library serialization file, 
+(2) a slow tokenizer instance to convert or 
+(3) an equivalent slow tokenizer class to instantiate and convert. 
+You need to have sentencepiece or tiktoken installed to convert a slow tokenizer to a fast one.
+ruri-v3-30m 35.8 MB
+ruri-v3-70m 68.0 MB
+multilingual-e5-small 32.3 MB
+nli-ja-30m 36.3 MB
+minilm-l6-xnli 52.5 MB
+reranker-ja-xsmall-v2 36.3 MB
+reranker-xsmall-v1 21.9 MB
+ruri-v3-pt-30m 36.0 MB
+modernbert-ja-30m-embed 36.0 MB
+nli-ja-70m 68.7 MB
+== 完了

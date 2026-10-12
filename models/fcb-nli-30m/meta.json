@@ -1,0 +1,24 @@
+{
+ "kind": "nli",
+ "source": "/home/rt101/fcb/fcb-nli-30m",
+ "output": "logits",
+ "pooling": "cls",
+ "pruned_vocab": false,
+ "quant": "all",
+ "pad_id": 3,
+ "n_labels": 3,
+ "labels": {
+  "0": "entailment",
+  "1": "neutral",
+  "2": "contradiction"
+ },
+ "max_seq": 256,
+ "prefixes": null,
+ "temperature": 0.9,
+ "eval": {
+  "n": 800,
+  "acc": 0.87125,
+  "ece_T1": 0.03309880543500183,
+  "ece_T": 0.033769080379039314
+ }
+}

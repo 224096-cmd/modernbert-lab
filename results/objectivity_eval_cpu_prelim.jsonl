@@ -1,0 +1,2 @@
+{"name": "ruri-v3-pt-30m", "model": "cl-nagoya/ruri-v3-pt-30m", "n": 1500, "zeroshot_auc": 0.5433, "zeroshot_best_acc": 0.5393, "sec": 37, "device": "cpu", "note": "baseline", "run_at": "2026-10-11T19:58", "centroid_auc": 0.9701, "centroid_best_acc": 0.9107}
+{"name": "ruri-v3-pt-30m-nowiki", "model": "cl-nagoya/ruri-v3-pt-30m", "n": 1500, "zeroshot_auc": 0.4535, "zeroshot_best_acc": 0.578, "sec": 34, "device": "cpu", "note": "baseline", "run_at": "2026-10-11T19:59", "centroid_auc": 0.9507, "centroid_best_acc": 0.89}

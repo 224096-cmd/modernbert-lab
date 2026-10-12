@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v5.7";
+const VERSION = "v5.8";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -165,7 +165,7 @@ const state = {};
 const ROLE_LABEL = { embed: "埋め込み", nli: "含意", rerank: "関連度" };
 async function renderModelBars() {
   const reg = await registry(); const bars = $$(".modelbar"); if (!bars.length) return;
-  const html = `<span class="tiny muted">使用モデル：</span>` + ["embed", "nli", "rerank"].map(r => `<label class="mb"><span>${ROLE_LABEL[r]}</span><select data-role="${r}">${reg.browser.filter(m => m.role === r).map(m => `<option value="${esc(m.name)}" ${ML.modelName(r) === m.name ? "selected" : ""}>${esc(m.name)}（${m.ctx >= 8192 ? "8192" : m.ctx}・${m.size_mb}MB）</option>`).join("")}</select></label>`).join("") + `<a href="#models" class="tiny" data-go="models">詳細</a>`;
+  const html = `<span class="tiny muted">使用モデル（★自作＝本研究で学習した FactCheck-BERT、土台＝その学習前、既存＝公開モデル）：</span>` + ["embed", "nli", "rerank"].map(r => `<label class="mb"><span>${ROLE_LABEL[r]}</span><select data-role="${r}">${reg.browser.filter(m => m.role === r).map(m => `<option value="${esc(m.name)}" ${ML.modelName(r) === m.name ? "selected" : ""}>${m.kind === "own" ? "★自作 " : m.kind === "base" ? "土台 " : "既存 "}${esc(m.name)}（${m.ctx >= 8192 ? "8192" : m.ctx}・${m.size_mb}MB）</option>`).join("")}</select></label>`).join("") + `<a href="#models" class="tiny" data-go="models">詳細</a>`;
   for (const b of bars) { b.innerHTML = html; b.querySelectorAll("select").forEach(sel => sel.onchange = () => { ML.setModelName(sel.dataset.role, sel.value); state[sel.dataset.role] = null; renderModelBars(); }); b.querySelector("[data-go]").onclick = e => { e.preventDefault(); show("models"); }; }
 }
 async function models(onStep, roles = ["embed", "nli"]) { for (const r of roles) if (!state[r] || state[r].name !== ML.modelName(r)) state[r] = await ML.get(r, m => onStep?.(m)); return state; }
@@ -341,7 +341,7 @@ async function renderModels() {
   const reg = await registry(); const res = (await getJSON("./data/models.json"))?.results || []; const R = Object.fromEntries(res.map(r => [r.name, r]));
   const stored = {}; for (const m of reg.browser) stored[m.name] = await ML.isStored(m.name);
   const roles = { embed: "埋め込み", nli: "含意", rerank: "関連度" };
-  $("#md-browser").innerHTML = `<div class="tw"><table><thead><tr><th>使う</th><th>モデル</th><th>役割</th><th>文脈長</th><th>サイズ</th><th>端末</th><th>備考</th></tr></thead><tbody>${reg.browser.map(m => `<tr><td><input type="radio" name="sel-${m.role}" value="${esc(m.name)}" ${ML.modelName(m.role) === m.name ? "checked" : ""}></td><td><b>${esc(m.name)}</b><div class="tiny muted">${esc(m.arch)}${m.hf ? ` · <a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">HF</a>` : " · 本リポジトリ"}</div></td><td>${roles[m.role]}</td><td>${m.ctx >= 8192 ? '<span class="ok">8,192</span>' : m.ctx}</td><td>${m.size_mb} MB</td><td class="small">${stored[m.name] ? '<span class="ok">保存済み</span>' : `<button class="small md-dl" data-n="${esc(m.name)}">取得</button>`}${stored[m.name] ? ` <button class="small md-rm" data-n="${esc(m.name)}">削除</button>` : ""}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div><div class="small muted" id="md-msg"></div>`;
+  $("#md-browser").innerHTML = `<div class="tw"><table><thead><tr><th>使う</th><th>区分</th><th>モデル</th><th>役割</th><th>文脈長</th><th>サイズ</th><th>端末</th><th>備考</th></tr></thead><tbody>${[...reg.browser].sort((a, b) => ({ own: 0, base: 1 }[a.kind] ?? 2) - ({ own: 0, base: 1 }[b.kind] ?? 2)).map(m => `<tr class="${m.kind === "own" ? "own-row" : ""}"><td><input type="radio" name="sel-${m.role}" value="${esc(m.name)}" ${ML.modelName(m.role) === m.name ? "checked" : ""}></td><td><b class="${m.kind === "own" ? "ok" : "muted"}">${m.kind === "own" ? "★自作" : m.kind === "base" ? "土台（学習前）" : "既存"}</b></td><td><b>${esc(m.name)}</b><div class="tiny muted">${esc(m.arch)}${m.hf ? ` · <a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">HF</a>` : " · 本リポジトリ"}</div></td><td>${roles[m.role]}</td><td>${m.ctx >= 8192 ? '<span class="ok">8,192</span>' : m.ctx}</td><td>${m.size_mb} MB</td><td class="small">${stored[m.name] ? '<span class="ok">保存済み</span>' : `<button class="small md-dl" data-n="${esc(m.name)}">取得</button>`}${stored[m.name] ? ` <button class="small md-rm" data-n="${esc(m.name)}">削除</button>` : ""}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div><div class="small muted" id="md-msg"></div>`;
   $$("#md-browser input[type=radio]").forEach(r => r.onchange = () => { ML.setModelName(r.name.replace("sel-", ""), r.value); state[r.name.replace("sel-", "")] = null; $("#md-msg").textContent = `${r.value} を ${roles[r.name.replace("sel-", "")]} に使います（次の処理から）`; renderModelBars(); });
   $$("#md-browser .md-dl").forEach(b => b.onclick = async () => { b.disabled = true; try { await ML.loadByName(b.dataset.n, m => $("#md-msg").textContent = m); $("#md-msg").textContent = "完了"; renderModels(); } catch (e) { $("#md-msg").textContent = "失敗: " + e.message; b.disabled = false; } });
   $$("#md-browser .md-rm").forEach(b => b.onclick = async () => { await ML.removeStored(b.dataset.n); renderModels(); });
@@ -524,6 +524,7 @@ function renderLearn() {
 $$("#t-s-home [data-go]").forEach(b => b.onclick = () => show(b.dataset.go));
 $$(".subnav a[data-go], #t-home a[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); show(a.dataset.go); });
 /* ---------- 一般画面：基礎知識・検証の方法 ---------- */
+
 
 /* ---------- 一括検証（研究用）：検索 → 照合 → 判定を正解つきの主張で通しで回す ---------- */
 async function fcHeadless(claim, { src = "", oracle = false, nofc = true, nread = 10, status = () => { } } = {}) {

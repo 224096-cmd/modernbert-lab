@@ -19,6 +19,16 @@ ${card("検証の 3 段階と 5 段階の判定", `
 ${tbl(["判定", "条件"], Object.values(RATINGS).map(([l, c, d]) => [`<b class="${c}">${l}</b>`, esc(d)]))}
 <p class="small muted">「判定留保」はこのアプリ独自の扱いで、意見・予測など検証対象にならない文に付く。</p>`)}
 ${card("情報源の種類と評価の観点", `
+<svg viewBox="0 0 760 190" role="img" aria-label="一次情報を頂点に、二次・三次情報へと広がる情報源の階層。上ほど直接の証拠で、下ほど加工が多い" style="width:100%;height:auto;font-size:12px"><g font-family="system-ui,sans-serif">
+ <polygon points="380,14 300,70 460,70" fill="#dbeafe" stroke="#2563eb"/><text x="380" y="52" text-anchor="middle" font-weight="600" fill="#1e3a8a">一次情報</text>
+ <polygon points="296,76 464,76 540,132 220,132" fill="#e0f2fe" stroke="#0284c7"/><text x="380" y="110" text-anchor="middle" font-weight="600" fill="#0c4a6e">二次情報（報道・解説・百科事典）</text>
+ <polygon points="216,138 544,138 620,184 140,184" fill="#f1f5f9" stroke="#64748b"/><text x="380" y="166" text-anchor="middle" font-weight="600" fill="#334155">三次情報（まとめ・SNS の引用・転載）</text>
+ <text x="560" y="40" fill="#1e3a8a">統計の原データ・官公庁の発表・議事録・論文・本人の発言</text><text x="560" y="58" fill="#475569">← 最も直接的。日付と訂正を確認</text>
+ <text x="590" y="112" fill="#475569">要約で意味が変わることがある → 元の資料へ辿る</text>
+ <text x="630" y="166" fill="#475569">出典が欠けやすい → 初出を探す</text>
+ <line x1="60" y1="20" x2="60" y2="180" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#ar2)"/><text x="30" y="26" fill="#475569" transform="rotate(-90 30 26)" text-anchor="end">加工が増える ↓　証拠としての直接性 ↑</text>
+ <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker></defs>
+</g></svg>
 ${tbl(["種類", "例", "特徴", "注意"], [
   ["一次情報", "統計の原データ、官公庁の発表、議事録、論文、当事者の発言そのもの", "最も直接的な証拠", "一次情報でも誤りや訂正はある。日付と改訂を見る"],
   ["二次情報", "報道記事、解説記事、百科事典", "一次情報を整理・要約している", "要約で意味が変わることがある。元の資料へ辿る"],

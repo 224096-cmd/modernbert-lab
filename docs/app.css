@@ -53,3 +53,4 @@ table.sortable th[data-k]{cursor:pointer;user-select:none}table.sortable th[data
 
 body.mode-simple .research-only{display:none}
 .subnav{margin:0 0 8px}.subnav .chip.on{background:var(--accent,#1d4ed8);color:#fff}
+.own-row td{background:rgba(29,78,216,.06)}

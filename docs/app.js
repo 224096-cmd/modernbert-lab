@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v5.9";
+const VERSION = "v6.0";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -345,8 +345,7 @@ async function renderModels() {
   $$("#md-browser input[type=radio]").forEach(r => r.onchange = () => { ML.setModelName(r.name.replace("sel-", ""), r.value); state[r.name.replace("sel-", "")] = null; $("#md-msg").textContent = `${r.value} を ${roles[r.name.replace("sel-", "")]} に使います（次の処理から）`; renderModelBars(); });
   $$("#md-browser .md-dl").forEach(b => b.onclick = async () => { b.disabled = true; try { await ML.loadByName(b.dataset.n, m => $("#md-msg").textContent = m); $("#md-msg").textContent = "完了"; renderModels(); } catch (e) { $("#md-msg").textContent = "失敗: " + e.message; b.disabled = false; } });
   $$("#md-browser .md-rm").forEach(b => b.onclick = async () => { await ML.removeStored(b.dataset.n); renderModels(); });
-  $("#md-table").innerHTML = `<div class="tw"><table><thead><tr><th>モデル</th><th>役割</th><th>指標</th><th>CPU 遅延</th><th>パラメータ / 配布</th></tr></thead><tbody>${reg.compare.filter(m => m.role !== "base").map(m => { const r = R[m.name] || {}; return `<tr><td><b>${esc(m.name)}</b><div class="tiny muted">${esc(m.arch || "")}</div></td><td>${roles[m.role] || m.role}</td><td class="small">${r.ok ? (m.role === "embed" ? `JSTS ${r.jsts_spearman}・cos差 ${r.nli_cos_gap}` : `JNLI ${(r.jnli_acc * 100).toFixed(1)}%・含意再現 ${(r.entail_recall * 100) | 0}%・ECE ${r.ece}`) : '<span class="muted">未測定</span>'}</td><td>${r.latency_ms != null ? r.latency_ms + " ms" : "—"}</td><td class="small">${m.params_m ?? r.params_m ?? "—"}M / ${m.size_mb ?? "—"} MB</td></tr>`; }).join("")}</tbody></table></div>`;
-  $("#md-base").innerHTML = `<div class="tw"><table><thead><tr><th>判定</th><th>土台</th><th>構造</th><th>パラメータ</th><th>文脈長</th><th>ライセンス</th><th>ブラウザで試す</th><th>用途</th></tr></thead><tbody>${reg.base.map(m => `<tr><td><b>${esc(m.rank || "")}</b></td><td><b>${esc(m.name)}</b>${m.hf ? `<div class="tiny"><a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">${esc(m.hf)}</a></div>` : ""}</td><td>${esc(m.arch)}</td><td>${m.params_m ? m.params_m + "M" : "—"}</td><td>${m.ctx}</td><td class="small">${esc(m.license)}</td><td class="small">${(m.browser || []).map(n => `<code>${esc(n)}</code>`).join(" ") || '<span class="muted">—（学習後に追加）</span>'}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div><p class="small muted">「採用」の 2 つだけを土台に使い、それ以外は比較を必要最小限にするため使わない。「ブラウザで試す」の名前を上の表で選ぶと、学習前の土台（nli-ja-30m・ruri-v3-pt-30m）と学習後（fcb-*）を同じ画面で入れ替えて比べられる。</p>`;
+  $("#md-base").innerHTML = `<div class="tw"><table><thead><tr><th>判定</th><th>土台</th><th>構造</th><th>パラメータ</th><th>文脈長</th><th>ライセンス</th><th>ブラウザで試す</th><th>用途</th></tr></thead><tbody>${reg.base.map(m => `<tr><td><b>${esc(m.rank || "")}</b></td><td><b>${esc(m.name)}</b>${m.hf ? `<div class="tiny"><a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noopener">${esc(m.hf)}</a></div>` : ""}</td><td>${esc(m.arch)}</td><td>${m.params_m ? m.params_m + "M" : "—"}</td><td>${m.ctx}</td><td class="small">${esc(m.license)}</td><td class="small">${(m.browser || []).map(n => `<code>${esc(n)}</code>`).join(" ") || '<span class="muted">—（学習後に追加）</span>'}</td><td class="small">${esc(m.note)}</td></tr>`).join("")}</tbody></table></div><p class="small muted">${esc(reg.base_note || "")} 「ブラウザで試す」の名前を上の表で選ぶと、学習前の土台（nli-ja-30m・ruri-v3-pt-30m）と学習後（fcb-*）を同じ画面で入れ替えて比べられる。</p>`;
 }
 
 /* ---------- 仕組み・解説 ---------- */
@@ -521,7 +520,7 @@ function renderLearn() {
 }
 
 
-$$("#t-s-home [data-go]").forEach(b => b.onclick = () => show(b.dataset.go));
+$$("#t-s-home [data-go]").forEach(b => b.onclick = () => { $$("#t-s-home .s-cta button").forEach(x => x.classList.toggle("on", x === b)); show(b.dataset.go); });
 $$(".subnav a[data-go], #t-home a[data-go]").forEach(a => a.onclick = e => { e.preventDefault(); show(a.dataset.go); });
 /* ---------- 一般画面：基礎知識・検証の方法 ---------- */
 

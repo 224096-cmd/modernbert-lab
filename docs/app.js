@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v6.0";
+const VERSION = "v6.1";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -571,5 +571,5 @@ $("#gate-pw").onkeydown = e => { if (e.key === "Enter") $("#gate-go").click(); }
   renderNav(); const t = location.hash.slice(1); show(t && $(`main > section#t-${t}`) ? t : (MODE.v === "research" ? "home" : "s-home"));
   const u = new URLSearchParams(location.search); if (u.get("q") || u.get("url") || u.get("text")) { const v = u.get("text") || u.get("q") || u.get("url"); if (MODE.v === "research") { $("#lv-q").value = v; show("live"); runLive(); } else { $("#fc-claim").value = /^https?:/.test(v) ? "" : v; if (/^https?:/.test(v)) $("#fc-src").value = v; show("fc"); fcCheckable(); } }
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { });
-  const net = () => $("#net").textContent = navigator.onLine ? "" : "オフライン（保存済みデータとモデルで動作）"; addEventListener("online", net); addEventListener("offline", net); net();
+  const net = () => $("#net").textContent = navigator.onLine ? "" : "オフライン（公開情報の収集はできません）"; addEventListener("online", net); addEventListener("offline", net); net();
 })();

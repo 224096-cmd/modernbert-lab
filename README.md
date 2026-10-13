@@ -74,7 +74,7 @@ R = 100 × (0.35·出所 + 0.25·内容 + 0.30·裏取り + 0.10·時間)
 
 1. このリポジトリを GitHub に push
 2. Settings → Pages → Source を **GitHub Actions** に（`pages.yml` が `docs/` とモデルを配信する）
-3. `https://<owner>.github.io/modernbert-lab/` を開く。初回はモデル 74 MB を端末にダウンロードする（以後はオフラインでも判定できる）
+3. `https://<owner>.github.io/modernbert-lab/` を開く。初回はモデル約 108 MB を端末にダウンロードする（収集にはネット接続が必要）
 
 ## 使い方（手元の PC / PowerShell）
 

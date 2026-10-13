@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v6.1";
+const VERSION = "v6.2";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -184,10 +184,15 @@ const PAR = { search: 3, read: 3 };
 /* 主張の語（数字・漢字/カタカナ/英字のかたまり）とタイトル・抜粋の重なり＝読む前に分かる関連度 */
 const JUNK_HOSTS = /(^|\.)(twitter\.com|x\.com|facebook\.com|instagram\.com|tiktok\.com|youtube\.com|youtu\.be|threads\.net|5ch\.net|2ch\.sc|chiebukuro\.yahoo\.co\.jp|detail\.chiebukuro|matome|togetter\.com|pinterest|ameblo\.jp|hatenablog|livedoor\.blog|fc2\.com|note\.com|mercari|rakuten\.co\.jp|amazon\.co\.jp)$/i;
 const FC_SITES = /factcheck|fij\.info|infact\.press|fact-?check|検証記事/i;
-function claimKeys(t) { const ks = new Set(); for (const m of String(t).matchAll(/\d[\d,.]*[%％]?|[一-龠々]{2,}|[ァ-ヶー]{2,}|[A-Za-z][A-Za-z0-9-]{2,}/g)) { const k = m[0]; if (!/^(こと|もの|ため|よう|という|について|により|という|する|ある|いる|年|月|日)$/.test(k)) ks.add(k); } return [...ks]; }
+function claimKeys(t) { const ks = new Set(); for (const m of String(t).matchAll(/\d[\d,.]*(?:[年月日%％円人件倍億万歳度回世帯割]+)?|[一-龠々]{2,}|[ァ-ヶー]{2,}|[A-Za-z][A-Za-z0-9-]{2,}/g)) { const k = m[0]; if (!/^(こと|もの|ため|よう|という|について|により|する|ある|いる|年|月|日|国内|以上|以下|未満|場合|可能|必要|問題)$/.test(k)) ks.add(k); } return [...ks]; }
 function lexRel(keys, text) { if (!keys.length) return 0; const t = String(text); let n = 0; for (const k of keys) if (t.includes(k)) n++; return n / keys.length; }
+/* 検索式は文全体ではなく「主張の要点語」で組む（長い一文をそのまま site: 付きで検索すると 0 件になりやすい）。完全一致だけは最も長い要点語を引用符で */
+function buildQueries(topic, dorks) {
+  const kw = claimKeys(topic).slice(0, 6); const kq = kw.length >= 2 ? kw.join(" ") : topic; const words = kw.filter(k => !/^\d/.test(k)); const longest = (words.length ? words : kw).slice().sort((a, b) => b.length - a.length)[0] || topic;
+  return [{ name: "topic", label: "そのまま", query: topic }, ...(kq !== topic ? [{ name: "keywords", label: "要点語", query: kq }] : []), ...[...dorks].map(k => ({ name: k, label: DORKS[k][0], query: k === "exact" ? (DORKS[k][1].replace("{q}", longest) + " " + kw.filter(x => x !== longest).join(" ")).trim() : DORKS[k][1].replace("{q}", kq) }))];
+}
 async function collectLive(topic, { dorks, engines, nread, status, onItems, onText, exclude = null }) {
-  const queries = [{ name: "topic", label: "そのまま", query: topic }, ...[...dorks].map(k => ({ name: k, label: DORKS[k][0], query: DORKS[k][1].replace("{q}", topic) }))];
+  const queries = buildQueries(topic, dorks);
   const seen = new Map(); const jobs = [];
   for (const q of queries) for (const e of engines) { if (e === "wiki" && q.name !== "topic") continue; jobs.push({ q, e }); }
   let done = 0;
@@ -414,7 +419,7 @@ chips($("#fc-dorks"), DORKS, () => { fcSelC.dorks = new Set($$("#fc-dorks .chip.
 chips($("#fc-engines"), Object.fromEntries(Object.entries(NET.ENGINES).map(([k, v]) => [k, [v.label, v.note]])), () => { fcSelC.engines = new Set($$("#fc-engines .chip.on").map(c => c.dataset.k)); }, fcSelC.engines);
 $("#fc-claim").oninput = fcCheckable; $("#fc-read").oninput = () => $("#fc-read-v").textContent = $("#fc-read").value; $("#fc-claim").onkeydown = e => { if (e.key === "Enter") runFactCheck(); };
 $("#fc-run").onclick = () => runFactCheck(false); $("#fc-plan").onclick = () => runFactCheck(true);
-const fcQueries = claim => [...fcSelC.dorks].map(k => ({ name: k, label: DORKS[k][0], query: DORKS[k][1].replace("{q}", claim) }));
+const fcQueries = claim => buildQueries(claim, fcSelC.dorks).filter(q => q.name !== "topic");
 function toolLinks(q, url) {
   const L = [];
   for (const [k, [label, f]] of Object.entries(FC.ENGINES)) if (k !== "x") L.push([label, f(`"${q}"`)]);
@@ -446,7 +451,7 @@ async function runFactCheck(planOnly = false) {
   const claim = $("#fc-claim").value.trim(); if (!claim) { $("#fc-status").textContent = "主張を入れてください"; return; }
   const src = $("#fc-src").value.trim(), spread = $("#fc-spread").value.trim(); const ck = fcCheckable(); const st = m => $("#fc-status").textContent = m; const out = $("#fc-out");
   const queries = fcQueries(claim); const links = toolLinks(claim, src);
-  const planHtml = `<div class="card"><h3 style="margin-top:0">② 検証過程 — 高度な検索の式 <span class="muted small">クリックで各検索エンジンに送れる（手動の裏取り用）</span></h3><div class="tw"><table>${queries.map(x => `<tr><td>${esc(x.label)}</td><td class="mono">${esc(x.query)}</td><td class="small">${["google", "bing", "ddg"].map(k => `<a href="${esc(FC.ENGINES[k][1](x.query))}" target="_blank" rel="noopener">${FC.ENGINES[k][0]}</a>`).join("・")}</td></tr>`).join("")}</table></div><h3>公開情報ツールで確かめる</h3><div class="chips">${links.map(([l, u]) => u === "#tools" ? `<a class="chip" href="#" data-go="tools" data-url="${esc(src)}">${esc(l)}</a>` : `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join("")}</div></div>`;
+  const planHtml = `<div class="card"><h3 style="margin-top:0">使った検索式 <span class="muted small">クリックで各検索エンジンに送れる（手動の裏取り用）</span></h3><div class="tw"><table>${queries.map(x => `<tr><td>${esc(x.label)}</td><td class="mono">${esc(x.query)}</td><td class="small">${["google", "bing", "ddg"].map(k => `<a href="${esc(FC.ENGINES[k][1](x.query))}" target="_blank" rel="noopener">${FC.ENGINES[k][0]}</a>`).join("・")}</td></tr>`).join("")}</table></div><h3>公開情報ツールで確かめる</h3><div class="chips">${links.map(([l, u]) => u === "#tools" ? `<a class="chip" href="#" data-go="tools" data-url="${esc(src)}">${esc(l)}</a>` : `<a class="chip" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join("")}</div></div>`;
   if (planOnly) { out.innerHTML = planHtml; wireFcLinks(out); st(""); return; }
   $("#fc-run").disabled = true; out.innerHTML = ""; const tRun = performance.now(); const statsBefore = Object.fromEntries(Object.entries(state).filter(([, m]) => m).map(([k, m]) => [k, { ...m.stats }]));
   try {
@@ -459,11 +464,12 @@ async function runFactCheck(planOnly = false) {
     const rating = FC.suggestRating(v, ck?.ok !== false); const R = FC.RATINGS[rating]; const dv = dataVoid(docs);
     const used = ["DuckDuckGo", "Google ニュース RSS", "Wikipedia", ...(dom ? ["Wayback Machine（ドメイン年齢）", "Wikipedia 出典回数"] : [])];
     const md = FC.reportMarkdown({ claim, source_url: src, spread, checkable: ck || FC.checkable(claim), selection: [...fcSel], queries: queries.map(q => q.query), tools: used, evidence: v.evidence, rating, note: dv.level !== "none" ? `公的・報道の情報源が少ない（${dv.rel}/${dv.n} 件）ため、情報の空白の可能性がある。` : "", models: ["embed", "nli"].map(r => ML.modelName(r)).join("・") });
-    const html = `<div class="card"><h3 style="margin-top:0">① 検証対象</h3><div class="kv"><span>主張</span><span><b>${esc(claim)}</b></span>${src ? `<span>出どころ</span><span><a href="${esc(src)}" target="_blank" rel="noopener">${esc(src)}</a></span>` : ""}${spread ? `<span>拡散</span><span>${esc(spread)}</span>` : ""}<span>検証可能性</span><span class="${ck?.ok ? "ok" : "warn"}">${(ck || FC.checkable(claim)).why.map(esc).join("／")}</span>${fcSel.size ? `<span>選定基準</span><span>${[...fcSel].join("・")}</span>` : ""}</div></div>` + planHtml +
-      fcDashboard(pool, v) + `<div class="card"><h3 style="margin-top:0">② 検証過程 — 主張と段落の照合</h3>${verdictCard(v)}${dataVoidHtml(docs)}</div>` +
+    const html = `<div class="card"><h3 style="margin-top:0">① 検証対象</h3><div class="kv"><span>主張</span><span><b>${esc(claim)}</b></span>${src ? `<span>出どころ</span><span><a href="${esc(src)}" target="_blank" rel="noopener">${esc(src)}</a></span>` : ""}${spread ? `<span>拡散</span><span>${esc(spread)}</span>` : ""}<span>検証可能性</span><span class="${ck?.ok ? "ok" : "warn"}">${(ck || FC.checkable(claim)).why.map(esc).join("／")}</span>${fcSel.size ? `<span>選定基準</span><span>${[...fcSel].join("・")}</span>` : ""}</div></div>` +
+      `<div class="card"><h3 style="margin-top:0">② 検証過程 — 主張と段落の照合 <span class="muted small">収集 ${pool.length} 件・本文あり ${pool.filter(i => i.text).length} 件・段落 ${v.n_passages ?? 0}・照合 ${v.n_checked ?? 0}${v.best_sim != null ? `・最良類似度 ${v.best_sim}` : ""}</span></h3>${verdictCard(v)}${dataVoidHtml(docs)}${v.verdict === "insufficient" ? `<p class="small warn">根拠が見つからなかった。主張を「誰が・いつ・何を・どれだけ」の形に具体化する、本文を読む件数を増やす、検索式に公的機関や報道を追加する、のいずれかを試す。</p>` : ""}</div>` +
       `<div class="card"><h3 style="margin-top:0">③ 判定（下書き）</h3><div class="verdict ${R[1]}">${R[0]}</div><p class="small">${esc(R[2])}。<b>機械の判定は下書き</b>。上の根拠リンクを開いて一次情報を確認し、必要なら判定を変えて記事にする。</p><div class="chips">${Object.entries(FC.RATINGS).map(([k, [l, c]]) => `<span class="chip ${k === rating ? "on" : ""}" data-r="${k}" title="${esc(FC.RATINGS[k][2])}">${l}</span>`).join("")}</div>
        <h3>自分の判定と理由</h3><div class="s-check">${["発信元は誰か（公的機関・報道機関・企業・個人）。名前・所属が確認できるか", "いつの情報か。古い情報が現在のことのように扱われていないか", "根拠（統計・資料・一次情報へのリンク）が示されているか", "他の独立した発信元も同じ内容を伝えているか", "画像・動画なら、元の画像の初出はどこか（「ツール」の逆画像検索）"].map(q => `<label><input type="checkbox"> ${q}</label>`).join("")}</div><textarea id="fc-mine" rows="3" placeholder="判定の理由（どの根拠を見て、なぜそう判断したか）"></textarea>
-       <h3>検証記録（Markdown）</h3><textarea id="fc-md" style="min-height:260px" class="mono">${esc(md)}</textarea><div class="actbar"><button class="small" id="fc-copy">コピー</button><button class="small" id="fc-dl">.md をダウンロード</button><button class="small" id="fc-print">印刷・PDF 保存</button><span class="small muted">検証対象・過程・判定・出典の順。誰でも同じ手順で再現できるように、検索式と URL をすべて残す</span></div></div>`;
+       <h3>検証記録（Markdown）</h3><textarea id="fc-md" style="min-height:260px" class="mono">${esc(md)}</textarea><div class="actbar"><button class="small" id="fc-copy">コピー</button><button class="small" id="fc-dl">.md をダウンロード</button><button class="small" id="fc-print">印刷・PDF 保存</button><span class="small muted">検証対象・過程・判定・出典の順。誰でも同じ手順で再現できるように、検索式と URL をすべて残す</span></div></div>` +
+      planHtml + fcDashboard(pool, v);
     out.innerHTML = html; wireFcLinks(out); wireSortable(out);
     out.querySelectorAll("[data-r]").forEach(c => c.onclick = () => { out.querySelectorAll("[data-r]").forEach(x => x.classList.toggle("on", x === c)); const R2 = FC.RATINGS[c.dataset.r]; out.querySelector(".verdict").textContent = R2[0]; out.querySelector(".verdict").className = "verdict " + R2[1]; $("#fc-md").value = $("#fc-md").value.replace(/判定：\*\*[^*]+\*\*/, `判定：**${R2[0]}**`).replace(/## 判定\n\*\*[^*]+\*\* — [^\n]*/, `## 判定\n**${R2[0]}** — ${R2[2]}`); });
     $("#fc-mine").oninput = () => { const v = $("#fc-mine").value.trim(); $("#fc-md").value = $("#fc-md").value.replace(/\n\n理由：[\s\S]*?(?=\n\n## 方法と限界)/, "") .replace(/(## 判定\n\*\*[^*]+\*\* — [^\n]*)/, `$1${v ? "\n\n理由：" + v : ""}`); };

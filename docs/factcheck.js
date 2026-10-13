@@ -30,6 +30,7 @@ const FUTURE = /(予定|見込み|見通し|予測|になるだろう|するは�
 const FACTUAL = /(\d|年|月|日|円|人|件|％|%|倍|億|万|増|減|発表|決定|施行|可決|開始|廃止|導入|公表|調査|統計|によると|と述べ|と発言|法律|条例|制度)/;
 export function checkable(claim) {
   const why = []; let ok = true;
+  if (/[?？]\s*$|(か|のか|ですか|何か|どうか)[?？]?\s*$/.test(claim.trim())) { why.push("疑問文の形 → 「〜である」「〜した」という主張の形に直す（例：「処理水は危険か」→「処理水の海洋放出でトリチウム濃度が基準を超えた」）"); ok = false; }
   if (OPINION.test(claim)) { why.push("評価・意見の表現を含む（「〜べき」「最悪」など）→ 意見は検証対象外"); ok = false; }
   if (FUTURE.test(claim) && !/(と発表|と予測した|見通しを示した)/.test(claim)) { why.push("未来の予測を含む → 「誰がその予測を公表したか」なら検証できる"); ok = false; }
   if (!FACTUAL.test(claim)) why.push("数値・日付・固有の出来事が含まれない → 検証しにくい。具体的な言い回しに直すとよい");

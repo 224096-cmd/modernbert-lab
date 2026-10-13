@@ -1,5 +1,5 @@
 {
- "version": 1,
+ "version": 2,
  "note": "信頼性スコアと検証の全パラメータ。Python（GitHub Actions）とブラウザの両方がこのファイルを読む。サイトの「仕組み」タブで変更→ダウンロードして置き換える。 埋め込みの cos は全体に高い：無関係な文で 0.77 前後、同趣旨で 0.95 以上。裏取り候補は 0.88 以上、話題クラスタは 0.93 以上。",
  "weights": {
   "source": 0.35,
@@ -53,13 +53,14 @@
  },
  "corroboration": {
   "top_k": 8,
-  "min_sim": 0.88,
+  "min_sim": 0.35,
   "entail_min": 0.5,
   "contra_min": 0.75,
   "saturation": 2.0,
   "same_domain_discount": 0.0,
   "topical_alpha": 0.5,
-  "max_pairs": 600
+  "max_pairs": 600,
+  "sim_margin": 0.12
  },
  "time": {
   "half_life_days": 30,
@@ -67,14 +68,15 @@
  },
  "verify": {
   "top_k": 20,
-  "min_sim": 0.88,
+  "min_sim": 0.35,
   "support_min": 0.55,
   "refute_min": 0.7,
   "verdict": {
    "supported": 1.5,
    "refuted": 1.5,
    "mixed_ratio": 0.6
-  }
+  },
+  "sim_margin": 0.12
  },
  "cluster": {
   "threshold": 0.93

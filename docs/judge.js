@@ -3,7 +3,11 @@ import { hostOf, registrable, splitPassages } from "./net.js";
 import { zeroShot, dot } from "./ml.js";
 
 export let P = null;
-export async function loadParams() { try { const s = localStorage.getItem("mbo.params"); if (s) { P = JSON.parse(s); return P; } } catch { } P = await (await fetch(new URL("./params.json", import.meta.url))).json(); return P; }
+export async function loadParams() {
+  const base = await (await fetch(new URL("./params.json", import.meta.url))).json();
+  try { const s = localStorage.getItem("mbo.params"); if (s) { const q = JSON.parse(s); if ((q.version || 1) === base.version) { P = q; return P; } localStorage.removeItem("mbo.params"); } } catch { }   // 版が違う保存値は捨てて既定に戻す
+  P = base; return P;
+}
 export function setParams(p, persist = true) { P = p; if (persist) try { localStorage.setItem("mbo.params", JSON.stringify(p)); } catch { } }
 export function resetParams() { try { localStorage.removeItem("mbo.params"); } catch { } }
 
@@ -46,7 +50,7 @@ export async function corroborate(items, passages, emb, nli, onStep = () => { })
   const C = P.corroboration; if (!items.length || !passages.length) { for (const it of items) { it.s_corr = 0; it.corr = { support: 0, contra: 0, evidence: [] }; } return; }
   const claims = items.map(keyClaim); onStep("要旨を埋め込み中"); const Q = await emb.encode(claims.map(c => c || "。"), "query"); const D = await emb.encode(passages.map(p => p.text), "doc");
   const pairs = [];
-  items.forEach((it, i) => { if (!claims[i]) return; const dom = hostOf(it.url); const sims = D.map((d, j) => [dot(Q[i], d), j]).sort((a, b) => b[0] - a[0]).slice(0, C.top_k); for (const [s, j] of sims) { if (s < C.min_sim || passages[j].domain === dom) continue; pairs.push({ i, j, sim: s }); } });
+  items.forEach((it, i) => { if (!claims[i]) return; const dom = hostOf(it.url); const sims = D.map((d, j) => [dot(Q[i], d), j]).sort((a, b) => b[0] - a[0]).slice(0, C.top_k); const thr = Math.max(C.min_sim, (sims[0]?.[0] ?? 0) - (C.sim_margin ?? 0.12)); for (const [s, j] of sims) { if (s < thr || passages[j].domain === dom) continue; pairs.push({ i, j, sim: s }); } });
   if (pairs.length > (C.max_pairs || 600)) { pairs.sort((a, b) => b.sim - a.sim); pairs.length = C.max_pairs || 600; }
   onStep(`含意判定 ${pairs.length} 組`); const pr = pairs.length ? await nli.predict(pairs.map(p => passages[p.j].text), pairs.map(p => claims[p.i])) : [];
   const acc = items.map(() => ({ support: 0, contra: 0, evidence: [], doms: new Set() }));
@@ -67,14 +71,16 @@ export async function scoreItems(items, domInfos, emb, nli, onStep = () => { }) 
 export async function verify(claim, items, emb, nli, onStep = () => { }) {
   const V = P.verify; const passages = buildPassages(items); if (!passages.length) return { claim, verdict: "insufficient", support: 0, refute: 0, evidence: [], n_passages: 0 };
   onStep("段落を埋め込み中"); const q = (await emb.encode([claim], "query"))[0]; const D = await emb.encode(passages.map(p => p.text), "doc");
-  const sims = D.map(d => dot(q, d)); const idx = sims.map((s, i) => i).sort((a, b) => sims[b] - sims[a]).slice(0, V.top_k).filter(i => sims[i] >= V.min_sim);
-  if (!idx.length) return { claim, verdict: "insufficient", support: 0, refute: 0, evidence: [], n_passages: passages.length };
+  const sims = D.map(d => dot(q, d)); const order = sims.map((s, i) => i).sort((a, b) => sims[b] - sims[a]); const best = sims[order[0]] ?? 0;
+  /* しきい値は「最良との差」で決める（埋め込みモデルごとに類似度の尺度が違うため、絶対値 0.88 のような固定値は使わない） */
+  const thr = Math.max(V.min_sim, best - (V.sim_margin ?? 0.12)); const idx = order.slice(0, V.top_k).filter(i => sims[i] >= thr);
+  if (!idx.length) return { claim, verdict: "insufficient", support: 0, refute: 0, evidence: [], n_passages: passages.length, best_sim: +best.toFixed(3) };
   onStep(`含意判定 ${idx.length} 段落`); const pr = await nli.predict(idx.map(i => passages[i].text), idx.map(() => claim));
   let sup = 0, ref = 0; const ds = new Set(), dr = new Set(); const ev = [];
   idx.forEach((i, k) => { const [e, n, c] = pr[k]; const w = passages[i].s_source ?? 0.5; const kind = e >= V.support_min ? "support" : c >= V.refute_min ? "refute" : "neutral"; if (kind === "support") { sup += w * e; ds.add(passages[i].domain); } if (kind === "refute") { ref += w * c; dr.add(passages[i].domain); } ev.push({ url: passages[i].url, domain: passages[i].domain, text: passages[i].text.slice(0, 240), sim: +sims[i].toFixed(3), entail: +e.toFixed(3), neutral: +n.toFixed(3), contra: +c.toFixed(3), kind, published: passages[i].published }); });
   const T = V.verdict; const verdict = (sup >= T.supported && ref < sup * T.mixed_ratio) ? "supported" : (ref >= T.refuted && sup < ref * T.mixed_ratio) ? "refuted" : (sup + ref >= 1.0) ? "mixed" : "insufficient";
   ev.sort((a, b) => (b.kind === "neutral" ? 0 : Math.max(b.entail, b.contra)) - (a.kind === "neutral" ? 0 : Math.max(a.entail, a.contra)));
-  return { claim, verdict, support: +sup.toFixed(2), refute: +ref.toFixed(2), support_domains: [...ds].sort(), refute_domains: [...dr].sort(), evidence: ev.slice(0, 12), n_passages: passages.length };
+  return { claim, verdict, support: +sup.toFixed(2), refute: +ref.toFixed(2), support_domains: [...ds].sort(), refute_domains: [...dr].sort(), evidence: ev.slice(0, 12), n_passages: passages.length, n_checked: idx.length, best_sim: +best.toFixed(3) };
 }
 export async function cluster(items, emb) {
   if (!items.length) return []; const X = await emb.encode(items.map(it => (it.title || "") + " " + (it.snippet || "").slice(0, 200)), "topic"); const th = P.cluster.threshold; const lab = new Array(items.length).fill(-1); let c = 0;

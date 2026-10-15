@@ -43,7 +43,7 @@ def main():
     # ---- 汎用 NLI ----
     ntr, ndv = load(f"{D}/nli_train.jsonl"), load(f"{D}/nli_dev.jsonl")
     if ntr:
-        P("## 汎用 NLI（JNLI ＋ JaNLI ＋ JSICK）\n")
+        P("## 汎用 NLI（JNLI ＋ JaNLI ＋ JSICK ＋ JSNLI）\n")
         c = collections.Counter(r["label"] for r in ntr); c2 = collections.Counter(r["label"] for r in ndv)
         P(md_row(["分割", "件数", "含意", "中立", "矛盾"])); P(md_row(["---"] * 5)); P(md_row(["train（学習に使う）", len(ntr), c[0], c[1], c[2]])); P(md_row(["dev（各データの公式 test/valid。汎用性能の確認用）", len(ndv), c2[0], c2[1], c2[2]]))
         ov = {(r["premise"], r["hypothesis"]) for r in ntr} & {(r["premise"], r["hypothesis"]) for r in ndv}
@@ -51,6 +51,24 @@ def main():
         afc_te_h = {r["hypothesis"] for r in afc["test"]}; P(f"- 汎用 NLI の train に JAD-AFC test の主張文が含まれる件数：**{sum(1 for r in ntr if r['hypothesis'] in afc_te_h or r['premise'] in afc_te_h)}**（0 が正常）\n")
         P("実例（train から）：\n"); P(md_row(["前提", "仮説", "正解"])); P(md_row(["---"] * 3))
         for r in random.sample(ntr, min(a.examples, len(ntr))): P(md_row([r["premise"], r["hypothesis"], LAB[r["label"]]]))
+        P("")
+    # ---- AFC 拡張セット（第2版の学習用）----
+    aug, nz = load(f"{D}/afc_train_aug.jsonl"), load(f"{D}/afc_test_noisy.jsonl")
+    if aug:
+        P("## JAD-AFC 拡張セット（第2版の学習用：証拠版＋正当性版＋極性ペア＋雑音つき前提）\n")
+        c = collections.Counter(r.get("src", "afc") for r in aug); lab = collections.Counter(r["label"] for r in aug)
+        P(md_row(["内訳", "件数", "説明"])); P(md_row(["---"] * 3))
+        P(md_row(["afc", c["afc"], "JAD-AFC train の証拠説明文版と正当性説明文版をそのまま"]))
+        P(md_row(["afc-polarity", c["afc-polarity"], "同じ記事の表クレームと逆クレームを同じ前提に当てた対（主張の向きの学習）"]))
+        P(md_row(["afc-noise", c["afc-noise"], "前提の前後に無関係なニュース段落を足したもの（Web ページの段落を模す。ラベルは不変）"]))
+        P(md_row(["合計", len(aug), f"含意 {lab[0]} ／ 中立 {lab[1]} ／ 矛盾 {lab[2]}"]))
+        te_h = {r["hypothesis"] for r in afc["test"]} | {r["premise"] for r in afc["test"]}
+        P(f"\n- 漏れ点検：拡張セットに JAD-AFC test の主張文・前提文を含む行 **{sum(1 for r in aug if r['hypothesis'] in te_h or any(h in r['premise'] for h in te_h if len(h) > 20))} 件**（0 が正常）")
+        P(f"- 雑音つきテスト `afc_test_noisy.jsonl`：{len(nz)} 件（test と同じ主張・正解、前提の前後に test 側記事の段落を付加）\n")
+        P("実例：\n"); P(md_row(["内訳", "前提", "主張", "正解"])); P(md_row(["---"] * 4))
+        for k in ("afc-polarity", "afc-noise"):
+            xs = [r for r in aug if r.get("src") == k]
+            for r in random.sample(xs, min(2, len(xs))): P(md_row([k, r["premise"], r["hypothesis"], LAB[r["label"]]]))
         P("")
     # ---- 客観 / 主観 ----
     otr, ote = load(f"{D}/obj_train.jsonl"), load(f"{D}/obj_test.jsonl")

@@ -45,7 +45,17 @@ export async function contentScores(items, emb) {
 const PROP = /(です|ます|でした|ました|した|する|される|された|れた|られた|である|だった|ている|ていた|ない|なった|なる|ある|いる|発表|発生|決定|開始|開催|予定|判明|確認|見込み|とみられ|という)[。．!！?？」]?$/;
 export const isProp = s => { s = (s || "").trim(); return !!s && PROP.test(s) && !/^(グローバル|本文へ|メニュー|ナビ|ホーム|トップ|\||・|\d+\.)/.test(s); };
 export const keyClaim = it => { const t = (it.title || "").trim().replace(/\s*[-|｜].{0,30}$/, ""); const lead = (it.text || it.snippet || "").trim().split(/(?<=[。．！？!?])|\n+/).map(s => s.trim()).find(s => s.length >= 15 && s.length <= 200 && isProp(s)) || ""; return lead || (isProp(t) ? t.slice(0, 120) : ""); };
-export function buildPassages(items) { const out = []; for (const it of items) { const dom = hostOf(it.url); const txt = it.text || it.snippet || ""; const ps = splitPassages(txt).slice(0, 12); for (const p of (ps.length ? ps : (txt.length >= 20 ? [txt] : []))) out.push({ text: p, url: it.url, domain: dom, s_source: it.s_source ?? 0.5, published: it.published }); } return out; }
+/* 根拠に使えない段落を除く：メニュー・目次・広告・投稿欄・引用の羅列（文の形をしていない） */
+const NOISE = /(目次|スポンサー|広告|メールで送る|リンクをコピー|会員限定|ログイン|キャンセル 投稿|サイトマップ|各種窓口|お問い合わせ|関連コンテンツ|閲覧。\^|\^ “|^Q |^Ｑ |^TOP |投稿は現在非表示|Facebook|X（旧Twitter）|note )/;
+export function cleanPassage(p) {
+  const t = p.trim(); if (t.length < 40) return false;
+  const sentences = (t.match(/[。．]/g) || []).length; if (sentences === 0 && t.length > 120) return false;   // 句点なしの長文＝見出し・メニューの羅列
+  if (NOISE.test(t)) return false;
+  const kana = (t.match(/[ぁ-んァ-ン]/g) || []).length / t.length; if (kana < 0.15) return false;           // かなが少ない＝表・リンク列・英数字の羅列
+  const spaces = (t.match(/ /g) || []).length; if (spaces > t.length / 12) return false;                 // 空白だらけ＝ナビゲーション
+  return true;
+}
+export function buildPassages(items) { const out = []; for (const it of items) { const dom = hostOf(it.url); const txt = it.text || it.snippet || ""; const ps = splitPassages(txt).filter(cleanPassage).slice(0, 10); for (const p of (ps.length ? ps : (!it.text && txt.length >= 40 && cleanPassage(txt) ? [txt] : []))) out.push({ text: p, url: it.url, domain: dom, s_source: it.s_source ?? 0.5, published: it.published }); } return out; }
 export async function corroborate(items, passages, emb, nli, onStep = () => { }) {
   const C = P.corroboration; if (!items.length || !passages.length) { for (const it of items) { it.s_corr = 0; it.corr = { support: 0, contra: 0, evidence: [] }; } return; }
   const claims = items.map(keyClaim); onStep("要旨を埋め込み中"); const Q = await emb.encode(claims.map(c => c || "。"), "query"); const D = await emb.encode(passages.map(p => p.text), "doc");
@@ -68,6 +78,9 @@ export async function scoreItems(items, domInfos, emb, nli, onStep = () => { }) 
   for (const it of items) { it.s_time = +timeScore(it).toFixed(3); it.reliability = Math.round(100 * clamp(W.source * it.s_source + W.content * it.s_content + W.corroboration * it.s_corr + W.time * it.s_time)); it.grade = grade(it.reliability); }
   return items;
 }
+/* 主張の否定形を作る（語尾の規則。作れないときは null）。含意モデルが「主張」と「その否定」の両方に同じ答えを出す段落は、極性を読めていないので根拠から外す */
+const NEG_RULES = [[/ではない[。]?$/, "だ"], [/ではありません[。]?$/, "です"], [/(が|は|も)ない[。]?$/, (m) => m.replace(/[。]$/, "").replace(/ない$/, "ある")], [/(が|は|も)ありません[。]?$/, (m) => m.replace(/[。]$/, "").replace(/ありません$/, "あります")], [/していない[。]?$/, "している"], [/しなかった[。]?$/, "した"], [/できない[。]?$/, "できる"], [/ない[。]?$/, "る"], [/なかった[。]?$/, "た"], [/である[。]?$/, "ではない"], [/だ[。]?$/, "ではない"], [/です[。]?$/, "ではありません"], [/(した|った|いた|んだ|えた|超えた|下回った|上回った|増えた|減った|決まった|なった)[。]?$/, (m) => m.replace(/[。]$/, "").replace(/た$/, "ていない")], [/する[。]?$/, "しない"], [/できる[。]?$/, "できない"], [/ある[。]?$/, "ない"], [/いる[。]?$/, "いない"], [/(なる|える|れる|める|ける|せる|てる|べる|げる)[。]?$/, (m) => m.replace(/[。]$/, "").replace(/る$/, "ない")], [/る[。]?$/, "らない"], [/い[。]?$/, "くない"]];
+export function negate(claim) { const c = claim.trim(); for (const [re, rep] of NEG_RULES) { const m = c.match(re); if (m) return typeof rep === "function" ? c.slice(0, m.index) + rep(m[0]) : c.replace(re, rep); } return null; }
 export async function verify(claim, items, emb, nli, onStep = () => { }) {
   const V = P.verify; const passages = buildPassages(items); if (!passages.length) return { claim, verdict: "insufficient", support: 0, refute: 0, evidence: [], n_passages: 0 };
   onStep("段落を埋め込み中"); const q = (await emb.encode([claim], "query"))[0]; const D = await emb.encode(passages.map(p => p.text), "doc");
@@ -75,12 +88,22 @@ export async function verify(claim, items, emb, nli, onStep = () => { }) {
   /* しきい値は「最良との差」で決める（埋め込みモデルごとに類似度の尺度が違うため、絶対値 0.88 のような固定値は使わない） */
   const thr = Math.max(V.min_sim, best - (V.sim_margin ?? 0.12)); const idx = order.slice(0, V.top_k).filter(i => sims[i] >= thr);
   if (!idx.length) return { claim, verdict: "insufficient", support: 0, refute: 0, evidence: [], n_passages: passages.length, best_sim: +best.toFixed(3) };
-  onStep(`含意判定 ${idx.length} 段落`); const pr = await nli.predict(idx.map(i => passages[i].text), idx.map(() => claim));
-  let sup = 0, ref = 0; const ds = new Set(), dr = new Set(); const ev = [];
-  idx.forEach((i, k) => { const [e, n, c] = pr[k]; const w = passages[i].s_source ?? 0.5; const kind = e >= V.support_min ? "support" : c >= V.refute_min ? "refute" : "neutral"; if (kind === "support") { sup += w * e; ds.add(passages[i].domain); } if (kind === "refute") { ref += w * c; dr.add(passages[i].domain); } ev.push({ url: passages[i].url, domain: passages[i].domain, text: passages[i].text.slice(0, 240), sim: +sims[i].toFixed(3), entail: +e.toFixed(3), neutral: +n.toFixed(3), contra: +c.toFixed(3), kind, published: passages[i].published }); });
-  const T = V.verdict; const verdict = (sup >= T.supported && ref < sup * T.mixed_ratio) ? "supported" : (ref >= T.refuted && sup < ref * T.mixed_ratio) ? "refuted" : (sup + ref >= 1.0) ? "mixed" : "insufficient";
+  const neg = V.polarity_check === false ? null : negate(claim);
+  onStep(`含意判定 ${idx.length} 段落${neg ? "（否定形でも照合）" : ""}`);
+  const texts = idx.map(i => passages[i].text); const pr = await nli.predict(texts, idx.map(() => claim)); const pn = neg ? await nli.predict(texts, idx.map(() => neg)) : null;
+  let sup = 0, ref = 0, flipped = 0; const ds = new Set(), dr = new Set(); const ev = [];
+  idx.forEach((i, k) => { const [e, n, c] = pr[k]; const w = passages[i].s_source ?? 0.5; let kind = e >= V.support_min ? "support" : c >= V.refute_min ? "refute" : "neutral"; let note = "";
+    if (pn && kind !== "neutral") { const [e2, , c2] = pn[k]; const kind2 = e2 >= V.support_min ? "support" : c2 >= V.refute_min ? "refute" : "neutral"; if (kind2 === kind) { kind = "neutral"; flipped++; note = "極性不定（否定形でも同じ判定）"; } }
+    if (kind === "support") { sup += w * e; ds.add(passages[i].domain); } if (kind === "refute") { ref += w * c; dr.add(passages[i].domain); }
+    ev.push({ url: passages[i].url, domain: passages[i].domain, text: passages[i].text.slice(0, 240), sim: +sims[i].toFixed(3), entail: +e.toFixed(3), neutral: +n.toFixed(3), contra: +c.toFixed(3), kind, note, published: passages[i].published }); });
+  const T = V.verdict; const minDom = T.min_domains ?? 2;
+  /* 支持・否定とも「2 つ以上の独立した情報源」が無ければ確定させない（1 サイトだけの根拠は insufficient 寄りに） */
+  const strongSup = sup >= T.supported && ds.size >= minDom, strongRef = ref >= T.refuted && dr.size >= minDom;
+  const verdict = (strongSup && ref < sup * T.mixed_ratio) ? "supported" : (strongRef && sup < ref * T.mixed_ratio) ? "refuted" : (sup + ref >= 1.0 && (ds.size + dr.size) >= minDom) ? "mixed" : "insufficient";
+  /* 各サイトの要点：主張に最も近い段落 2 つ（埋め込みは計算済みなので追加コストなし） */
+  const bySite = {}; order.forEach(i => { const u = passages[i].url; (bySite[u] ||= []).length < 2 && bySite[u].push({ text: passages[i].text.slice(0, 200), sim: +sims[i].toFixed(3) }); });
   ev.sort((a, b) => (b.kind === "neutral" ? 0 : Math.max(b.entail, b.contra)) - (a.kind === "neutral" ? 0 : Math.max(a.entail, a.contra)));
-  return { claim, verdict, support: +sup.toFixed(2), refute: +ref.toFixed(2), support_domains: [...ds].sort(), refute_domains: [...dr].sort(), evidence: ev.slice(0, 12), n_passages: passages.length, n_checked: idx.length, best_sim: +best.toFixed(3) };
+  return { claim, verdict, support: +sup.toFixed(2), refute: +ref.toFixed(2), support_domains: [...ds].sort(), refute_domains: [...dr].sort(), evidence: ev.slice(0, 12), n_passages: passages.length, n_checked: idx.length, best_sim: +best.toFixed(3), negated: neg, n_polarity_dropped: flipped, key_sentences: bySite };
 }
 export async function cluster(items, emb) {
   if (!items.length) return []; const X = await emb.encode(items.map(it => (it.title || "") + " " + (it.snippet || "").slice(0, 200)), "topic"); const th = P.cluster.threshold; const lab = new Array(items.length).fill(-1); let c = 0;

@@ -46,7 +46,13 @@ def main():
     per_cat = {}
     for r, a_, b_ in zip(rows, y, yh):
         c = r.get("category", "-"); per_cat.setdefault(c, [0, 0]); per_cat[c][1] += 1; per_cat[c][0] += a_ == b_
-    res = {"name": name, "model": a.model, "data": a.data, "n": len(rows), "acc": round(acc, 4), "macro_f1": round(sum(f1s) / 3, 4), "f1_entail_neutral_contra": f1s, "binary_acc_true_false": round(bacc, 4), "confusion": conf, "per_category_acc": {k: round(v[0] / v[1], 3) for k, v in per_cat.items()}, "latency_ms": round(ms, 1), "device": dev, "note": a.note, "run_at": time.strftime("%Y-%m-%dT%H:%M")}
+    # 極性一貫性：同じ記事の表クレームと逆クレーム（前提が同じ）で予測が逆になった割合（主張の向きを読めているか）
+    by = {}
+    for r, p in zip(rows, yh):
+        if r.get("article") and r["label"] != 1: by.setdefault((r["article"], r["premise"]), []).append((r["label"], p))
+    pairs = [v for v in by.values() if len(v) >= 2 and len({l for l, _ in v}) == 2]
+    pol = sum(1 for v in pairs if len({p for _, p in v}) == 2 and all(l == p for l, p in v)) / len(pairs) if pairs else None
+    res = {"name": name, "model": a.model, "data": a.data, "n": len(rows), "acc": round(acc, 4), "polarity_pairs": len(pairs), "polarity_consistency": round(pol, 4) if pol is not None else None, "macro_f1": round(sum(f1s) / 3, 4), "f1_entail_neutral_contra": f1s, "binary_acc_true_false": round(bacc, 4), "confusion": conf, "per_category_acc": {k: round(v[0] / v[1], 3) for k, v in per_cat.items()}, "latency_ms": round(ms, 1), "device": dev, "note": a.note, "run_at": time.strftime("%Y-%m-%dT%H:%M")}
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "a", encoding="utf-8") as f: f.write(json.dumps(res, ensure_ascii=False) + "\n")
     print(json.dumps(res, ensure_ascii=False, indent=1))

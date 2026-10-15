@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v6.2";
+const VERSION = "v6.3";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -180,7 +180,7 @@ const EXAMPLES = ["生成AI 著作権 ガイドライン", "熱中症 対策 効
 $("#lv-examples").innerHTML = `<span class="tiny muted" style="align-self:center">例：</span>` + EXAMPLES.map(x => `<span class="chip" data-x="${esc(x)}">${esc(x.length > 30 ? x.slice(0, 30) + "…" : x)}</span>`).join(""); $$("#lv-examples .chip").forEach(c => c.onclick = () => { $("#lv-q").value = c.dataset.x; runLive(); });
 $("#lv-run").onclick = runLive; $("#lv-q").onkeydown = e => { if (e.key === "Enter") runLive(); };
 /* 収集：検索は（検索式 × 情報源）を並列 3 本、本文取得は並列 3 本。途中経過は onItems（候補一覧が増えるたび）／onText（本文が 1 件読めるたび）で通知し、画面はそれに合わせて描き直す */
-const PAR = { search: 3, read: 3 };
+const PAR = { search: 4, read: 4 };
 /* 主張の語（数字・漢字/カタカナ/英字のかたまり）とタイトル・抜粋の重なり＝読む前に分かる関連度 */
 const JUNK_HOSTS = /(^|\.)(twitter\.com|x\.com|facebook\.com|instagram\.com|tiktok\.com|youtube\.com|youtu\.be|threads\.net|5ch\.net|2ch\.sc|chiebukuro\.yahoo\.co\.jp|detail\.chiebukuro|matome|togetter\.com|pinterest|ameblo\.jp|hatenablog|livedoor\.blog|fc2\.com|note\.com|mercari|rakuten\.co\.jp|amazon\.co\.jp)$/i;
 const FC_SITES = /factcheck|fij\.info|infact\.press|fact-?check|検証記事/i;
@@ -302,10 +302,12 @@ function primaryHtml(r) { return `<div class="card"><h3 style="margin-top:0">一
 function temporalHtml(r) { return `<div class="card"><h3 style="margin-top:0">時間的な矛盾・古さ</h3>${r.perDoc.filter(d => d.warns.length).map(d => `<div class="item"><div class="t"><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc((d.title || d.url).slice(0, 70))}</a> <span class="tiny muted">${esc(d.published || "日付なし")}</span></div>${d.warns.map(w => `<div class="ev con">${esc(w)}</div>`).join("")}<div class="tiny muted">本文の年：${d.dates.map(x => x.y).filter((v, i, a) => a.indexOf(v) === i).join("・") || "なし"}</div></div>`).join("") || "<p class='small muted'>古さ・時間のずれの警告はなし</p>"}</div><div class="card"><h3 style="margin-top:0">記事間で食い違う数値</h3>${r.conflicts.length ? r.conflicts.map(c => `<div class="item"><b>${esc(c.key)}</b> <span class="tiny muted">（${esc(c.unit)}）</span><div class="tw"><table>${c.values.map(v => `<tr><td>${esc(String(v.value))} ${esc(c.unit)}</td><td class="small"><a href="${esc(v.url)}" target="_blank" rel="noopener">${esc(String(v.doc).slice(0, 40))}</a> ${esc(v.published || "")}</td><td class="tiny muted">${esc(v.text)}</td></tr>`).join("")}</table></div></div>`).join("") : "<p class='small muted'>同じ項目で異なる数値は見つからず（項目名の抽出は簡易なので見落としあり）</p>"}</div>`; }
 function verdictCard(v) {
   const [label, cls] = J.VERDICT[v.verdict] || [v.verdict, ""];
-  return `<div class="verdict ${cls}">${label}</div><div class="stats"><div class="stat">支持（重み付き）<b>${v.support}</b></div><div class="stat">反証<b>${v.refute}</b></div><div class="stat">支持ドメイン<b>${(v.support_domains || []).length}</b></div><div class="stat">反証ドメイン<b>${(v.refute_domains || []).length}</b></div><div class="stat">照合段落<b>${v.n_passages ?? "—"}</b></div></div>
-   ${["support", "refute", "neutral"].map(k => { const xs = (v.evidence || []).filter(e => e.kind === k); return xs.length ? `<h3 class="${k === "support" ? "ok" : k === "refute" ? "bad" : "muted"}">${k === "support" ? "主張を支持する段落" : k === "refute" ? "主張を否定する段落" : "関連する段落（一致も矛盾もしない）"} ${xs.length}</h3>` + xs.map(e => evLine(e)).join("") : ""; }).join("")}`;
+  return `<div class="verdict ${cls}">${label}</div><div class="stats"><div class="stat">支持（重み付き）<b>${v.support}</b></div><div class="stat">反証<b>${v.refute}</b></div><div class="stat">支持ドメイン<b>${(v.support_domains || []).length}</b></div><div class="stat">反証ドメイン<b>${(v.refute_domains || []).length}</b></div><div class="stat">照合段落<b>${v.n_passages ?? "—"}</b></div>${v.negated ? `<div class="stat">極性チェック<b>${v.n_polarity_dropped ?? 0} 段落を除外</b></div>` : ""}</div>${v.negated ? `<p class="tiny muted">極性チェック：主張「${esc(v.claim)}」とその否定形「${esc(v.negated)}」の両方で各段落を照合し、同じ答えになった段落（主張の向きを読めていない）は根拠から外す。</p>` : ""}
+   ${keySentencesHtml(v)}${["support", "refute", "neutral"].map(k => { const xs = (v.evidence || []).filter(e => e.kind === k); return xs.length ? `<h3 class="${k === "support" ? "ok" : k === "refute" ? "bad" : "muted"}">${k === "support" ? "主張を支持する段落" : k === "refute" ? "主張を否定する段落" : "関連する段落（一致も矛盾もしない）"} ${xs.length}</h3>` + xs.map(e => evLine(e)).join("") : ""; }).join("")}`;
 }
-function evLine(e) { return `<div class="ev ${e.kind === "support" ? "sup" : e.kind === "refute" ? "con" : ""}"><span class="tag ${e.kind === "support" ? "sup" : e.kind === "refute" ? "con" : ""}">${e.kind === "support" ? "含意" : e.kind === "refute" ? "矛盾" : "中立"} ${((e.kind === "refute" ? e.contra : e.entail) * 100) | 0}%</span> <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.domain)}</a> <span class="muted tiny">類似 ${e.sim}${e.published ? "・" + esc(e.published) : ""}</span><br>${esc(e.text)}</div>`; }
+/* 各サイトの要点（主張に最も近い段落 2 つ） */
+function keySentencesHtml(v) { const ks = v.key_sentences || {}; const urls = Object.keys(ks); if (!urls.length) return ""; return `<details class="small"><summary>各サイトの要点（主張に近い文を 2 つずつ・${urls.length} サイト）</summary>${urls.map(u => `<div class="ev"><a href="${esc(u)}" target="_blank" rel="noopener">${esc(NET.hostOf(u))}</a>${ks[u].map(x => `<div class="sn">${esc(x.text)} <span class="tiny muted">類似 ${x.sim}</span></div>`).join("")}</div>`).join("")}</details>`; }
+function evLine(e) { return `<div class="ev ${e.kind === "support" ? "sup" : e.kind === "refute" ? "con" : ""}"><span class="tag ${e.kind === "support" ? "sup" : e.kind === "refute" ? "con" : ""}">${e.kind === "support" ? "含意" : e.kind === "refute" ? "矛盾" : "中立"} ${((e.kind === "refute" ? e.contra : e.entail) * 100) | 0}%</span>${e.note ? `<span class="tag warn" title="主張の否定形でも同じ判定になったため、この段落は根拠に数えない">${esc(e.note)}</span> ` : ""} <a href="${esc(e.url)}" target="_blank" rel="noopener">${esc(e.domain)}</a> <span class="muted tiny">類似 ${e.sim}${e.published ? "・" + esc(e.published) : ""}</span><br>${esc(e.text)}</div>`; }
 
 /* ---------- ギャップ・対立 ---------- */
 let gpTab = "gaps"; $$("#gp-tabs .chip").forEach(c => c.onclick = () => { gpTab = c.dataset.k; $$("#gp-tabs .chip").forEach(x => x.classList.toggle("on", x === c)); }); $("#gp-run").onclick = runGap;
@@ -456,9 +458,9 @@ async function runFactCheck(planOnly = false) {
   $("#fc-run").disabled = true; out.innerHTML = ""; const tRun = performance.now(); const statsBefore = Object.fromEntries(Object.entries(state).filter(([, m]) => m).map(([k, m]) => [k, { ...m.stats }]));
   try {
     const board = liveBoard(out); const st2 = m => { st(m); board.status(m); };
-    const [, { items }] = await Promise.all([models(st2), collectLive(claim, { dorks: fcSelC.dorks, engines: fcSelC.engines, nread: +$("#fc-read").value, status: st2, onItems: xs => board.items(xs), onText: it => board.text(it) })]);
+    let domP = null; const [, { items }] = await Promise.all([models(st2), collectLive(claim, { dorks: fcSelC.dorks, engines: fcSelC.engines, nread: +$("#fc-read").value, status: st2, onItems: xs => { board.items(xs); if (!domP && xs.length >= 5) domP = domInfosFor(xs, () => { }); }, onText: it => board.text(it) })]);
     let docs = items; if (src && /^https?:/.test(src)) { st("出どころのページを読む"); const r = await NET.readPage(src); if (r) docs = [{ id: "src", url: src, title: r.title, text: r.text.slice(0, 20000), snippet: r.text.slice(0, 200), engines: [], dorks: [], published: null, is_source: true }, ...docs]; }
-    const dom = await domInfosFor(docs, st2); const pool = docs.filter(d => !d.is_source);
+    const dom = Object.assign(await (domP || domInfosFor(docs, st2)), await domInfosFor(docs.filter(d => d.is_source), () => { })); const pool = docs.filter(d => !d.is_source);
     await J.scoreItems(pool, dom, state.embed, state.nli, st2); for (const it of docs) if (it.is_source) { const { s, cls } = J.sourceScore(it, dom[NET.hostOf(it.url)]); it.s_source = s; it.source_class = cls; }
     st2("含意判定"); const v = await J.verify(claim, pool, state.embed, state.nli, st2); board.done();
     const rating = FC.suggestRating(v, ck?.ok !== false); const R = FC.RATINGS[rating]; const dv = dataVoid(docs);

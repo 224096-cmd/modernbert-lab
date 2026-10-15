@@ -9,8 +9,7 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "MIT",
-   "default": true,
-   "note": "★本研究で学習した FactCheck-BERT（分類型）。modernbert-ja-30m を汎用 NLI（JNLI・JaNLI・JSICK）＋ JAD-AFC で微調整。JAD-AFC テスト（5 分割）正解率 0.834±0.029、矛盾側 F1 0.85。既定",
+   "note": "★第 1 版（2026-10-12 学習）。JAD-AFC テスト 0.834 だが、実際の Web 段落では主張の否定形を読み分けられない弱点が判明 → 第 2 版を学習し直す（研究計画書 §7）。比較用に残す",
    "kind": "own",
    "base_model": "sbintuitions/modernbert-ja-30m"
   },
@@ -22,8 +21,7 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "Apache-2.0",
-   "default": true,
-   "note": "★本研究で学習した FactCheck-BERT（埋め込み型）。ruri-v3-pt-30m を対照学習（客観↔主観）。客観性 AUC 0.965→0.989。既定",
+   "note": "★第 1 版。客観性 AUC 0.965→0.989、JSTS 0.840。第 2 版と比較するために残す",
    "kind": "own",
    "base_model": "cl-nagoya/ruri-v3-pt-30m"
   },
@@ -36,9 +34,10 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "MIT（学習コード）",
-   "note": "fcb-nli-30m の比較用（同じ土台を汎用 NLI＝JNLI だけで微調整。以前のサイトの含意モデル）。JAD-AFC では 0.35。通し検証で「学習前」として使う",
+   "note": "modernbert-ja-30m を汎用 NLI（JNLI）だけで微調整。現在の既定（第 2 版 FactCheck-BERT ができるまで）",
    "base_candidate": "◎",
-   "kind": "base"
+   "kind": "base",
+   "default": true
   },
   {
    "name": "minilm-l6-xnli",
@@ -61,9 +60,9 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "MIT",
-   "default": true,
    "note": "日本語リランカー（関連度）。本研究では学習せずそのまま使う。既定",
-   "kind": "existing"
+   "kind": "existing",
+   "default": true
   },
   {
    "name": "ruri-v3-pt-30m",
@@ -77,6 +76,19 @@
    "base_candidate": "◎",
    "note": "fcb-embed-30m の土台（学習前）。客観性 AUC 0.965",
    "kind": "base"
+  },
+  {
+   "name": "ruri-v3-30m",
+   "role": "embed",
+   "hf": "cl-nagoya/ruri-v3-30m",
+   "arch": "ModernBERT-Ja 30M",
+   "ctx": 8192,
+   "size_mb": 36,
+   "lang": "ja",
+   "license": "Apache-2.0",
+   "default": true,
+   "kind": "existing",
+   "note": "日本語文埋め込みの公開版。現在の既定（段落検索・クラスタ）"
   }
  ],
  "base": [

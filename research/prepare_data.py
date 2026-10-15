@@ -1,12 +1,15 @@
 """学習・評価データを data/ に揃える（すべて無料公開・API キー不要）。
 
   python research/prepare_data.py --out data            # 全部
-  python research/prepare_data.py --out data --only afc  # 一部だけ（afc / nli / obj / pairs / livedoor / wiki）
+  python research/prepare_data.py --out data --only afc,aug  # 一部だけ（afc / nli / obj / pairs / livedoor / wiki / aug、コンマ区切り）
 
 作るもの（jsonl）
   afc_train / afc_dev / afc_test : JAD-AFC（日本ファクトチェックセンターの検証記事から作られた主張・証拠・真偽。Fujitsu Research, Apache-2.0）
                                    premise=証拠説明文, hypothesis=クレーム, label 0=含意(True) 1=中立(NEI) 2=矛盾(False)。記事単位で 70/15/15 に分割（逆クレームの漏れ防止）
-  nli_train / nli_dev            : JNLI + JaNLI + JSICK（汎用の含意データ。AFC と混ぜて学習に使う）
+  nli_train / nli_dev            : JNLI + JaNLI + JSICK + JSNLI（汎用の含意データ。AFC と混ぜて学習に使う。JSNLI は --jsnli 件を抽出）
+  afc_train_aug.jsonl            : 第 2 版用の学習セット。AFC の「正当性説明文」版と「証拠説明文」版の両方＋
+                                   (a) 主張と逆主張を同じ前提で対にする極性ペア、(b) 前提の前後に無関係な livedoor 文を足した「雑音つき」版
+                                   （実際の Web 段落は主張と無関係な文を含むため）
   obj_train / obj_test           : 客観文（livedoor ニュース・Wikipedia 本文）= 1、主観文（WRIME 投稿）= 0。文の客観性の評価・対照学習用。分割は記事単位・投稿者単位
   pairs_stage2                   : 対照学習用（anchor, positive, negative）。train 側の記事の隣接段落を正例、obj_train の主観文を負例。JSTS（train 分割）の高類似ペアも正例に
 
@@ -21,6 +24,7 @@ random.seed(0)
 AFC_URL = "https://raw.githubusercontent.com/FujitsuResearch/japanese-dataset-for-automated-fact-checking/main/data/japanese-dataset-for-automated-fact-checking.csv"
 LIVEDOOR_URL = "https://www.rondhuit.com/download/ldcc-20140209.tar.gz"
 LAB = {"True": 0, "NEI": 1, "False": 2}
+JSNLI_N = 60000
 
 
 def w(path, rows):
@@ -62,6 +66,34 @@ def do_afc(out, cache):
     for k, v in buckets.items(): w(f"{out}/afc_{k}_rationale.jsonl", [{**x, "premise": x["rationale"] or x["premise"]} for x in v])
 
 
+# ---------- 第 2 版の学習セット（AFC 両版 ＋ 極性ペア ＋ 雑音つき） ----------
+def do_aug(out, cache):
+    tr = [json.loads(l) for l in open(f"{out}/afc_train.jsonl", encoding="utf-8")]; tr_r = [json.loads(l) for l in open(f"{out}/afc_train_rationale.jsonl", encoding="utf-8")]
+    ldp = next((q for q in (f"{out}/livedoor.jsonl", "data/livedoor.jsonl") if os.path.exists(q)), None)
+    ld = [json.loads(l) for l in open(ldp, encoding="utf-8")] if ldp else do_livedoor(out, cache)
+    noise = [p for d in ld if doc_split(d["url"]) == "train" for p in paragraphs(d["text"], 30, 160)][:20000]; random.shuffle(noise)
+    rows = []
+    for x in tr + tr_r: rows.append({"premise": x["premise"], "hypothesis": x["hypothesis"], "label": x["label"], "src": "afc"})
+    # 極性ペア：同じ記事の表クレームと逆クレームは同じ前提を持つ → 前提は同じで主張だけ逆、ラベルも逆（True↔False）
+    by = {}
+    for x in tr_r: by.setdefault(x["article"], []).append(x)
+    for arts in by.values():
+        for x in arts:
+            for y in arts:
+                if x is y or x["label"] == 1 or y["label"] == 1 or x["label"] == y["label"]: continue
+                rows.append({"premise": x["premise"], "hypothesis": y["hypothesis"], "label": y["label"], "src": "afc-polarity"})
+    # 雑音つき：前提の前後に無関係な文を足す（Web の段落を模す）。ラベルは変えない
+    aug = []
+    for x in rows:
+        if x["src"] != "afc" or not noise: continue
+        a, b = random.choice(noise), random.choice(noise)
+        aug.append({"premise": f"{a} {x['premise']} {b}", "hypothesis": x["hypothesis"], "label": x["label"], "src": "afc-noise"})
+    rows += aug; random.shuffle(rows); w(f"{out}/afc_train_aug.jsonl", rows)
+    # 評価用：テストの雑音つき版（Web 段落での頑健さを見る）と極性ペア
+    te = [json.loads(l) for l in open(f"{out}/afc_test_rationale.jsonl", encoding="utf-8")]; tn = [p for d in ld if doc_split(d["url"]) == "test" for p in paragraphs(d["text"], 30, 160)]; random.shuffle(tn)
+    w(f"{out}/afc_test_noisy.jsonl", [{**x, "premise": f"{random.choice(tn)} {x['premise']} {random.choice(tn)}"} for x in te] if tn else te)
+
+
 # ---------- 汎用 NLI ----------
 def do_nli(out, cache):
     from datasets import load_dataset
@@ -89,6 +121,21 @@ def do_nli(out, cache):
             (tr if x["data"] == "train" else dv).append(r)
         print("JSICK", len(rows))
     except Exception as e: print("JSICK skip:", str(e)[:120])
+    # JSNLI（京大・SNLI の日本語訳 53 万対、CC BY-SA 4.0）：大きいので抽出して使う。否定・言い換えの対が豊富で、主張の向きを読む学習に効く
+    try:
+        import zipfile
+        zp = fetch("https://nlp.ist.i.kyoto-u.ac.jp/DLcounter/lime.cgi?down=https://nlp.ist.i.kyoto-u.ac.jp/nl-resource/JSNLI/jsnli_1.1.zip&name=JSNLI.zip", f"{cache}/jsnli.zip")
+        m = {"entailment": 0, "neutral": 1, "contradiction": 2}; js_tr, js_dv = [], []
+        with zipfile.ZipFile(zp) as z:
+            for name in z.namelist():
+                if not name.endswith(".tsv"): continue
+                rows = z.read(name).decode("utf-8").split("\n"); dst = js_dv if "dev" in name else js_tr
+                for line in rows:
+                    c = line.rstrip("\n").split("\t")
+                    if len(c) < 3 or c[0] not in m: continue
+                    dst.append({"premise": clean(c[1].replace(" ", "")), "hypothesis": clean(c[2].replace(" ", "")), "label": m[c[0]]})
+        random.shuffle(js_tr); tr += js_tr[:JSNLI_N]; dv += js_dv[:2000]; print("JSNLI", len(js_tr), "->", min(JSNLI_N, len(js_tr)))
+    except Exception as e: print("JSNLI skip:", str(e)[:160])
     random.shuffle(tr); w(f"{out}/nli_train.jsonl", tr); w(f"{out}/nli_dev.jsonl", dv)
 
 
@@ -147,7 +194,8 @@ def do_obj(out, cache):
 
 
 def do_pairs(out, cache):
-    ld = [json.loads(l) for l in open(f"{out}/livedoor.jsonl", encoding="utf-8")] if os.path.exists(f"{out}/livedoor.jsonl") else do_livedoor(out, cache)
+    ldp = next((q for q in (f"{out}/livedoor.jsonl", "data/livedoor.jsonl") if os.path.exists(q)), None)
+    ld = [json.loads(l) for l in open(ldp, encoding="utf-8")] if ldp else do_livedoor(out, cache)
     if not os.path.exists(f"{out}/obj_train.jsonl"): do_obj(out, cache)
     # obj_train の主観文だけを負例に使う（obj_test の文は使わない）
     neg = [x["text"] for x in (json.loads(l) for l in open(f"{out}/obj_train.jsonl", encoding="utf-8")) if x["label"] == 0]
@@ -169,9 +217,9 @@ def do_pairs(out, cache):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--out", default="data"); ap.add_argument("--only", default="all"); ap.add_argument("--cache", default="data/_cache"); ap.add_argument("--seed", type=int, default=0, help="記事単位の分割の乱数（交差検証では 0〜4 を回す）"); a = ap.parse_args(); random.seed(a.seed)
     os.makedirs(a.out, exist_ok=True)
-    steps = {"afc": lambda: do_afc(a.out, a.cache), "nli": lambda: do_nli(a.out, a.cache), "livedoor": lambda: do_livedoor(a.out, a.cache), "wiki": lambda: do_wiki(a.out), "obj": lambda: do_obj(a.out, a.cache), "pairs": lambda: do_pairs(a.out, a.cache)}
+    steps = {"afc": lambda: do_afc(a.out, a.cache), "nli": lambda: do_nli(a.out, a.cache), "livedoor": lambda: do_livedoor(a.out, a.cache), "wiki": lambda: do_wiki(a.out), "obj": lambda: do_obj(a.out, a.cache), "pairs": lambda: do_pairs(a.out, a.cache), "aug": lambda: do_aug(a.out, a.cache)}
     for k, f in steps.items():
-        if a.only in ("all", k):
+        if a.only == "all" or k in a.only.split(","):
             print("==", k); f()
 
 

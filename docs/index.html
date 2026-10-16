@@ -156,14 +156,14 @@
 </section>
 
 <section id="t-models" class="hidden">
- <div class="card"><h2 style="margin-top:0">ブラウザで動くモデル <span class="muted small">— 役割ごとに選ぶ。既定は公開モデル（ruri-v3-30m・nli-ja-30m）。★自作の FactCheck-BERT は第 2 版の学習後に既定へ戻す。切り替えて同じ画面で比較できる</span></h2><div id="md-browser"></div><p class="hint">ダウンロードしたモデルは端末に保存され、2 回目以降は取得し直さない。「日本語・ModernBERT」は 8,192 トークンを一括で読める。「多言語」は海外で広く使われるモデルで 512 トークンまで（長文は分割）。</p></div>
+ <div class="card"><h2 style="margin-top:0">ブラウザで動くモデル <span class="muted small">— 役割ごとに選ぶ。既定は★自作の FactCheck-BERT 第 2 版（fcb-embed-30m・fcb-nli-30m）。学習前の土台や公開モデルに切り替えて同じ画面で比較できる</span></h2><div id="md-browser"></div><p class="hint">ダウンロードしたモデルは端末に保存され、2 回目以降は取得し直さない。「日本語・ModernBERT」は 8,192 トークンを一括で読める。「多言語」は海外で広く使われるモデルで 512 トークンまで（長文は分割）。</p></div>
 
  <div class="card"><h2 style="margin-top:0">FactCheck-BERT の土台 <span class="muted small">— 採用した 2 つと、比較を絞るために使わなかったもの。学習手順は「学ぶ」→ 研究計画書</span></h2><div id="md-base"></div></div>
 </section>
 
 <section id="t-how" class="hidden">
  <div class="card"><h2 style="margin-top:0">流れ</h2><div class="flow"><span>主張</span>→<span>6 種類の検索式 × 検索エンジン</span>→<span>読む前の優先順位（主張の語・情報源の種類・複数式での出現・同一サイト 2 件まで・SNS は後回し）</span>→<span>本文抽出（3 件ずつ並列）</span>→<span>信頼性採点（出所・内容・裏取り・時間）</span>→<span>埋め込みで候補段落を絞る</span>→<span>FactCheck-BERT（含意）で 一致／矛盾／無関係</span>→<span>5 段階の判定の下書き・検証記録</span></div>
-  <p class="small muted">端末内モデルは 3 つ：埋め込み（段落検索・クラスタ・客観性。既定 ruri-v3-30m）、含意（主張 × 段落の一致／矛盾。既定 nli-ja-30m）、関連度（「分析」タブの問い合わせ用。必要なときだけ読み込む）。いずれも ModernBERT-Ja 30M を土台にした ONNX int8（各 36 MB）。「ファクトチェック」で使うのは埋め込みと含意の 2 つ。「モデル」タブで学習前の土台や海外モデルに入れ替えて同じ画面で比べられる。</p></div>
+  <p class="small muted">端末内モデルは 3 つ：埋め込み（段落検索・クラスタ・客観性。既定 fcb-embed-30m）、含意（主張 × 段落の一致／矛盾。既定 fcb-nli-30m）、関連度（「分析」タブの問い合わせ用。必要なときだけ読み込む）。いずれも ModernBERT-Ja 30M を土台にした ONNX int8（各 36 MB）。「ファクトチェック」で使うのは埋め込みと含意の 2 つ。「モデル」タブで学習前の土台や海外モデルに入れ替えて同じ画面で比べられる。</p></div>
  <div class="card"><h2 style="margin-top:0">各機能で何をしているか <span class="muted small">— 「ファクトチェック」の照合と、「分析」タブの各機能</span></h2><div class="kv">
   <span>主張の照合（ファクトチェック）</span><span>集めた記事を段落に分け、埋め込みの類似度と「主張の語・数値が含まれるか」で関係のある段落だけを選び（ここで無関係を除く）、含意モデルで 一致か矛盾か を判定（確率の差が小さい段落は数えない。主張の否定形でも同じ答えになる段落も外す）。出所の重みをかけた一致・矛盾の合計と情報源の数（2 ドメイン以上）から 一致／矛盾／混在／根拠不足 を決め、JFC 式の 5 段階（正確／ほぼ正確／根拠不明／不正確／誤り）の下書きにする。判定は「公開情報との整合」であって真偽の証明ではない</span>
   <span>矛盾・整合</span><span>各記事の要旨（冒頭の命題）を他記事の段落と突き合わせ、含意モデルで 一致／矛盾／無関係 を判定して行列にする</span>

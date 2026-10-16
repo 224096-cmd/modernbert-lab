@@ -39,9 +39,11 @@ export async function removeStored(name) { for (const f of FILES) await store.de
 export async function storedBytes(name) { let n = 0; for (const k of await store.keys()) if (!name || k.startsWith(name + "/")) n += (await store.get(k))?.byteLength || 0; return n; }
 
 /* 役割ごとの既定モデルと選択（localStorage） */
-export const DEFAULT = { embed: "ruri-v3-30m", nli: "nli-ja-30m", rerank: "reranker-ja-xsmall-v2" };
+export const DEFAULT = { embed: "fcb-embed-30m", nli: "fcb-nli-30m", rerank: "reranker-ja-xsmall-v2" };
 /* v5.8 以前の既定（ruri-v3-30m / nli-ja-30m）が端末に残っていれば一度だけ消して、新しい既定（FactCheck-BERT）に合わせる */
 try { if (!localStorage.getItem("mbo.migrated.v63")) { if (["ruri-v3-30m", "fcb-embed-30m"].includes(localStorage.getItem("mbo.model.embed"))) localStorage.removeItem("mbo.model.embed"); if (["nli-ja-30m", "fcb-nli-30m"].includes(localStorage.getItem("mbo.model.nli"))) localStorage.removeItem("mbo.model.nli"); localStorage.setItem("mbo.migrated.v63", "1"); } } catch { }
+/* v6.5：既定を第 2 版 FactCheck-BERT（fcb-embed-30m / fcb-nli-30m）に。端末に残る旧既定の選択は一度だけ消す（他のモデルを選んでいた端末はそのまま） */
+try { if (!localStorage.getItem("mbo.migrated.v65")) { if (["ruri-v3-30m", "fcb-embed-30m"].includes(localStorage.getItem("mbo.model.embed"))) localStorage.removeItem("mbo.model.embed"); if (["nli-ja-30m", "fcb-nli-30m"].includes(localStorage.getItem("mbo.model.nli"))) localStorage.removeItem("mbo.model.nli"); localStorage.setItem("mbo.migrated.v65", "1"); } } catch { }
 export function modelName(kind) { try { return localStorage.getItem("mbo.model." + kind) || DEFAULT[kind]; } catch { return DEFAULT[kind]; } }
 export function setModelName(kind, v) { try { v ? localStorage.setItem("mbo.model." + kind, v) : localStorage.removeItem("mbo.model." + kind); } catch { } cache[kind] = null; }
 

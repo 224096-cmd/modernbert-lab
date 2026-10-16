@@ -9,9 +9,10 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "MIT",
-   "note": "★第 1 版（2026-10-12 学習）。JAD-AFC テスト 0.834 だが、実際の Web 段落では主張の否定形を読み分けられない弱点が判明 → 第 2 版を学習し直す（研究計画書 §7）。比較用に残す",
+   "note": "★第 2 版（2026-10-17 学習）。JSNLI を抜いた汎用 NLI 3.8 万対 ＋ JAD-AFC 拡張（極性ペア・雑音つき前提）2,320 対×3、入力長 384。5 分割 0.771±0.042、雑音つき 0.773±0.013、極性一貫性 0.57。既定。第 1 版（0.834 だが否定形を読み分けられなかった）から置き換え",
    "kind": "own",
-   "base_model": "sbintuitions/modernbert-ja-30m"
+   "base_model": "sbintuitions/modernbert-ja-30m",
+   "default": true
   },
   {
    "name": "fcb-embed-30m",
@@ -21,9 +22,10 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "Apache-2.0",
-   "note": "★第 1 版。客観性 AUC 0.965→0.989、JSTS 0.840。第 2 版と比較するために残す",
+   "note": "★第 2 版。重心 AUC 0.981（土台 0.965）、Wikipedia 除外 0.979。既定",
    "kind": "own",
-   "base_model": "cl-nagoya/ruri-v3-pt-30m"
+   "base_model": "cl-nagoya/ruri-v3-pt-30m",
+   "default": true
   },
   {
    "name": "nli-ja-30m",
@@ -34,10 +36,9 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "MIT（学習コード）",
-   "note": "modernbert-ja-30m を汎用 NLI（JNLI）だけで微調整。現在の既定（第 2 版 FactCheck-BERT ができるまで）",
+   "note": "modernbert-ja-30m を汎用 NLI（JNLI）だけで微調整。比較用（v6.4 までの既定）",
    "base_candidate": "◎",
-   "kind": "base",
-   "default": true
+   "kind": "base"
   },
   {
    "name": "minilm-l6-xnli",
@@ -86,9 +87,8 @@
    "size_mb": 36,
    "lang": "ja",
    "license": "Apache-2.0",
-   "default": true,
    "kind": "existing",
-   "note": "日本語文埋め込みの公開版。現在の既定（段落検索・クラスタ）"
+   "note": "日本語文埋め込みの公開版。比較用（v6.4 までの既定）"
   }
  ],
  "base": [

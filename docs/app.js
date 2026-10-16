@@ -6,7 +6,7 @@ import * as FC from "./factcheck.js";
 import * as CH from "./charts.js";
 import * as CT from "./content.js";
 
-const VERSION = "v6.4";
+const VERSION = "v6.5";
 const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const el = (h) => { const t = document.createElement("template"); t.innerHTML = h.trim(); return t.content.firstChild; };
@@ -165,7 +165,7 @@ const state = {};
 const ROLE_LABEL = { embed: "埋め込み", nli: "含意", rerank: "関連度" };
 async function renderModelBars() {
   const reg = await registry(); const bars = $$(".modelbar"); if (!bars.length) return;
-  const html = `<span class="tiny muted">使用モデル（★自作＝本研究で学習した FactCheck-BERT、土台＝その学習前、既存＝公開モデル）：</span>` + ["embed", "nli", "rerank"].map(r => `<label class="mb"><span>${ROLE_LABEL[r]}</span><select data-role="${r}">${[...reg.browser].filter(m => m.role === r).sort((a, b) => ({ own: 0, base: 1 }[a.kind] ?? 2) - ({ own: 0, base: 1 }[b.kind] ?? 2)).map(m => `<option value="${esc(m.name)}" ${ML.modelName(r) === m.name ? "selected" : ""}>${m.kind === "own" ? "★自作 " : m.kind === "base" ? "土台 " : "既存 "}${esc(m.name)}${m.kind === "own" ? `（土台 ${esc((m.base_model || "").split("/").pop())}）` : ""}（${m.ctx >= 8192 ? "8192" : m.ctx}・${m.size_mb}MB）</option>`).join("")}</select></label>`).join("") + `<a href="#models" class="tiny" data-go="models">詳細</a>`;
+  const html = `<span class="tiny muted">使用モデル（★自作＝本研究で学習した FactCheck-BERT、土台＝その学習前、既存＝公開モデル）：</span>` + ["embed", "nli", "rerank"].map(r => `<label class="mb${r === "rerank" ? " research-only" : ""}"><span>${ROLE_LABEL[r]}</span><select data-role="${r}">${[...reg.browser].filter(m => m.role === r).sort((a, b) => ({ own: 0, base: 1 }[a.kind] ?? 2) - ({ own: 0, base: 1 }[b.kind] ?? 2)).map(m => `<option value="${esc(m.name)}" ${ML.modelName(r) === m.name ? "selected" : ""}>${m.kind === "own" ? "★自作 " : m.kind === "base" ? "土台 " : "既存 "}${esc(m.name)}${m.kind === "own" ? `（土台 ${esc((m.base_model || "").split("/").pop())}）` : ""}（${m.ctx >= 8192 ? "8192" : m.ctx}・${m.size_mb}MB）</option>`).join("")}</select></label>`).join("") + `<a href="#models" class="tiny research-only" data-go="models">詳細</a>`;
   for (const b of bars) { b.innerHTML = html; b.querySelectorAll("select").forEach(sel => sel.onchange = () => { ML.setModelName(sel.dataset.role, sel.value); state[sel.dataset.role] = null; renderModelBars(); }); b.querySelector("[data-go]").onclick = e => { e.preventDefault(); show("models"); }; }
 }
 async function models(onStep, roles = ["embed", "nli"]) { for (const r of roles) if (!state[r] || state[r].name !== ML.modelName(r)) state[r] = await ML.get(r, m => onStep?.(m)); return state; }

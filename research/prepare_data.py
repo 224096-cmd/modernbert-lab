@@ -24,7 +24,7 @@ random.seed(0)
 AFC_URL = "https://raw.githubusercontent.com/FujitsuResearch/japanese-dataset-for-automated-fact-checking/main/data/japanese-dataset-for-automated-fact-checking.csv"
 LIVEDOOR_URL = "https://www.rondhuit.com/download/ldcc-20140209.tar.gz"
 LAB = {"True": 0, "NEI": 1, "False": 2}
-JSNLI_N = 60000
+JSNLI_N = int(os.environ.get("JSNLI_N", 60000))  # 環境変数で抽出数を変えられる（0 で JSNLI なし）
 
 
 def w(path, rows):

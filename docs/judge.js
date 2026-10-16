@@ -90,20 +90,34 @@ export async function verify(claim, items, emb, nli, onStep = () => { }) {
   if (!idx.length) return { claim, verdict: "insufficient", support: 0, refute: 0, evidence: [], n_passages: passages.length, best_sim: +best.toFixed(3) };
   const neg = V.polarity_check === false ? null : negate(claim);
   onStep(`含意判定 ${idx.length} 段落${neg ? "（否定形でも照合）" : ""}`);
-  const texts = idx.map(i => passages[i].text); const pr = await nli.predict(texts, idx.map(() => claim)); const pn = neg ? await nli.predict(texts, idx.map(() => neg)) : null;
-  let sup = 0, ref = 0, flipped = 0; const ds = new Set(), dr = new Set(); const ev = [];
-  idx.forEach((i, k) => { const [e, n, c] = pr[k]; const w = passages[i].s_source ?? 0.5; let kind = e >= V.support_min ? "support" : c >= V.refute_min ? "refute" : "neutral"; let note = "";
-    if (pn && kind !== "neutral") { const [e2, , c2] = pn[k]; const kind2 = e2 >= V.support_min ? "support" : c2 >= V.refute_min ? "refute" : "neutral"; if (kind2 === kind) { kind = "neutral"; flipped++; note = "極性不定（否定形でも同じ判定）"; } }
-    if (kind === "support") { sup += w * e; ds.add(passages[i].domain); } if (kind === "refute") { ref += w * c; dr.add(passages[i].domain); }
-    ev.push({ url: passages[i].url, domain: passages[i].domain, text: passages[i].text.slice(0, 240), sim: +sims[i].toFixed(3), entail: +e.toFixed(3), neutral: +n.toFixed(3), contra: +c.toFixed(3), kind, note, published: passages[i].published }); });
+  const terms = claimTerms(claim); const margin = V.margin ?? 0.3;
+  /* 含意モデルは「文 対 文」で学習しているので、段落全体ではなく「主張の語・数値を最も多く含む 1〜2 文」を前提にして判定する（段落全体を渡すと短い主張に対してほぼ常に矛盾と答える） */
+  const focus = idx.map(i => focusSentence(passages[i].text, terms));
+  const texts = focus.map(f => f.text); const pr = await nli.predict(texts, idx.map(() => claim)); const pn = neg ? await nli.predict(texts, idx.map(() => neg)) : null;
+  let sup = 0, ref = 0, flipped = 0, termDrop = 0, ruled = 0; const ds = new Set(), dr = new Set(); const ev = [];
+  idx.forEach((i, k) => { const [e, n, c] = pr[k]; const w = passages[i].s_source ?? 0.5; const t = focus[k].text; let note = "";
+    /* 一致・矛盾は「確率がしきい値以上」かつ「一致と矛盾の差が margin 以上」のときだけ。差が小さい文は判定しない（無関係＝中立は埋め込みの類似度側で決め、含意モデルには 2 値しか求めない） */
+    let kind = (e >= V.support_min && e - c >= margin) ? "support" : (c >= V.refute_min && c - e >= margin) ? "refute" : "neutral";
+    /* 主張の語が文に 1 つも無ければ、話題が近いだけなので根拠にしない */
+    if (V.require_term !== false && terms.words.length && focus[k].hits === 0) { kind = "neutral"; termDrop++; note = "主張の語が段落に無い"; }
+    else if (terms.nums.length) {
+      /* 数値の主張は規則で決める：同じ語と同じ数値（単位つき）があれば一致、同じ語と単位で数値が違えば矛盾。数値が無ければ支持にはしない */
+      let r = numericRule(t, terms); if (r && terms.negative) r = r === "support" ? "refute" : "support"; if (r) { kind = r; ruled++; note = (r === "support") !== !!terms.negative ? "数値一致" : "数値が異なる"; if (terms.negative) note += "（主張は否定形）"; }
+      else if (kind === "support") { kind = "neutral"; termDrop++; note = "主張の数値が段落に無い"; }
+    }
+    if (pn && kind !== "neutral" && !ruled_(note)) { const [e2, , c2] = pn[k]; const kind2 = e2 >= V.support_min ? "support" : c2 >= V.refute_min ? "refute" : "neutral"; if (kind2 === kind) { kind = "neutral"; flipped++; note = "極性不定（否定形でも同じ判定）"; } }
+    const conf = ruled_(note) ? 1.0 : kind === "support" ? e : c;  /* 規則で決めた文は固定の確信度 */
+    if (kind === "support") { sup += w * conf; ds.add(passages[i].domain); } if (kind === "refute") { ref += w * conf; dr.add(passages[i].domain); }
+    ev.push({ url: passages[i].url, domain: passages[i].domain, text: t.slice(0, 240), sim: +sims[i].toFixed(3), entail: +e.toFixed(3), neutral: +n.toFixed(3), contra: +c.toFixed(3), kind, note, published: passages[i].published }); });
   const T = V.verdict; const minDom = T.min_domains ?? 2;
   /* 支持・否定とも「2 つ以上の独立した情報源」が無ければ確定させない（1 サイトだけの根拠は insufficient 寄りに） */
   const strongSup = sup >= T.supported && ds.size >= minDom, strongRef = ref >= T.refuted && dr.size >= minDom;
-  const verdict = (strongSup && ref < sup * T.mixed_ratio) ? "supported" : (strongRef && sup < ref * T.mixed_ratio) ? "refuted" : (sup + ref >= 1.0 && (ds.size + dr.size) >= minDom) ? "mixed" : "insufficient";
+  /* 混在は「一致と矛盾の両方に根拠がある」ときだけ。片側しか無くて弱いときは根拠不足 */
+  const verdict = (strongSup && ref < sup * T.mixed_ratio) ? "supported" : (strongRef && sup < ref * T.mixed_ratio) ? "refuted" : (sup > 0 && ref > 0 && (ds.size + dr.size) >= minDom) ? "mixed" : "insufficient";
   /* 各サイトの要点：主張に最も近い段落 2 つ（埋め込みは計算済みなので追加コストなし） */
   const bySite = {}; order.forEach(i => { const u = passages[i].url; (bySite[u] ||= []).length < 2 && bySite[u].push({ text: passages[i].text.slice(0, 200), sim: +sims[i].toFixed(3) }); });
   ev.sort((a, b) => (b.kind === "neutral" ? 0 : Math.max(b.entail, b.contra)) - (a.kind === "neutral" ? 0 : Math.max(a.entail, a.contra)));
-  return { claim, verdict, support: +sup.toFixed(2), refute: +ref.toFixed(2), support_domains: [...ds].sort(), refute_domains: [...dr].sort(), evidence: ev.slice(0, 12), n_passages: passages.length, n_checked: idx.length, best_sim: +best.toFixed(3), negated: neg, n_polarity_dropped: flipped, key_sentences: bySite };
+  return { claim, verdict, support: +sup.toFixed(2), refute: +ref.toFixed(2), support_domains: [...ds].sort(), refute_domains: [...dr].sort(), evidence: ev.slice(0, 12), n_passages: passages.length, n_checked: idx.length, n_term_dropped: termDrop, n_ruled: ruled, best_sim: +best.toFixed(3), negated: neg, n_polarity_dropped: flipped, key_sentences: bySite };
 }
 export async function cluster(items, emb) {
   if (!items.length) return []; const X = await emb.encode(items.map(it => (it.title || "") + " " + (it.snippet || "").slice(0, 200)), "topic"); const th = P.cluster.threshold; const lab = new Array(items.length).fill(-1); let c = 0;
@@ -111,4 +125,40 @@ export async function cluster(items, emb) {
   const g = {}; items.forEach((it, i) => { it.cluster = lab[i]; (g[lab[i]] ||= []).push(it); });
   return Object.entries(g).map(([id, arr]) => { arr.sort((a, b) => (a.published || "9999").localeCompare(b.published || "9999")); return { id: +id, size: arr.length, domains: [...new Set(arr.map(x => hostOf(x.url)))].sort(), first: arr[0].published, first_url: arr[0].url, title: arr.reduce((b, x) => (x.reliability || 0) > (b.reliability || 0) ? x : b, arr[0]).title, reliability: Math.round(arr.reduce((s, x) => s + (x.reliability || 0), 0) / arr.length) }; }).sort((a, b) => b.size - a.size);
 }
-export const VERDICT = { supported: ["支持される", "ok"], refuted: ["否定される", "bad"], mixed: ["食い違いあり", "warn"], insufficient: ["根拠不足", "muted"] };
+export const VERDICT = { supported: ["一致する根拠あり", "ok"], refuted: ["矛盾する根拠あり", "bad"], mixed: ["一致と矛盾が混在", "warn"], insufficient: ["根拠不足", "muted"] };
+const ruled_ = note => /^数値/.test(note || "");
+/* 段落から「主張の語・数値を最も多く含む文」を選ぶ。短ければ前の文も付ける（前提は文 1〜2 個、最大 200 字） */
+export function focusSentence(text, terms) {
+  const ss = text.split(/(?<=[。．！？!?])\s*/).map(x => x.trim()).filter(x => x.length >= 6); if (!ss.length) return { text: text.slice(0, 200), hits: 0 };
+  const hit = x => terms.words.filter(w => x.includes(w)).length + terms.nums.filter(n => x.replace(/,/g, "").includes(n)).length;
+  const score = x => hit(x) + (terms.nums.length && /\d/.test(x) ? 0.5 : 0);
+  let bi = 0, bh = -1; ss.forEach((x, i) => { const h = score(x); if (h > bh) { bh = h; bi = i; } });
+  let t = ss[bi];
+  /* 主張の語の一部が隣の文にある（「富士山は…。標高は 3,776m で…」のように主語が前の文にある）場合は、その文もつなげる */
+  const missing = terms.words.filter(w => !t.includes(w));
+  if (missing.length) { if (bi > 0 && missing.some(w => ss[bi - 1].includes(w))) t = ss[bi - 1] + t; }
+  else if (t.length < 40 && bi > 0) t = ss[bi - 1] + t;
+  return { text: t.slice(0, 200), hits: Math.max(0, hit(t)) };
+}
+const UNIT_ALT = { m: ["m", "メートル", "ｍ"], km: ["km", "キロ", "キロメートル"], kg: ["kg", "キロ", "キログラム"], g: ["g", "グラム"], "%": ["%", "％", "パーセント"], "％": ["%", "％", "パーセント"], cm: ["cm", "センチ"], mm: ["mm", "ミリ"], "℃": ["℃", "度"] };
+const unitAlts = u => (UNIT_ALT[u] || [u]).map(x => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+/* 数値の規則：主張「…は 3,776m …」に対し、文に同じ語があり、同じ単位の数値があれば比べる。一致→ support、不一致→ refute、数値なし→ null */
+export function numericRule(sent, terms) {
+  if (!terms.nums.length || !terms.units?.length) return null; const s = sent.replace(/,/g, "");
+  /* 主張の語がすべて同じ文に無ければ規則は使わない（別の物の数値を比べないため） */
+  if (!terms.words.length || !terms.words.every(w => s.includes(w))) return null;
+  let seen = false;
+  for (const [num, unit] of terms.units) { const re = new RegExp("(\\d[\\d.]*)\\s*(?:" + unitAlts(unit) + ")", "g"); let m; while ((m = re.exec(s))) { seen = true; if (m[1].replace(/\.$/, "") === num) return "support"; } }
+  return seen ? "refute" : null;
+}
+/* 主張から照合に使う語を取り出す：数値（年・金額・％など）と、漢字・カタカナ・英数の 2 文字以上の語。助詞や語尾は含めない */
+export function claimTerms(claim) {
+  const nums = [...new Set((claim.match(/\d[\d,.]*/g) || []).map(x => x.replace(/,/g, "").replace(/\.$/, "")).filter(x => x.length >= 2))];
+  const STOP = /^(こと|もの|ため|これ|それ|あれ|とき|場合|以上|以下|about|the)$/;
+  const words = [...new Set((claim.match(/[一-龠々]{2,}|[ァ-ヶー]{2,}|[A-Za-z][A-Za-z0-9\-]{1,}/g) || []).filter(w => !STOP.test(w)))];
+  /* 数値とその直後の単位（m、万人、年、％ など 1〜2 文字）。単位が無い数値は規則に使わない */
+  const units = []; const re = /(\d[\d,.]*)\s*([a-zA-Z%％°℃]{1,3}|[万億兆千百]?[人円件年月日歳倍点個台本回分秒件m]{1,2})/g; let m;
+  while ((m = re.exec(claim))) { const n = m[1].replace(/,/g, "").replace(/\.$/, ""); if (n.length >= 2) units.push([n, m[2]]); }
+  const negative = /(ではない|ではありません|じゃない|ない|ません)[。]?$/.test(claim.trim());
+  return { nums, words, units, negative };
+}

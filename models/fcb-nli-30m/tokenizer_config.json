@@ -13,7 +13,7 @@
   "legacy": false,
   "local_files_only": false,
   "mask_token": "<mask>",
-  "max_length": 256,
+  "max_length": 384,
   "model_max_length": 1000000000000000019884624838656,
   "pad_to_multiple_of": null,
   "pad_token": "<pad>",
